@@ -156,6 +156,3 @@ Current Progress
 
 ---
 
-## 📄 License
-
-This project is developed for academic purposes at GLA University, Mathura.
