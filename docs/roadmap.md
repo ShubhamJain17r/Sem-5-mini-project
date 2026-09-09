@@ -14,7 +14,7 @@
 | Clone `xArm-Developer/xarm_ros2`  | Verify SDK and serial driver communication                                                                                                  |
 | Mount 80×60 cm Baseboard          | Secure flat baseboard on workbench                                                                                                          |
 | Mount Arms Front-to-Back          | Mount Arm 2 (Front @ 180 mm) and Arm 1 (Back @ 420 mm) flat on baseboard ($Z=0$), collinear along $X = 360\text{ mm}$ ($S = 240\text{ mm}$) |
-| Build Elevated Arena Platform     | Cut 20 mm board for RIGHT side; cover with high-friction silicone mat                                                                    |
+| Build Elevated Arena Platform     | Cut 20 mm board for RIGHT side; cover with high-friction silicone mat                                                                       |
 | Mount 4 ArUco Markers on Arena    | Mount Markers 0 & 2 collinear with arms; Markers 1 & 3 on outer boundary (all at $Z=15\text{--}20\text{ mm}$)                               |
 | Install Sector Barriers           | Place curved physical barriers at $R_{\min}=100\text{ mm}$ and $R_{\max}=240\text{ mm}$ on the right                                        |
 | Mount NW / SW Collection Boxes    | Secure Box 1 in North-West ($\approx +125^\circ$) and Box 2 in South-West ($\approx -125^\circ$) at table level ($0\text{ mm}$)             |
@@ -28,7 +28,8 @@
 
 ## 🏫 College Week 2 — Vision Pipeline (Dedicated Arena Framing)
 
-**Goal**: OpenCV pipeline running live, rectifying solely the elevated picking arena.
+**Goal**: OpenCV pipeline running live, rectifying solely the elevated picking arena.  
+**Reference Document**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3)
 
 | Task                       | Detail                                                                                          |
 | -------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -64,15 +65,15 @@
 **Goal**: One arm executes radial approach pick on elevated arena and drops into its dedicated NW/SW box.  
 **Reference Document**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2)
 
-| Task                                | Detail                                                                                                                 |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Implement Analytical IK & Pitch LUT | Implement `XArmKinematics` solver from Stepping Stone 2 with dual-regime wrist roll                                    |
-| Calibrate NW/SW Bin Coordinates     | Jog Arm 1 to Box 1 (NW) and Arm 2 to Box 2 (SW), record $(x, y, z)$ in `bin_coordinates.yaml`                          |
-| Calibrate Pitch LUT                 | Empirically tune pitch angle $\alpha(r)$ from $R=12\text{ cm} (d_{\text{edge}}=5\text{ cm})$ ($45^\circ$) to $R=32\text{ cm} (d_{\text{edge}}=25\text{ cm})$ ($15^\circ$)           |
-| Implement Radial Standoff           | Move to $r - 30\text{ mm}$, open claw, advance radially onto $15\text{ mm}$ raised surface                             |
-| Verify Friction Grasp               | Test clamping cubes on silicone mat—verify zero forward sliding                                                        |
-| Run Full Pick-and-Drop Loop         | Pick on right $\rightarrow$ ascend $\rightarrow$ swing 205° to NW/SW box $\rightarrow$ drop in cell $\rightarrow$ home |
-| Repeat for xArm 2                   | Calibrate Arm 2's Pitch LUT and SW box coordinates                                                                     |
+| Task                                | Detail                                                                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implement Analytical IK & Pitch LUT | Implement `XArmKinematics` solver from Stepping Stone 2 with dual-regime wrist roll                                                                                       |
+| Calibrate NW/SW Bin Coordinates     | Jog Arm 1 to Box 1 (NW) and Arm 2 to Box 2 (SW), record $(x, y, z)$ in `bin_coordinates.yaml`                                                                             |
+| Calibrate Pitch LUT                 | Empirically tune pitch angle $\alpha(r)$ from $R=12\text{ cm} (d_{\text{edge}}=5\text{ cm})$ ($45^\circ$) to $R=32\text{ cm} (d_{\text{edge}}=25\text{ cm})$ ($15^\circ$) |
+| Implement Radial Standoff           | Move to $r - 30\text{ mm}$, open claw, advance radially onto $15\text{ mm}$ raised surface                                                                                |
+| Verify Friction Grasp               | Test clamping cubes on silicone mat—verify zero forward sliding                                                                                                           |
+| Run Full Pick-and-Drop Loop         | Pick on right $\rightarrow$ ascend $\rightarrow$ swing 205° to NW/SW box $\rightarrow$ drop in cell $\rightarrow$ home                                                    |
+| Repeat for xArm 2                   | Calibrate Arm 2's Pitch LUT and SW box coordinates                                                                                                                        |
 
 **Exit criteria**: Both arms individually pick from raised arena and sort into their dedicated NW/SW boxes with > 95% success.
 

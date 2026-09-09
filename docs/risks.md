@@ -8,7 +8,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 | ID       | Category   | Risk Description                                              |   Severity   | Probability | Primary Mitigation                                                                                              |
 | -------- | ---------- | ------------------------------------------------------------- | :----------: | :---------: | --------------------------------------------------------------------------------------------------------------- |
-| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 20 mm elevated arena + high-friction silicone mat + textured claw pads                                       |
+| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 20 mm elevated arena + high-friction silicone mat + textured claw pads                                          |
 | **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 320\text{ mm}$) + $65\text{ mm}$ Motor 2 height alignment                           |
 | **R-03** | Vision     | Non-coplanar ArUco distortion if markers sit at mixed heights |   **High**   |   **Low**   | Mount all 4 ArUco markers directly on the raised arena ($Z = 15\text{--}20\text{ mm}$)                          |
 | **R-04** | Vision     | HSV color threshold drift from changing lab lights            |   **High**   | **Medium**  | Fixed camera exposure + dedicated 5V diffuse LED ring                                                           |

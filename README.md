@@ -167,6 +167,7 @@ Sem-3-mini-project/
 ├── docs/                           # Stepping-Stone & System Documentation
 │   ├── 01_arena_and_layout.md      # Stepping Stone 1: Arena & Component Placement
 │   ├── 02_kinematics_and_grasp_planning.md # Stepping Stone 2: Kinematics & Grasp Planning
+│   ├── 03_computer_vision_and_calibration.md # Stepping Stone 3: Vision & Calibration Pipeline
 │   ├── design.png                  # High-resolution architectural schematic
 │   ├── implementation_plan.md      # System architecture & integration blueprint
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
