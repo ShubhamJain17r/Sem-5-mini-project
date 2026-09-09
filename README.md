@@ -62,7 +62,7 @@ This project automates color-based object sorting using computer vision, inverse
 │                                  (Operator Position)                                   │
 │                                                                                        │
 │   ◄─── LEFT (Drop Zone & Electronics) ───►  │  ◄─── RIGHT (Calibrated Arena) ───►      │
-│   (Boxes @ Z = 0 mm, Bay @ Z = 0 mm)        │  (4 ArUco markers on Z = 15-20 mm)       │
+│   (Boxes @ Z = 0 mm, Bay @ Z = 0 mm)        │  (4 ArUco markers on Z = 20 mm)       │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
   Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm

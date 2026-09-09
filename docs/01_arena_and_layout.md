@@ -16,10 +16,10 @@ The entire workcell is constructed on a single rigid wooden or aluminum baseboar
    │  │                                                            │
    │  │   [Box 1 - NW]          xArm 1 (Back @ 420mm)              │
    │  │                                        \                   │
-   │  │                                         \ CONTINUOUS       │
+   │  │                                         \ EXPANDED         │
    │  │   [Central Electronics   Collinear Axis  │ STADIUM ARENA   │
-   │  │    Bay: Jetson & Hub]    (X = 360 mm)    │ (Elevated 15mm) │
-   │  │                                         /                  │
+   │  │    Bay: Jetson & Hub]    (X = 360 mm)    │ (Elevated 20mm) │
+   │  │                                         /  (> 2,100 cm²)   │
    │  │   [Box 2 - SW]          xArm 2 (Front @ 180mm)             │
    │  │                                                            │
    │  │ FRONT OF WORKSPACE (Operator Position @ Y = 0 mm)          │
@@ -39,36 +39,62 @@ The entire workcell is constructed on a single rigid wooden or aluminum baseboar
 
 The two xArm 1s manipulators are mounted along a single shared physical line of symmetry at **$X = 360\text{ mm}$**:
 
-| Manipulator            |    Center Coordinate $(X, Y)$    |        Mounting Elevation         | Operating Role                                          |
-| ---------------------- | :------------------------------: | :-------------------------------: | ------------------------------------------------------- |
-| **xArm 2 (Front Arm)** | $(360\text{ mm}, 180\text{ mm})$ | $Z = 0\text{ mm}$ (Flat on Table) | Covers front arena sector & drops into South-West Box 2 |
-| **xArm 1 (Back Arm)**  | $(360\text{ mm}, 420\text{ mm})$ | $Z = 0\text{ mm}$ (Flat on Table) | Covers back arena sector & drops into North-West Box 1  |
+| Manipulator | Center Coordinate $(X, Y)$ | Mounting Elevation | Operating Role |
+|---|:---:|:---:|---|
+| **xArm 2 (Front Arm)** | $(360\text{ mm}, 180\text{ mm})$ | $Z = 0\text{ mm}$ (Flat on Table) | Covers front arena sector ($Y < 300\text{ mm}$) & drops into South-West Box 2 |
+| **xArm 1 (Back Arm)** | $(360\text{ mm}, 420\text{ mm})$ | $Z = 0\text{ mm}$ (Flat on Table) | Covers back arena sector ($Y \ge 300\text{ mm}$) & drops into North-West Box 1 |
 
-### Kinematic Spacing Verification
-
+### 2.1 Kinematic Spacing Verification:
 - **Center-to-Center Spacing**: $S = 420 - 180 = \mathbf{240\text{ mm}}$.
-- **Baseplate Air Gap**: With baseplate dimensions of $154\text{ mm} \times 140\text{ mm}$ ([`docs/xArm demensions.png`](file:///d:/Sem-3-mini-project/docs/xArm%20demensions.png)), the clear gap between bases is:
+- **Baseplate Dimensions**: $140\text{ mm} \text{ (Width along } X) \times 154\text{ mm} \text{ (Length along } Y)$ ([`docs/xArm demensions.png`](xArm%20demensions.png)).
+- **Baseplate Center-to-Edge Offset**:
+  $$d_{\text{offset}} = \frac{140\text{ mm}}{2} = \mathbf{70\text{ mm}}$$
+  *(From the Motor 1 central yaw rotation axis to the outer flat edge facing the picking arena)*.
+- **Baseplate Air Gap**: With baseplate length of $154\text{ mm}$ along $Y$:
   $$\text{Gap}_{\text{bases}} = 240 - 154 = \mathbf{86\text{ mm}}$$
 - **Table Margins**: Front and back margins are symmetrically identical at $180\text{ mm}$ ($103\text{ mm}$ clear from baseplate edge to table edge), leaving ample space for ArUco markers and boom clamping.
-- **Midline Reach**: Midline partition is at $Y = 300\text{ mm}$ ($120\text{ mm}$ from each arm). A cube at the center of the arena ($X = 150\text{ mm}$) requires:
-  $$R = \sqrt{150^2 + 120^2} = 192.1\text{ mm}$$
-  Both arms easily reach across the midline without exceeding their maximum bounded reach of $R_{\max} = 240\text{ mm}$.
+- **Midline Reach**: Midline partition is at $Y = 300\text{ mm}$ ($120\text{ mm}$ from each arm center). Both arms easily cover the midline without strain.
 
 ---
 
-## 3. Drop Zone Architecture: Solving the $240^\circ$ Base Servo ROM
+## 3. Picking Arena Dimensions & Dual Coordinate Systems
 
-### 3.1 The Hardware Constraint
+### 3.1 Resolving the Edge vs. Center Coordinate Measurement
+- **User Reference ($d_{\text{edge}}$)**: Distance measured from the **outer flat edge of the baseplate** (suction cup plate) into the arena.
+- **Kinematic Center Reference ($R_{\text{center}}$)**: Distance measured from the **central axis of rotation of Motor 1** used in Forward/Inverse Kinematics and polar transformations.
+- **Exact Conversion**:
+  $$R_{\text{center}} = d_{\text{edge}} + 70\text{ mm}$$
 
+### 3.2 Operating Boundaries
+| Boundary | From Baseplate Edge ($d_{\text{edge}}$) | From Robot Center ($R_{\text{center}}$) | Engineering Rationale |
+|---|:---:|:---:|---|
+| **Inner Boundary ($R_{\min}$)** | **$50\text{ mm}$ ($5\text{ cm}$)** | **$120\text{ mm}$ ($12\text{ cm}$)** | Provides $50\text{ mm}$ clearance from baseplate edge; prevents claw collision with base screws and avoids camera blindspots. |
+| **Outer Boundary ($R_{\max}$)** | **$250\text{ mm}$ ($25\text{ cm}$)** | **$320\text{ mm}$ ($32\text{ cm}$)** | Leaves $24\text{ mm}$ safety margin before absolute straight-arm lock ($274\text{ mm}$ from edge); keeps elbow at $\approx 122^\circ$ to prevent motor stall. |
+| **Absolute Mechanical Limit** | $274\text{ mm}$ ($27.4\text{ cm}$) | $344\text{ mm}$ ($34.4\text{ cm}$) | Straight-arm reach ($L_1 + L_2 + L_3$); elbow locked at $180^\circ$ singularity. |
+
+- **Radial Depth**: $\Delta R = 320 - 120 = \mathbf{200\text{ mm}} = \mathbf{20\text{ cm}}$ (a $+43\%$ increase over earlier $14\text{ cm}$ span).
+- **Usable Arena Surface Area**: $> \mathbf{2{,}100\text{ cm}^2}$ (spans $\approx 370\text{ mm} \times 500\text{ mm}$, comfortably fitting 25–30 scattered $25\text{ mm}$ cubes).
+- **Right Baseboard Margin**: Outer edge of arena reaches $X = 360 + 320 = \mathbf{680\text{ mm}}$, leaving a generous $120\text{ mm}$ ($12\text{ cm}$) margin on the $800\text{ mm}$ board.
+
+### 3.3 Elevation Setup (+20 mm)
+- The picking arena platform is elevated by **$+20\text{ mm}$** above the baseboard ($Z = +20\text{ mm}$).
+- Lined with a high-friction matte silicone mat ($\mu \approx 0.8$).
+- Cube center sits at $Z_{\text{cube}} = 20 + 12.5 = \mathbf{32.5\text{ mm}}$.
+- Motor 2 shoulder axis sits at $Z = 65\text{ mm}$.
+- **Result**: The vertical drop from Motor 2 to cube center is only $65 - 32.5 = \mathbf{32.5\text{ mm}}$, enabling a near-horizontal grasp approach ($\phi \approx -5^\circ$) at $d_{\text{edge}} = 25\text{ cm}$ without requiring any complex grooves or baseboard cutting.
+
+---
+
+## 4. Drop Zone Architecture: Solving the $240^\circ$ Base Servo ROM
+
+### 4.1 The Hardware Constraint:
 The **LewanSoul / Hiwonder LX-15D** bus servos driving the arm base yaw have a maximum mechanical travel range of **$240^\circ$** ($0\text{ to }1000$ tick range).
-
 - If the servo's mechanical center ($120^\circ$) points East toward the picking arena ($0^\circ$), it can only swing:
   - Counter-Clockwise (CCW): up to $+120^\circ$ (North-West)
   - Clockwise (CW): down to $-120^\circ$ (South-West)
 - **Due West ($180^\circ$, directly behind the arm) is a physical deadzone.** Attempting a $180^\circ$ drop swing causes servo stall or internal gear damage.
 
-### 3.2 The Angled NW / SW Drop Box Solution
-
+### 4.2 The Angled NW / SW Drop Box Solution:
 By moving the collection boxes to the **North-West (NW)** and **South-West (SW)** corners of each arm's reachable arc, the drop motion remains well within the $240^\circ$ physical limit:
 
 ```text
@@ -82,120 +108,51 @@ By moving the collection boxes to the **North-West (NW)** and **South-West (SW)*
   Total Travel: 205° <= 240°        Total Travel: 205° <= 240°
 ```
 
-| Component                      |    Coordinate Center $(X, Y)$    |     Elevation     |       Angular Orientation from Arm Base       |
-| ------------------------------ | :------------------------------: | :---------------: | :-------------------------------------------: |
+| Component | Coordinate Center $(X, Y)$ | Elevation | Angular Orientation from Arm Base |
+|---|:---:|:---:|:---:|
 | **Box 1 (Dedicated to Arm 1)** | $(115\text{ mm}, 500\text{ mm})$ | $Z = 0\text{ mm}$ | **North-West** ($\approx +125^\circ$ azimuth) |
 | **Box 2 (Dedicated to Arm 2)** | $(115\text{ mm}, 100\text{ mm})$ | $Z = 0\text{ mm}$ | **South-West** ($\approx -125^\circ$ azimuth) |
-| **Central Electronics Bay**    | $(130\text{ mm}, 300\text{ mm})$ | $Z = 0\text{ mm}$ |   Centered between boxes on the left flank    |
+| **Central Electronics Bay** | $(115\text{ mm}, 300\text{ mm})$ | $Z = 0\text{ mm}$ | Centered between boxes on the left flank |
 
-- **Arm 1 Travel Envelope**: Picks between $-75^\circ$ (midline) and $+35^\circ$ (back-right). Swings CCW to $+125^\circ$ for drop. Total span: $35^\circ - (-75^\circ) + 90^\circ = \mathbf{200^\circ} < 240^\circ$.
-- **Arm 2 Travel Envelope**: Picks between $-35^\circ$ (front-right) and $+75^\circ$ (midline). Swings CW to $-125^\circ$ for drop. Total span: $75^\circ - (-35^\circ) + 90^\circ = \mathbf{200^\circ} < 240^\circ$.
+- **Arm 1 Travel Envelope**: Picks between $-23^\circ$ (midline) and $+24^\circ$ (back-right). Swings CCW to $+125^\circ$ for drop. Total span: $\approx 148^\circ \le 205^\circ < 240^\circ$.
+- **Arm 2 Travel Envelope**: Picks between $-24^\circ$ (front-right) and $+23^\circ$ (midline). Swings CW to $-125^\circ$ for drop. Total span: $\approx 148^\circ \le 205^\circ < 240^\circ$.
 
 ---
 
-## 4. Central Electronics & Power Bay
+## 5. Central Electronics & Power Bay
 
-Relocating Box 1 to the North-West and Box 2 to the South-West opens up a large, unutilized rectangular area on the left flank ($X \in [50, 210\text{ mm}], Y \in [220, 380\text{ mm}]$).
+Relocating Box 1 to the North-West and Box 2 to the South-West opens up a large, unutilized rectangular area on the left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$).
 
 This area is designated as the **Central Electronics & Wiring Bay**:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                 CENTRAL ELECTRONICS BAY                     │
-│                                                             │
-│   ┌───────────────────────┐     ┌───────────────────────┐   │
-│   │ Jetson Nano / RPi 5   │     │ 7.4V / 10A Power Hub  │   │
-│   │ • ROS 2 Compute Node  │     │ • Step-down Regulators│   │
-│   │ • USB-UART Ports      │     │ • Common Ground Bus   │   │
-│   └───────────┬───────────┘     └───────────┬───────────┘   │
-│               │                             │               │
-│               ▼                             ▼               │
-│      USB Serial to Arm 1            7.4V Power to Arm 1     │
-│      USB Serial to Arm 2            7.4V Power to Arm 2     │
-│      USB Overhead Camera            12V DC Input Barrel     │
+│               (X: 55-175 mm, Y: 215-385 mm)                 │
+├─────────────────────────────────────────────────────────────┤
+│  1. Jetson Nano / Raspberry Pi 5 (Top Sub-Bay)              │
+│     - Mount: M2.5 nylon standoffs on baseboard              │
+│     - USB runs to Arm 1 & Arm 2: < 25 cm direct serial runs  │
+│     - Zero cable drag or snagging during 205° drop swing    │
+├─────────────────────────────────────────────────────────────┤
+│  2. Dual 7.4V / 10A Power Distribution Hub (Bottom Sub-Bay)  │
+│     - 2x Independent Buck Regulators (7.4V @ 5A each)        │
+│     - Common ground star-point connection                   │
+│     - 1000 µF low-ESR buffer capacitors per arm rail         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Advantages
-
-1. **Ultra-Short Cable Runs**: USB-serial cables to Arm 1 ($20\text{ cm}$) and Arm 2 ($20\text{ cm}$) minimize electromagnetic interference (EMI) and line resistance.
-2. **Camera Boom Alignment**: Sits directly underneath the camera boom stand base at $Y = 300\text{ mm}$.
-3. **Thermal Safety**: Away from student hands and arm moving linkages, with room for passive aluminum heatsinks and cooling fans.
-4. **Zero Vision Intrusion**: Sits completely outside the camera's warped homography frame.
-
 ---
 
-## 5. Elevated Picking Arena Construction (+15 to 20 mm)
+## 6. Optical & Camera Mounting Specifications
 
-### 5.1 Platform Specifications
-
-- **Platform Dimensions**: $425\text{ mm} \text{ (Width)} \times 530\text{ mm} \text{ (Depth)}$ ($X \in [330, 755\text{ mm}], Y \in [35, 565\text{ mm}]$).
-- **Core Substrate**: $16\text{ mm}$ or $18\text{ mm}$ high-density MDF or CNC-cut acrylic sheet.
-- **Surface Elevation**: $+18\text{ mm} \pm 2\text{ mm}$ above the baseboard.
-- **Why this elevation is mandatory**: The xArm 1s shoulder pitch axis (Motor 2) is at $Z = 65\text{ mm}$. Elevating the arena floor brings the center of $25\text{ mm}$ cubes to $Z \approx 30.5\text{ mm}$. The arm reaches horizontally into its highest torque band without the claw scraping the table floor.
-
-### 5.2 Silicone Friction Mat
-
-- **Material**: $1.5\text{--}2.0\text{ mm}$ food-grade silicone baking sheet.
-- **Color**: **Matte Neutral 18% Gray** (or matte light cyan). Avoid high-gloss white (causes specular hotspots from ceiling lights) and black (absorbs blue contour edges).
-- **Adhesion**: Affixed permanently using **high-tack double-sided acrylic carpet tape** or 3M 77 spray adhesive to prevent wrinkles, ripples, or bunching when the gripper slides forward during radial ingress.
-
----
-
-## 6. Physical Perimeter Barriers & Boundaries
-
-To prevent cubes from rolling off the platform or into mechanical pinch zones:
-
-| Barrier                   |                         Placement Radius                         |     Wall Height      | Purpose                                                                          |
-| ------------------------- | :--------------------------------------------------------------: | :------------------: | -------------------------------------------------------------------------------- |
-| **Outer Sector Boundary** |   Curved arc at $R_{\max} = 240\text{ mm}$ from each arm base    |   $25.0\text{ mm}$   | Prevents cubes from settling outside safe torque reach ($R > 240\text{ mm}$)     |
-| **Inner Base Shield**     |   Curved arc at $R_{\min} = 100\text{ mm}$ from each arm base    |   $20.0\text{ mm}$   | Prevents cubes from entering baseplate self-collision zone ($R < 100\text{ mm}$) |
-| **Midline Visual Marker** | Along $Y = 300\text{ mm}$ line from $X = 360$ to $650\text{ mm}$ | Flush (colored tape) | Visual reference for static task split between Arm 1 and Arm 2                   |
-
-_Vertical Clearance_: Upper arm links rotate at $Z > 65\text{ mm}$, providing $>40\text{ mm}$ of clear vertical clearance over the $25\text{ mm}$ barrier walls.
-
----
-
-## 7. Collection Box Geometry (Anti-Bounce & Funneling)
-
-Both dedicated $2\times 2$ collection boxes share identical physical features:
-
-- **Outer Box Dimensions**: $100\text{ mm} \times 100\text{ mm} \times 40\text{ mm}$ (acrylic or 3D-printed PLA).
-- **Cell Dimensions**: 4 compartments, each $46\text{ mm} \times 46\text{ mm}$ (holds up to 4–6 cubes each).
-- **Chamfered / Knife-Edge Dividers**: The internal cross-dividers feature $45^\circ$ triangular beveled knife-edges. If an arm drops a cube slightly off-center due to gear backlash, the beveled edge funnels the cube cleanly into the compartment rather than letting it balance on the rim.
-- **Acoustic / Impact Damping Floor**: Each compartment bottom is lined with a $2\text{ mm}$ square of EVA foam or craft felt to absorb impact energy and prevent cubes from bouncing into adjacent cells.
-
----
-
-## 8. Overhead Camera & Illumination Rig
-
-- **Camera Boom**: Heavy-duty vertical desktop boom stand clamped to table edge at $(X = 540\text{ mm}, Y = 300\text{ mm})$ or on the left border.
-- **Camera Height**: Fixed at **$65\text{--}75\text{ cm}$** directly over the geometric center of the elevated arena $(X = 540\text{ mm}, Y = 300\text{ mm})$.
-- **Dedicated Diffuse Lighting**: A $6\text{-inch}$ USB-powered diffuse LED ring light is mounted coaxially around the camera lens.
-- **Optical Invariance**: Camera software locks **Manual Exposure** and **Fixed White Balance (4500K)**, eliminating HSV threshold drift across morning, afternoon, and artificial room lighting.
-
----
-
-## 9. ArUco Marker Mounting & Calibration
-
-4 ArUco markers (Dictionary: `cv2.aruco.DICT_4X4_50`) frame the elevated picking arena:
-
-|  Marker ID   | Placement                         |     Nominal $(X, Y)$ Center      |                  Elevation                  |
-| :----------: | --------------------------------- | :------------------------------: | :-----------------------------------------: |
-| **ArUco #0** | Inner Front (Collinear with arms) | $(360\text{ mm}, 60\text{ mm})$  | **$Z = +18\text{ mm}$** (Elevated Platform) |
-| **ArUco #1** | Outer Front                       | $(720\text{ mm}, 60\text{ mm})$  | **$Z = +18\text{ mm}$** (Elevated Platform) |
-| **ArUco #2** | Inner Back (Collinear with arms)  | $(360\text{ mm}, 540\text{ mm})$ | **$Z = +18\text{ mm}$** (Elevated Platform) |
-| **ArUco #3** | Outer Back                        | $(720\text{ mm}, 540\text{ mm})$ | **$Z = +18\text{ mm}$** (Elevated Platform) |
-
-> [!IMPORTANT]
-> **Strict Coplanarity**: All 4 markers are mounted directly on the **elevated platform floor ($Z = +18\text{ mm}$)**. They form an exact **$360\text{ mm} \times 480\text{ mm}$ rectangular planar grid**. Markers must be printed on matte vinyl with zero glare.
-
----
-
-## 10. Cable Looming & Operational Protocols
-
-1. **Dynamic Torsion Sleeving**: Cables exiting the base of each xArm 1s are wrapped in flexible spiral wrap and anchored to the rear baseplate mounting hole with a strain-relief zip tie loop. This prevents JST connector fatigue over the $200^\circ$ rotation cycle.
-2. **Cube Scattering Protocol**:
-   - Cubes are manually or semi-automatically scattered across the elevated right-side arena.
-   - Initial separation rule: **$\ge 15\text{ mm}$ edge-to-edge separation**.
-   - Cubes must not be stacked upon initial placement.
+1. **Overhead Camera Position**:
+   - Centered over the right arena at $(X = 550\text{ mm}, Y = 300\text{ mm})$.
+   - Mounted on a rigid boom stand at a height of **$65\text{--}75\text{ cm}$** above the baseboard ($63\text{--}73\text{ cm}$ above the elevated arena surface).
+   - Field of View (FOV): Comfortably encloses the $370\text{ mm} \times 480\text{ mm}$ ArUco marker rectangle.
+2. **ArUco Marker Placement (Coplanar at $Z = +20\text{ mm}$)**:
+   - **ArUco #0**: $(360\text{ mm}, 55\text{ mm})$ — Collinear with Arm 2, Inner Front.
+   - **ArUco #1**: $(730\text{ mm}, 55\text{ mm})$ — Outer Front.
+   - **ArUco #2**: $(360\text{ mm}, 545\text{ mm})$ — Collinear with Arm 1, Inner Back.
+   - **ArUco #3**: $(730\text{ mm}, 545\text{ mm})$ — Outer Back.
+   - **Strict Coplanarity**: All 4 markers are mounted directly on the $+20\text{ mm}$ elevated platform to ensure zero homography perspective distortion.

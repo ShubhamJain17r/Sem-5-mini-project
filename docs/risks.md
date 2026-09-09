@@ -1,6 +1,6 @@
 # Risk Assessment & Mitigation Matrix — Dual xArm 1s Color-Sorting Robot
 
-This document details the physical, optical, kinematic, and algorithmic failure modes identified for the dual xArm 1s system, incorporating the **two-center stadium arena (RIGHT side)**, **NW / SW dedicated 2×2 boxes (LEFT side)**, **Central Electronics Bay**, **15–20 mm elevated arena platform**, and **arena-dedicated ArUco framing (collinear with arms)**.
+This document details the physical, optical, kinematic, and algorithmic failure modes identified for the dual xArm 1s system, incorporating the **two-center stadium arena (RIGHT side)**, **NW / SW dedicated 2×2 boxes (LEFT side)**, **Central Electronics Bay**, **20 mm elevated arena platform**, and **arena-dedicated ArUco framing (collinear with arms)**.
 
 ---
 
@@ -8,8 +8,8 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 | ID       | Category   | Risk Description                                              |   Severity   | Probability | Primary Mitigation                                                                                              |
 | -------- | ---------- | ------------------------------------------------------------- | :----------: | :---------: | --------------------------------------------------------------------------------------------------------------- |
-| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 15–20 mm elevated arena + high-friction silicone mat + textured claw pads                                       |
-| **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 240\text{ mm}$) + $65\text{ mm}$ Motor 2 height alignment                           |
+| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 20 mm elevated arena + high-friction silicone mat + textured claw pads                                       |
+| **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 320\text{ mm}$) + $65\text{ mm}$ Motor 2 height alignment                           |
 | **R-03** | Vision     | Non-coplanar ArUco distortion if markers sit at mixed heights |   **High**   |   **Low**   | Mount all 4 ArUco markers directly on the raised arena ($Z = 15\text{--}20\text{ mm}$)                          |
 | **R-04** | Vision     | HSV color threshold drift from changing lab lights            |   **High**   | **Medium**  | Fixed camera exposure + dedicated 5V diffuse LED ring                                                           |
 | **R-05** | Hardware   | Voltage brownout / servo reset under dual-arm torque          | **Critical** | **Medium**  | Separate 7.4V / 5A power supply per arm with shared ground in Central Electronics Bay                           |
@@ -50,11 +50,11 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 ### 2.4 The Elevation Setup: Why We Elevated the Arena and NOT the xArm
 
 - **Built-in Height**: Motor 2 (shoulder pitch axis) is already **$65\text{ mm}$** above the base. Raising the arm base would force the arm to point steeply down, reducing horizontal reach and scraping brackets.
-- **Elevating the arena by 15–20 mm**: Cube centers sit at $Z \approx 30\text{ mm}$, only $\approx 35\text{ mm}$ below Motor 2. The arm reaches **straight out horizontally** in its natural power band. Motor torque strain drops by ~30%.
+- **Elevating the arena by 20 mm**: Cube centers sit at $Z \approx 30\text{ mm}$, only $\approx 35\text{ mm}$ below Motor 2. The arm reaches **straight out horizontally** in its natural power band. Motor torque strain drops by ~30%.
 
-### 2.5 Bounding $R_{\max} = 240\text{ mm}$ (Eliminating Servo Stall)
+### 2.5 Bounding $R_{\max} = 320\text{ mm}$ (Eliminating Servo Stall)
 
-- Setting the outer curved boundary barrier at **$R_{\max} = 240\text{ mm}$** keeps the elbow joint at $\approx 150^\circ$, retaining full torque margin and eliminating motor stalls.
+- Setting the outer curved boundary barrier at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 150^\circ$, retaining full torque margin and eliminating motor stalls.
 
 ### 2.6 Comprehensive Kinematics, Mechanics & Grasp Planning Reference
 
@@ -69,7 +69,7 @@ Before running autonomous sorting:
 - [ ] **Coplanar Marker Level**: Confirm all 4 ArUco markers sit flat on the elevated arena platform ($Z = 15\text{--}20\text{ mm}$).
 - [ ] **Arena ROI Check**: Confirm the homography warp only shows the elevated picking arena and completely excludes the left-side drop boxes and Central Electronics Bay.
 - [ ] **Friction Check**: Test dragging a cube on the silicone mat—confirm it holds static position when lightly touched.
-- [ ] **Boundary Verification**: Jog arm to $R=240\text{ mm}$; confirm claw clears outer barrier comfortably.
+- [ ] **Boundary Verification**: Jog arm to $R=320\text{ mm}$; confirm claw clears outer barrier comfortably.
 - [ ] **Serial Latency**: Ping both arms over USB serial; confirm latency $< 15\text{ ms}$.
 - [ ] **Lighting Lock**: Confirm camera auto-exposure is disabled and HSV masks show clean bounding boxes.
 - [ ] **$240^\circ$ ROM Verification**: Manually jog Arm 1 to Box 1 (NW @ $+125^\circ$) and Arm 2 to Box 2 (SW @ $-125^\circ$); verify zero hard-stop contact and zero cable tension.

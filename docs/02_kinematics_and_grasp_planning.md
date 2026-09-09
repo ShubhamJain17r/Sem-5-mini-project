@@ -60,8 +60,8 @@ From technical measurements ([`docs/xArm demensions.png`](file:///d:/Sem-3-mini-
 | $L_3$                     | Motor 4 Wrist Axis to Gripper Fingertip Grasp Center            |        $\approx 150.0\text{ mm}$         |
 | $w_{\max}$                | Maximum Gripper Jaw Opening Width                               |             $55.0\text{ mm}$             |
 | $d_{\text{cube}}$         | Target Wooden Cube Side Length                                  |             $25.0\text{ mm}$             |
-| $Z_{\text{arena}}$        | Elevated Picking Arena Floor Surface                            |    $+15.0\text{ to } +20.0\text{ mm}$    |
-| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) | $\approx 27.5\text{ to } 32.5\text{ mm}$ |
+| $Z_{\text{arena}}$        | Elevated Picking Arena Floor Surface                            |    $++20.0\text{ mm}$    |
+| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) | $\approx 32.5\text{ mm}$ |
 
 ---
 
@@ -269,7 +269,7 @@ $$\tau_{\text{shoulder}} = m_1 g \cdot \frac{L_1}{2} \cos(\theta_2) + m_2 g \cdo
 - Mass of cube: $\approx 15\text{ g}$ (lightweight wood).
 - At full theoretical extension ($r \approx 270\text{ mm}$), $\tau_{\text{shoulder}}$ exceeds $1.4\text{ N}\cdot\text{m}$.
 - Standard bus servos (rated $1.5\text{ N}\cdot\text{m}$ stall torque) operate at **90%+ of their thermal limits**, leading to voltage sag and brownouts.
-- **By capping reach at $R_{\max} = 240\text{ mm}$ and utilizing elevated arena ($Z=+15\text{--}20\text{ mm}$)**:
+- **By capping reach at $R_{\max} = 320\text{ mm}$ and utilizing elevated arena ($Z=+15\text{--}20\text{ mm}$)**:
   $\tau_{\text{shoulder}}$ drops to $\approx 0.95\text{ N}\cdot\text{m}$ (a **32% torque reduction**), providing comfortable safety margins.
 
 ### 7.2 Friction Mat Grasp Physics
