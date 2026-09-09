@@ -19,6 +19,7 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 
 > [!NOTE]
 > For in-depth mechanical and kinematic specifications, consult the dedicated stepping stone documents:
+>
 > - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — Baseboard construction, spatial dimensions, component placements, barrier profiles, lighting, and wiring bay.
 > - **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) — Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque/friction mechanics, and 5-phase pick trajectory.
 
@@ -26,27 +27,27 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 
 ## Hardware Specifications
 
-| Component | Spec |
-|---|---|
-| Arms | 2× xArm 1s (5-DOF/6-DOF bus servo arms, Motor 2 axis at $65\text{ mm}$) |
-| Mounting | Mounted flat on main baseboard ($Z = 0\text{ mm}$) along collinear axis ($X = 360\text{ mm}$) |
-| Compute | Jetson Nano / Raspberry Pi 5 (located in Central Electronics Bay) |
-| Camera | Logitech C270 or C920 (USB) mounted on overhead boom at 60–75 cm |
-| Baseboard | $800\text{ mm} \times 600\text{ mm}$ flat rigid board |
-| Picking Arena | 15–20 mm elevated board on RIGHT side with matte silicone friction mat |
-| ArUco Setup | 4 markers framing the elevated arena: Markers 0 & 2 collinear with arms, Markers 1 & 3 on outer boundary (all at $Z = 15\text{--}20\text{ mm}$) |
-| Arena Limits | $R_{\min} = 100\text{ mm}$ inner barrier, $R_{\max} = 240\text{ mm}$ outer barrier |
-| Collection Boxes | 2× dedicated 2×2 boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, table level $Z = 0\text{ mm}$) |
-| Electronics Bay | Dedicated Central Bay on left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) |
-| Objects | Wooden cubes (25 mm), spray-painted in 4 colors |
-| Colors | Red, Green, Blue, Yellow (HSV-separated) |
-| Connectivity | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers |
+| Component        | Spec                                                                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arms             | 2× xArm 1s (5-DOF/6-DOF bus servo arms, Motor 2 axis at $65\text{ mm}$)                                                                         |
+| Mounting         | Mounted flat on main baseboard ($Z = 0\text{ mm}$) along collinear axis ($X = 360\text{ mm}$)                                                   |
+| Compute          | Jetson Nano / Raspberry Pi 5 (located in Central Electronics Bay)                                                                               |
+| Camera           | Logitech C270 or C920 (USB) mounted on overhead boom at 60–75 cm                                                                                |
+| Baseboard        | $800\text{ mm} \times 600\text{ mm}$ flat rigid board                                                                                           |
+| Picking Arena    | 15–20 mm elevated board on RIGHT side with matte silicone friction mat                                                                          |
+| ArUco Setup      | 4 markers framing the elevated arena: Markers 0 & 2 collinear with arms, Markers 1 & 3 on outer boundary (all at $Z = 15\text{--}20\text{ mm}$) |
+| Arena Limits     | $R_{\min} = 100\text{ mm}$ inner barrier, $R_{\max} = 240\text{ mm}$ outer barrier                                                              |
+| Collection Boxes | 2× dedicated 2×2 boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, table level $Z = 0\text{ mm}$)                                  |
+| Electronics Bay  | Dedicated Central Bay on left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$)                                                   |
+| Objects          | Wooden cubes (25 mm), spray-painted in 4 colors                                                                                                 |
+| Colors           | Red, Green, Blue, Yellow (HSV-separated)                                                                                                        |
+| Connectivity     | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers                                                                                    |
 
 ---
 
 ## Field Layout
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
 │                              ◄─── BACK OF WORKSPACE ───►                               │
@@ -96,7 +97,7 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 
 **Technology**: Pure OpenCV — no machine learning, no training.
 
-```
+```text
 Frame from camera (Overhead @ 60–75 cm above arena)
   → Detect 4 ArUco markers framing the elevated arena:
       - ArUco #0: Front-Center (X = 360 mm, Y = 45 mm, collinear with arms)
@@ -122,17 +123,17 @@ Frame from camera (Overhead @ 60–75 cm above arena)
 
 ### Nodes
 
-| Node | Role |
-|---|---|
-| `camera_node` | Publishes raw frames from USB webcam → `/camera/image_raw` |
-| `vision_node` | On trigger: runs ArUco homography + HSV pipeline on right arena → publishes `/detected_objects` |
+| Node             | Role                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `camera_node`    | Publishes raw frames from USB webcam → `/camera/image_raw`                                                |
+| `vision_node`    | On trigger: runs ArUco homography + HSV pipeline on right arena → publishes `/detected_objects`           |
 | `scheduler_node` | Splits cubes by front/back midline ($Y = 300\text{ mm}$), assigns to Arm 1 / Arm 2, manages `arena_mutex` |
-| `arm_node` | Executes task queue for one arm using Analytical IK / Pitch LUT (two instances: `arm_1`, `arm_2`) |
-| `dashboard_node` | Runs rosbridge WebSocket server + HTTP server for web UI |
+| `arm_node`       | Executes task queue for one arm using Analytical IK / Pitch LUT (two instances: `arm_1`, `arm_2`)         |
+| `dashboard_node` | Runs rosbridge WebSocket server + HTTP server for web UI                                                  |
 
 ### Custom Messages
 
-```
+```text
 DetectedObject.msg    → string color, float32 x_mm, float32 y_mm, float32 r_mm, float32 theta_deg, string assigned_arm
 ArmTask.msg           → string color, float32 pick_r, float32 pick_theta, float32 pick_z,
                          float32 bin_x, float32 bin_y, float32 bin_z, string arm_id
@@ -144,12 +145,14 @@ ArmStatus.msg         → string arm_id, string state, int32 tasks_remaining, bo
 ## Arm Motion Sequence (per task)
 
 ### Distance-Based Pitch Lookup Table (LUT)
+
 - **Near** ($r \approx 10\text{--}14\text{ cm}$): Steep downward pitch ($\approx 40^\circ\text{--}45^\circ$)
 - **Mid** ($r \approx 15\text{--}19\text{ cm}$): Moderate approach pitch ($\approx 25^\circ\text{--}30^\circ$)
 - **Far** ($r \approx 20\text{--}24\text{ cm}$): Shallow horizontal pitch ($\approx 15^\circ\text{--}20^\circ$)
 
-### Motion Execution Steps:
-```
+### Motion Execution Steps
+
+```text
 1. rotate_base(theta)            → rotate arm base to target azimuth on RIGHT arena
 2. lookup_pitch(r)               → query pitch angle α from LUT for radius r (or analytical IK)
 3. set_roll(0°)                  → lock wrist roll level with table
@@ -176,7 +179,8 @@ ArmStatus.msg         → string arm_id, string state, int32 tasks_remaining, bo
 - **Independent Drop Zones**: Arm 1 and Arm 2 drop into separate NW/SW boxes on their respective flanks, completely eliminating drop collisions (**no `box_mutex` required**).
 
 **Pipeline Sequence**:
-```
+
+```text
 xArm 2 (Front) picks in arena (holds arena_mutex)
   → xArm 2 finishes pick, releases arena_mutex → starts 205° CW swing to Box 2 (SW)
   → simultaneously, xArm 1 (Back) acquires arena_mutex → picks in arena
@@ -191,7 +195,7 @@ xArm 2 (Front) picks in arena (holds arena_mutex)
 
 Two separate 2×2 boxes located on the left flank of each arm at $Z = 0\text{ mm}$:
 
-```
+```text
      Box 1 (North-West: Arm 1)             Box 2 (South-West: Arm 2)
 ┌───────────┬───────────┐             ┌───────────┬───────────┐
 │ Red (R)   │ Green (G) │             │ Red (R)   │ Green (G) │
@@ -200,13 +204,13 @@ Two separate 2×2 boxes located on the left flank of each arm at $Z = 0\text{ mm
 └───────────┴───────────┘             └───────────┴───────────┘
 ```
 
-| Box / Cell | World Coordinates $(X, Y, Z)$ | Target Color | Drop Method |
-|---|:---:|:---:|---|
-| **Box 1 — Cell 1** | $(85\text{ mm}, 530\text{ mm}, 0\text{ mm})$ | Red | Top-down gravity drop |
-| **Box 1 — Cell 2** | $(145\text{ mm}, 530\text{ mm}, 0\text{ mm})$ | Green | Top-down gravity drop |
-| **Box 1 — Cell 3** | $(85\text{ mm}, 470\text{ mm}, 0\text{ mm})$ | Blue | Top-down gravity drop |
-| **Box 1 — Cell 4** | $(145\text{ mm}, 470\text{ mm}, 0\text{ mm})$ | Yellow | Top-down gravity drop |
-| **Box 2 — Cell 1** | $(85\text{ mm}, 130\text{ mm}, 0\text{ mm})$ | Red | Top-down gravity drop |
-| **Box 2 — Cell 2** | $(145\text{ mm}, 130\text{ mm}, 0\text{ mm})$ | Green | Top-down gravity drop |
-| **Box 2 — Cell 3** | $(85\text{ mm}, 70\text{ mm}, 0\text{ mm})$ | Blue | Top-down gravity drop |
-| **Box 2 — Cell 4** | $(145\text{ mm}, 70\text{ mm}, 0\text{ mm})$ | Yellow | Top-down gravity drop |
+| Box / Cell         |         World Coordinates $(X, Y, Z)$         | Target Color | Drop Method           |
+| ------------------ | :-------------------------------------------: | :----------: | --------------------- |
+| **Box 1 — Cell 1** | $(85\text{ mm}, 530\text{ mm}, 0\text{ mm})$  |     Red      | Top-down gravity drop |
+| **Box 1 — Cell 2** | $(145\text{ mm}, 530\text{ mm}, 0\text{ mm})$ |    Green     | Top-down gravity drop |
+| **Box 1 — Cell 3** | $(85\text{ mm}, 470\text{ mm}, 0\text{ mm})$  |     Blue     | Top-down gravity drop |
+| **Box 1 — Cell 4** | $(145\text{ mm}, 470\text{ mm}, 0\text{ mm})$ |    Yellow    | Top-down gravity drop |
+| **Box 2 — Cell 1** | $(85\text{ mm}, 130\text{ mm}, 0\text{ mm})$  |     Red      | Top-down gravity drop |
+| **Box 2 — Cell 2** | $(145\text{ mm}, 130\text{ mm}, 0\text{ mm})$ |    Green     | Top-down gravity drop |
+| **Box 2 — Cell 3** |  $(85\text{ mm}, 70\text{ mm}, 0\text{ mm})$  |     Blue     | Top-down gravity drop |
+| **Box 2 — Cell 4** | $(145\text{ mm}, 70\text{ mm}, 0\text{ mm})$  |    Yellow    | Top-down gravity drop |

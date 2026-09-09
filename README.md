@@ -37,7 +37,7 @@ This project automates color-based object sorting using computer vision, inverse
 
 ## 📐 Workspace Field Layout
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
 │                              ◄─── BACK OF WORKSPACE ───►                               │
@@ -74,20 +74,20 @@ This project automates color-based object sorting using computer vision, inverse
 
 ## 🛠 Hardware Specifications
 
-| Component | Specification |
-|---|---|
-| **Manipulators** | 2× xArm 1s (5/6-DOF bus servo arms, Motor 2 shoulder axis @ $65\text{ mm}$) |
-| **Link Lengths** | Base-to-Shoulder: $65\text{ mm}$ · Upper Arm: $101\text{ mm}$ · Forearm: $95\text{ mm}$ · Tool: $150\text{ mm}$ |
-| **Gripper** | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 5 axial roll, Motor 6 clamp) |
-| **Compute** | Jetson Nano / Raspberry Pi 5 (Ubuntu 22.04 LTS, mounted in Central Electronics Bay) |
-| **Camera** | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$ |
-| **Main Baseboard** | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$) |
-| **Picking Arena** | Raised platform ($+15\text{--}20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$) |
-| **Collection Bins** | 2× dedicated $2\times 2$ boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, $Z = 0\text{ mm}$) |
-| **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$) |
-| **Objects** | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors |
-| **Power Supply** | Dedicated 7.4V / 5A power supply per arm with common ground |
-| **Communication** | Direct USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 baud |
+| Component           | Specification                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 2 shoulder axis @ $65\text{ mm}$)                                     |
+| **Link Lengths**    | Base-to-Shoulder: $65\text{ mm}$ · Upper Arm: $101\text{ mm}$ · Forearm: $95\text{ mm}$ · Tool: $150\text{ mm}$ |
+| **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 5 axial roll, Motor 6 clamp)                              |
+| **Compute**         | Jetson Nano / Raspberry Pi 5 (Ubuntu 22.04 LTS, mounted in Central Electronics Bay)                             |
+| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$                            |
+| **Main Baseboard**  | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$)                                                |
+| **Picking Arena**   | Raised platform ($+15\text{--}20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$)               |
+| **Collection Bins** | 2× dedicated $2\times 2$ boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, $Z = 0\text{ mm}$)      |
+| **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$)          |
+| **Objects**         | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors                                       |
+| **Power Supply**    | Dedicated 7.4V / 5A power supply per arm with common ground                                                     |
+| **Communication**   | Direct USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 baud                                     |
 
 ---
 
@@ -101,7 +101,7 @@ This project automates color-based object sorting using computer vision, inverse
 
 ### ROS 2 Graph & Node Roles
 
-```
+```text
 [ Overhead Camera ]
        │
        ▼
@@ -122,13 +122,13 @@ This project automates color-based object sorting using computer vision, inverse
               [ Serial 0 ]   [ Serial 1 ]
 ```
 
-| Node | Responsibility |
-|---|---|
-| `camera_node` | Streams raw video frames from overhead boom camera to `/camera/image_raw` |
-| `vision_node` | Detects 4 arena ArUco markers, rectifies elevated arena to mm coordinates, runs HSV thresholding, publishes `/detected_objects` |
-| `scheduler_node` | Assigns cubes to Arm 1 (Back) or Arm 2 (Front) via $Y=300\text{ mm}$ midline; serializes pick requests via `arena_mutex` |
-| `arm_node` (x2) | Computes closed-form IK, executes 5-phase radial pick trajectory, rotates $205^\circ$ to NW/SW box, drops in dedicated bin |
-| `dashboard_node` | Serves real-time web interface via `rosbridge_server` displaying annotated camera feed and arm queue states |
+| Node             | Responsibility                                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `camera_node`    | Streams raw video frames from overhead boom camera to `/camera/image_raw`                                                       |
+| `vision_node`    | Detects 4 arena ArUco markers, rectifies elevated arena to mm coordinates, runs HSV thresholding, publishes `/detected_objects` |
+| `scheduler_node` | Assigns cubes to Arm 1 (Back) or Arm 2 (Front) via $Y=300\text{ mm}$ midline; serializes pick requests via `arena_mutex`        |
+| `arm_node` (x2)  | Computes closed-form IK, executes 5-phase radial pick trajectory, rotates $205^\circ$ to NW/SW box, drops in dedicated bin      |
+| `dashboard_node` | Serves real-time web interface via `rosbridge_server` displaying annotated camera feed and arm queue states                     |
 
 ---
 
@@ -137,15 +137,18 @@ This project automates color-based object sorting using computer vision, inverse
 The project documentation is organized into modular **Stepping-Stone Engineering Specifications** and system integration guides in the [`docs/`](docs/) directory:
 
 ### Stepping-Stone Specifications
+
 - 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Mechanical construction, baseboard dimensions ($800\times 600\text{ mm}$), collinear arm mounting ($X = 360\text{ mm}$), NW/SW drop boxes resolving $240^\circ$ servo ROM, Central Electronics Bay layout, elevated arena platform ($+15\text{--}20\text{ mm}$), barrier profiles, lighting, and ArUco coplanar mounting.
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
 
 ### System Integration & Planning
+
 - 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
 - 📄 [`docs/roadmap.md`](docs/roadmap.md): 11-week college-only development schedule detailing milestones from physical assembly and vision calibration to dual-arm stress testing and final demo.
 - 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
 
 ### Technical Drawings & Schematics
+
 - 🖼️ [`docs/design.png`](docs/design.png): High-resolution architectural diagram showing baseboard dimensions, collinear axis, NW/SW drop boxes, Central Electronics Bay, and elevated stadium arena.
 - 🖼️ [`docs/xArm demensions.png`](docs/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
 
@@ -153,7 +156,7 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 
 ## 📂 Project Directory Structure
 
-```
+```text
 Sem-3-mini-project/
 │
 ├── config/                         # Configuration YAMLs
@@ -199,12 +202,14 @@ Sem-3-mini-project/
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
+
 - Ubuntu 22.04 LTS with [ROS 2 Humble](https://docs.ros.org/en/humble/Installation.html)
 - Python 3.10+
 - USB Webcam (Logitech C270 or C920)
 - 2× xArm 1s Robotic Arms connected via USB-UART
 
 ### 2. Installation
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -220,6 +225,7 @@ source install/setup.bash
 ```
 
 ### 3. Launching the System
+
 ```bash
 # Launch camera and vision pipeline
 ros2 launch sorting_vision vision.launch.py
@@ -244,10 +250,10 @@ ros2 launch sorting_scheduler system.launch.py
 - [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
 - [x] Technical Schematic Design (`docs/design.png`)
 - [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
-- [ ] Physical Assembly & Hardware Mounting *(Week 1)*
-- [ ] OpenCV Dedicated Arena Homography *(Week 2)*
-- [ ] ROS 2 Graph & Mutex Scheduler *(Week 3)*
-- [ ] Single Arm Pick & Pitch LUT Calibration *(Weeks 4–6)*
-- [ ] Dual Arm Pipelined Integration *(Weeks 7–8)*
-- [ ] Live Web Dashboard & Robustness Polish *(Weeks 9–10)*
-- [ ] Final Presentation & Demo Video *(Week 11)*
+- [ ] Physical Assembly & Hardware Mounting _(Week 1)_
+- [ ] OpenCV Dedicated Arena Homography _(Week 2)_
+- [ ] ROS 2 Graph & Mutex Scheduler _(Week 3)_
+- [ ] Single Arm Pick & Pitch LUT Calibration _(Weeks 4–6)_
+- [ ] Dual Arm Pipelined Integration _(Weeks 7–8)_
+- [ ] Live Web Dashboard & Robustness Polish _(Weeks 9–10)_
+- [ ] Final Presentation & Demo Video _(Week 11)_
