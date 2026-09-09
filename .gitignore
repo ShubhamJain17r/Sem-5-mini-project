@@ -1,0 +1,186 @@
+# ============================================================
+# .gitignore — Dual xArm 1s Color-Sorting Robot
+# Stack: Python · ROS 2 Humble · OpenCV · JavaScript · Git
+# ============================================================
+
+
+# ------------------------------------------------------------
+# 🔐 SENSITIVE / SECRET FILES
+# Arm IPs, bin coordinates, HSV calibrations — never commit
+# real hardware values; use the .example files instead.
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Real hardware config overrides (commit only .example files)
+config/bin_coordinates.yaml
+config/arm_ips.yaml
+!config/bin_coordinates.example.yaml
+!config/arm_ips.example.yaml
+
+# Any credentials or secrets accidentally placed here
+secrets/
+*.key
+*.pem
+*.cert
+
+
+# ------------------------------------------------------------
+# 🐍 PYTHON
+# ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# MyPy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Pyinstaller
+*.spec
+
+
+# ------------------------------------------------------------
+# 🤖 ROS 2 / COLCON BUILD ARTIFACTS
+# ------------------------------------------------------------
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# colcon generated files
+COLCON_IGNORE
+AMENT_IGNORE
+
+# ROS bag recordings (can be very large)
+*.bag
+*.db3
+*.mcap
+
+# ROS log files
+~/.ros/log/
+log/
+
+
+# ------------------------------------------------------------
+# 📷 OPENCV / VISION ARTIFACTS
+# ------------------------------------------------------------
+# Calibration data (re-generate from physical setup)
+calibration_data/
+*.npz
+
+# Test images and videos used during development
+vision/test_images/
+vision/test_videos/
+vision/samples/
+*.mp4
+*.avi
+*.mov
+
+# Annotated output frames (generated at runtime)
+vision/output/
+annotated_frames/
+
+
+# ------------------------------------------------------------
+# 🌐 JAVASCRIPT / NODE (Dashboard)
+# ------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+dist/
+.parcel-cache/
+
+
+# ------------------------------------------------------------
+# 💻 OS GENERATED FILES
+# ------------------------------------------------------------
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+
+# ------------------------------------------------------------
+# 🛠 IDE & EDITOR FILES
+# ------------------------------------------------------------
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# PyCharm / JetBrains
+.idea/
+*.iml
+*.iws
+
+# Vim / Neovim
+*.swp
+*.swo
+Session.vim
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+
+# ------------------------------------------------------------
+# 📦 MISCELLANEOUS
+# ------------------------------------------------------------
+# Compiled C extensions (from any Python packages built locally)
+*.so
+*.dll
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Large model or data files (if any ML experiments are added)
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
