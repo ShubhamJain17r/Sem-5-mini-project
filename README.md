@@ -22,45 +22,52 @@ This project automates color-based object sorting using computer vision, inverse
    - Elevated by **$15\text{--}20\text{ mm}$** and lined with a high-friction matte silicone mat. This aligns the $25\text{ mm}$ cubes with the natural **$65\text{ mm}$ shoulder height of Motor 2**, allowing horizontal picks in the maximum motor torque band without claw drag on the table.
 3. **Safe Reach Boundaries ($R_{\min} = 100\text{ mm}$, $R_{\max} = 240\text{ mm}$)**:
    - Capping reach at $24\text{ cm}$ (instead of the straight-arm $29.9\text{ cm}$ limit) maintains a healthy $\approx 150^\circ$ elbow angle, eliminating motor stalls, servo jitter, and joint singularities.
-4. **Dual Dedicated Collection Boxes (Left Side at $Z = 0\text{ mm}$)**:
-   - Each arm has its own dedicated $2\times 2$ sorting box reachable via a smooth $180^\circ$ swing.
+4. **Angled Drop Boxes (North-West & South-West) Resolving $240^\circ$ Base Servo ROM**:
+   - The xArm 1s base bus servos (LX-15D) have a $240^\circ$ travel limit, creating an unreachable deadzone directly behind the arm ($180^\circ$ due West).
+   - Placing **Box 1 in the North-West ($\approx +125^\circ$)** and **Box 2 in the South-West ($\approx -125^\circ$)** constrains total travel to $\approx 205^\circ \le 240^\circ$, eliminating servo stall.
    - Drops occur by gravity with **zero contention** (**no `box_mutex` required**), allowing both arms to drop simultaneously.
-5. **Pipelined Scheduling with Single `arena_mutex`**:
-   - While Arm 2 picks on the right, Arm 1 drops on the left.
-   - When Arm 2 swings left to drop, Arm 1 immediately acquires the `arena_mutex` to pick on the right, maximizing dual-arm throughput.
+5. **Central Electronics & Power Bay**:
+   - The left-center flank between the boxes ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) houses the Jetson Nano / Raspberry Pi 5 and dual 7.4V / 10A power hub.
+   - Shortens USB and power cable runs to $< 25\text{ cm}$, eliminates wire snagging during $205^\circ$ swings, and provides clean power distribution.
+6. **Pipelined Scheduling with Single `arena_mutex`**:
+   - While Arm 2 picks on the right, Arm 1 drops in Box 1 (NW).
+   - When Arm 2 swings left to drop in Box 2 (SW), Arm 1 immediately acquires the `arena_mutex` to pick on the right, maximizing dual-arm throughput.
 
 ---
 
 ## 📐 Workspace Field Layout
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                                                                        │
-│                      ◄─── BACK OF WORKSPACE ───►                       │
-│                                                                        │
-│   ┌─────────────┐             ┌────────┐         /───────────────────\ │
-│   │ Box 1 (2×2) │ ◄── 180° ── │ xArm 1 │ ──────►│  Arm 1 Arc Zone   │ │
-│   │  (Arm 1)    │    Drop     │ (Back) │  Pick  │  (180°–220° Right)│ │
-│   └─────────────┘             └────────┘         \                   / │
-│                                   │  ◤ ArUco #2   │  CONTINUOUS       ││
-│                        Midline Partition Line - - │- TWO-CENTER       ││
-│                                   │ (Y = 300 mm)  │  STADIUM ARENA    ││
-│   ┌─────────────┐             ┌────────┐         /   (ELEVATED 15mm) │ │
-│   │ Box 2 (2×2) │ ◄── 180° ── │ xArm 2 │ ──────►│  Arm 2 Arc Zone   │ │
-│   │  (Arm 2)    │    Drop     │(Front) │  Pick  │  (180°–220° Right)│ │
-│   └─────────────┘             └────────┘         \───────────────────/ │
-│                                      ◣ ArUco #0              ArUco #1 ◢│
-│                      ◄─── FRONT OF WORKSPACE ───►                      │
-│                                ▲                                       │
-│                       (Operator Position)                              │
-│                                                                        │
-│   ◄─── LEFT (Drop Zone) ───►  │  ◄─── RIGHT (Calibrated Arena) ───►    │
-│   (Boxes sit at Z = 0 mm)     │  (4 ArUco markers on Z = 15-20mm)      │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│                              ◄─── BACK OF WORKSPACE ───►                               │
+│                                                                                        │
+│   ┌─────────────────┐                     ┌────────┐             /───────────────────\ │
+│   │  Box 1 (2×2)    │ ◄── 205° NW Drop ── │ xArm 1 │ ──────────►│  Arm 1 Arc Zone    │ │
+│   │  (Arm 1 - NW)   │                     │ (Back) │    Pick    │  (Right Arena)     │ │
+│   └─────────────────┘                     └────────┘             \                   / │
+│                                                │  ◤ ArUco #2      │  CONTINUOUS       ││
+│   ┌─────────────────┐             ═════════════╪══════════════════│- TWO-CENTER       ││
+│   │  CENTRAL        │               Midline Partition (Y=300mm)   │  STADIUM ARENA    ││
+│   │  ELECTRONICS    │                          │                  │  (ELEVATED 15mm)  ││
+│   │  BAY: Hub & RPi │                          │                  /                   │ │
+│   └─────────────────┘                     ┌────────┐             /                     │
+│                                           │ xArm 2 │ ──────────►│  Arm 2 Arc Zone    │ │
+│   ┌─────────────────┐ ◄── 205° SW Drop ── │(Front) │    Pick    │  (Right Arena)     │ │
+│   │  Box 2 (2×2)    │                     └────────┘             \───────────────────/ │
+│   │  (Arm 2 - SW)   │                            ◣ ArUco #0                  ArUco #1 ◢│
+│   └─────────────────┘                                                                  │
+│                              ◄─── FRONT OF WORKSPACE ───►                              │
+│                                           ▲                                            │
+│                                  (Operator Position)                                   │
+│                                                                                        │
+│   ◄─── LEFT (Drop Zone & Electronics) ───►  │  ◄─── RIGHT (Calibrated Arena) ───►      │
+│   (Boxes @ Z = 0 mm, Bay @ Z = 0 mm)        │  (4 ArUco markers on Z = 15-20 mm)       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 
   Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm
   Vision Focus:    100% of camera pixels warped onto the picking arena
-  Zero Occlusion:  Drop boxes are completely excluded from the vision homography
+  Zero Occlusion:  Drop boxes and Central Electronics Bay are completely excluded from vision
 ```
 
 ---
@@ -72,11 +79,12 @@ This project automates color-based object sorting using computer vision, inverse
 | **Manipulators** | 2× xArm 1s (5/6-DOF bus servo arms, Motor 2 shoulder axis @ $65\text{ mm}$) |
 | **Link Lengths** | Base-to-Shoulder: $65\text{ mm}$ · Upper Arm: $101\text{ mm}$ · Forearm: $95\text{ mm}$ · Tool: $150\text{ mm}$ |
 | **Gripper** | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 5 axial roll, Motor 6 clamp) |
-| **Compute** | Jetson Nano / Raspberry Pi 5 (Ubuntu 22.04 LTS) |
+| **Compute** | Jetson Nano / Raspberry Pi 5 (Ubuntu 22.04 LTS, mounted in Central Electronics Bay) |
 | **Camera** | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$ |
-| **Main Baseboard** | Flat mounting board ($800\text{ mm} \times 600\text{ mm}$) |
+| **Main Baseboard** | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$) |
 | **Picking Arena** | Raised platform ($+15\text{--}20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$) |
-| **Collection Bins** | 2× dedicated $2\times 2$ boxes on left flank ($Z = 0\text{ mm}$, cells: Red, Green, Blue, Yellow) |
+| **Collection Bins** | 2× dedicated $2\times 2$ boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, $Z = 0\text{ mm}$) |
+| **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$) |
 | **Objects** | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors |
 | **Power Supply** | Dedicated 7.4V / 5A power supply per arm with common ground |
 | **Communication** | Direct USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 baud |
@@ -119,20 +127,26 @@ This project automates color-based object sorting using computer vision, inverse
 | `camera_node` | Streams raw video frames from overhead boom camera to `/camera/image_raw` |
 | `vision_node` | Detects 4 arena ArUco markers, rectifies elevated arena to mm coordinates, runs HSV thresholding, publishes `/detected_objects` |
 | `scheduler_node` | Assigns cubes to Arm 1 (Back) or Arm 2 (Front) via $Y=300\text{ mm}$ midline; serializes pick requests via `arena_mutex` |
-| `arm_node` (x2) | Computes closed-form IK, executes 5-phase radial pick trajectory, rotates $180^\circ$ left, drops in dedicated bin |
+| `arm_node` (x2) | Computes closed-form IK, executes 5-phase radial pick trajectory, rotates $205^\circ$ to NW/SW box, drops in dedicated bin |
 | `dashboard_node` | Serves real-time web interface via `rosbridge_server` displaying annotated camera feed and arm queue states |
 
 ---
 
 ## 📚 Technical Documentation Index
 
-Detailed engineering documentation is located in the [`docs/`](docs/) directory:
+The project documentation is organized into modular **Stepping-Stone Engineering Specifications** and system integration guides in the [`docs/`](docs/) directory:
 
-- 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): Full technical architecture, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
-- 📄 [`docs/kinematics_and_grasp_planning.md`](docs/kinematics_and_grasp_planning.md): Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
+### Stepping-Stone Specifications
+- 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Mechanical construction, baseboard dimensions ($800\times 600\text{ mm}$), collinear arm mounting ($X = 360\text{ mm}$), NW/SW drop boxes resolving $240^\circ$ servo ROM, Central Electronics Bay layout, elevated arena platform ($+15\text{--}20\text{ mm}$), barrier profiles, lighting, and ArUco coplanar mounting.
+- 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
+
+### System Integration & Planning
+- 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
 - 📄 [`docs/roadmap.md`](docs/roadmap.md): 11-week college-only development schedule detailing milestones from physical assembly and vision calibration to dual-arm stress testing and final demo.
-- 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-10, coplanarity optical rules, servo stall mitigations, and pre-flight checklist.
-- 🖼️ [`docs/design.png`](docs/design.png): High-resolution architectural diagram showing baseboard dimensions, collinear axis, elevated arena, and left-side drop boxes.
+- 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
+
+### Technical Drawings & Schematics
+- 🖼️ [`docs/design.png`](docs/design.png): High-resolution architectural diagram showing baseboard dimensions, collinear axis, NW/SW drop boxes, Central Electronics Bay, and elevated stadium arena.
 - 🖼️ [`docs/xArm demensions.png`](docs/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
 
 ---
@@ -144,14 +158,15 @@ Sem-3-mini-project/
 │
 ├── config/                         # Configuration YAMLs
 │   ├── colors.yaml                 # Tuned HSV color threshold ranges
-│   ├── bin_coordinates.yaml        # Calibrated 2×2 box drop coordinates
+│   ├── bin_coordinates.yaml        # Calibrated NW/SW 2×2 box drop coordinates
 │   └── camera_calibration.yaml     # Camera intrinsic and distortion params
 │
-├── docs/                           # Core Project Documentation
+├── docs/                           # Stepping-Stone & System Documentation
+│   ├── 01_arena_and_layout.md      # Stepping Stone 1: Arena & Component Placement
+│   ├── 02_kinematics_and_grasp_planning.md # Stepping Stone 2: Kinematics & Grasp Planning
 │   ├── design.png                  # High-resolution architectural schematic
-│   ├── implementation_plan.md      # Detailed system implementation plan
-│   ├── kinematics_and_grasp_planning.md # Complete IK & grasp planning guide
-│   ├── risks.md                    # Risk matrix & failure mode analysis
+│   ├── implementation_plan.md      # System architecture & integration blueprint
+│   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
 │   ├── roadmap.md                  # 11-week college development roadmap
 │   └── xArm demensions.png         # Physical robot dimension schematic
 │
@@ -225,9 +240,10 @@ ros2 launch sorting_scheduler system.launch.py
 
 ## 📅 Project Status
 
-- [x] Workspace & Arena Mechanical Design
-- [x] Analytical Kinematics & Grasp Planning
-- [x] Optical Layout & ArUco Collinear Framing
+- [x] Stepping Stone 1: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
+- [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
+- [x] Technical Schematic Design (`docs/design.png`)
+- [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
 - [ ] Physical Assembly & Hardware Mounting *(Week 1)*
 - [ ] OpenCV Dedicated Arena Homography *(Week 2)*
 - [ ] ROS 2 Graph & Mutex Scheduler *(Week 3)*

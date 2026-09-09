@@ -1,4 +1,4 @@
-# Kinematics, Mechanics & Grasp Planning — Dual xArm 1s
+# Stepping Stone 2: Kinematics, Dynamics & Grasp Planning — Dual xArm 1s
 
 ---
 
