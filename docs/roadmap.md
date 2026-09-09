@@ -6,11 +6,13 @@
 
 **Constraint**: First week at college — hardware is available from day one.
 **Goal**: Development environment ready, arms connected, arena physically built.
+**Goal**: Development environment ready, arms connected, 80×60 cm arena physically built.
 
 | Task | Detail |
 |---|---|
 | Install Python, OpenCV, Git on compute unit | `pip install opencv-python`, verify `import cv2` works |
 | Install ROS 2 Humble (Ubuntu 22.04) | On Jetson Nano or RPi 5 — follow official ROS 2 install guide |
+| Set up Python venv & ROS 2 Humble | On Jetson Nano / RPi 5 (Ubuntu 22.04), install OpenCV and dependencies |
 | Clone `xArm-Developer/xarm_ros2` | Read SDK and driver structure |
 | Create GitHub repo | Full folder structure from the implementation plan |
 | Set up config files | `config/colors.yaml` and `config/bin_coordinates.yaml` (placeholders) |
@@ -23,15 +25,25 @@
 | Connect arms over WiFi | Assign static IPs, verify `ping` and SDK `move_gohome()` on both arms |
 | Confirm compute unit | Ubuntu + ROS 2 Humble running, both arm IPs reachable |
 | Build collection box | 2×2 grid with physical dividers, fixed to table left of the arms |
+| Measure xArm 1s reach | Verify $R_{min} \approx 10\text{ cm}$ and $R_{max} \approx 26\text{ cm}$ |
+| Prepare 80×60 cm Baseboard | Mount flat board on table; place 4 ArUco markers at outer corners |
+| Mount arms side-by-side | Space arms 25–30 cm apart along mid-baseline |
+| Mount camera overhead | Boom tripod centered at 75–85 cm height; confirm full 80×60 cm board is visible |
+| Install curved sector barriers | Form physical boundaries along $R_{min}=10\text{ cm}$ and $R_{max}=26\text{ cm}$ arcs |
+| Build 2× separate 2×2 boxes | One dedicated box placed behind each arm (~180°–220° swing) |
+| Connect arms over WiFi/Serial | Verify static IPs, `ping`, and SDK homing on both arms |
 | Spray-paint cubes | 4 colors (Red, Green, Blue, Yellow) — 4–5 cubes per color = ~16–20 cubes total |
 
 **Exit criteria**: Both arms home on command. Camera sees full arena. ArUco markers detected. Cubes painted and ready.
+**Exit criteria**: Both arms home on command. Camera sees full 80×60 cm board with all 4 ArUco markers. Cubes and physical borders ready.
 
 ---
 
 ## 🏫 College Week 2 — Vision Pipeline
+## 🏫 College Week 2 — Vision Pipeline (Global Frame & Polar Transform)
 
 **Goal**: Vision pipeline running live with real camera, detecting real cubes.
+**Goal**: Vision pipeline running live with real camera, detecting real cubes in polar coordinates.
 
 | Task | Detail |
 |---|---|
@@ -44,16 +56,26 @@
 | Test all 4 colors together | Scatter 4+ cubes, verify all detected with correct labels |
 | Launch `vision_node` in ROS 2 | Confirm `/detected_objects` publishes with correct mm coordinates |
 | Verify coordinate accuracy | Place cube at known position (measured by ruler), compare against detected mm — error < 5 mm |
+| Write `aruco_calibration.py` | Detect 4 corner markers → compute homography → rectify 80×60 cm board to global mm |
+| Write `color_detect.py` | HSV thresholding for 4 colors → contours → centroids in global mm |
+| Convert to Arm Polar Frame | Transform $(X_g, Y_g)$ to $(r, \theta)$ relative to Arm 1 and Arm 2 bases |
+| Software Boundary Filter | Discard/flag cubes outside $100\text{ mm} \le r \le 260\text{ mm}$ or out-of-sector |
+| Write `pipeline.py` | Combine calibration + detection + polar transform into single callable module |
+| Calibrate HSV ranges | Tune `config/colors.yaml` under lab lighting until detection is 100% clean |
+| Verify coordinate accuracy | Place cube at ruler-measured position, confirm error < 5 mm in $(r, \theta)$ |
 
 **Deliverable**: Scatter 8 cubes → all detected with correct color and position in < 2 seconds.
+**Deliverable**: Scatter 8 cubes → all detected with correct color, $(X, Y)$ global mm, and $(r, \theta)$ in < 2 seconds.
 
 **Exit criteria**: Consistent color detection for all 4 colors live on the real camera feed.
 
 ---
 
 ## 🏫 College Week 3 — ROS 2 Nodes + Scheduler Logic
+## 🏫 College Week 3 — ROS 2 Nodes + Pipelined Scheduler
 
 **Goal**: Full ROS 2 node graph running; scheduler logic tested end-to-end.
+**Goal**: Full ROS 2 node graph running; scheduler tested with single `arena_mutex`.
 
 | Task | Detail |
 |---|---|
@@ -62,15 +84,23 @@
 | Write `arm_node` stub | Receives tasks, prints them — no real arm movement yet |
 | Write `simulate_detection.py` | Inject fake detected-object messages to test the scheduler without camera or arms |
 | Test scheduler in simulation | Verify task assignment, mutex behavior, pipeline sequencing with fake data |
+| Write `vision_node` | Wraps `pipeline.py`, publishes `/detected_objects` with $(r, \theta, x, y)$ |
+| Write `scheduler_node` | Assigns cubes to arms by y-midline, manages `arena_mutex` (no box mutex needed) |
+| Write `arm_node` stub | Receives `ArmTask.msg` with $(r, \theta, z)$, simulates pick and drop timing |
+| Write `simulate_detection.py` | Injects synthetic cube coordinates to stress-test queueing and mutex locking |
+| Test pipelining logic | Confirm Arm 1 picks while Arm 2 drops, without race conditions |
 | Define custom ROS 2 messages | `DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg` in `custom_msgs/` |
 
 **Exit criteria**: Simulated object list → scheduler assigns tasks correctly to both arm stubs → no mutex conflicts.
+**Exit criteria**: Simulated object list → scheduler assigns tasks correctly → zero mutex deadlock.
 
 ---
 
 ## 🏫 College Week 4 — Single Arm, Fixed Positions
+## 🏫 College Week 4 — Single Arm, Radial Motion & Pitch LUT
 
 **Goal**: One arm picks a cube from a fixed point and drops it into each bin cell. No camera integration yet.
+**Goal**: One arm executes radial approach pick and places into its dedicated rear 2×2 box.
 
 | Task | Detail |
 |---|---|
@@ -80,8 +110,16 @@
 | Test all 4 bin cells | Drop a cube into each cell in sequence, verify positions are correct |
 | Add grip feedback | Read gripper servo position post-grip → log success/failure |
 | Repeat for xArm 2 | Measure and record its 4 bin coordinates separately |
+| Measure rear bin coordinates | Jog arm to its 4 rear bin cells (~180°–220° swing), record in `bin_coordinates.yaml` |
+| Calibrate Pitch LUT | Empirically determine pitch angle $\alpha(r)$ for $r = 10\text{ cm}$ (steep) to $26\text{ cm}$ (shallow) |
+| Lock wrist roll level | Ensure `roll = 0°` throughout approach to prevent claw tips touching table |
+| Implement radial standoff | Move to $(r - 30\text{ mm})$, open 55mm claw, advance radially into cube |
+| Verify mechanical self-centering | Test gripping rotated 25mm cubes without wrist roll rotation |
+| Test fixed pick → rear drop | Run full sequence: radial pick → ascend → rotate rear → drop into cell |
+| Repeat for xArm 2 | Calibrate its Pitch LUT and rear bin coordinates |
 
 **Exit criteria**: Each arm individually picks from a fixed point and places into any of 4 cells reliably.
+**Exit criteria**: Both arms individually execute reliable radial pick and rear drop for all 4 cells.
 
 ---
 
@@ -118,16 +156,21 @@
 ## 🏫 College Weeks 7–8 — Dual Arm Integration
 
 **Goal**: Both arms sort simultaneously using the pipeline scheduler.
+**Goal**: Both arms sort simultaneously using the pipelined scheduler.
 
 | Task | Detail |
 |---|---|
 | Bring up second arm node | Launch both `arm_node` instances with separate `arm_id` parameters |
 | Test scheduler split | Verify objects in top half go to xArm 1, bottom half to xArm 2 |
 | Enable mutex pipeline | Both arms run in pipeline: one picks while the other drops |
+| Enable pipelined execution | While Arm 1 picks in arena, Arm 2 drops in rear Box 2, and vice-versa |
 | Test center-line objects | Place cubes on y-midline → verify deterministic assignment to xArm 1 |
 | Test simultaneous box access | Verify box mutex prevents both arms dropping at once |
 | Full dual-arm run | Scatter 16–20 cubes → both arms sort in parallel |
 | Measure throughput | Compare sort time: single arm vs. dual arm |
+| Verify zero drop contention | Confirm both arms can access their private rear boxes without any waiting or locking |
+| Full dual-arm run | Scatter 16–20 cubes → both arms sort in parallel across overlapping sectors |
+| Measure throughput | Compare sort time: single arm vs. dual arm (expect ~1.8x speedup) |
 
 **Exit criteria**: Full arena of cubes sorted correctly by both arms together, no collisions, all bins correct.
 
@@ -173,7 +216,14 @@
 | College Week 3 | ROS 2 nodes + scheduler logic | Full node graph tested end-to-end in simulation |
 | College Week 4 | Single arm fixed positions | Reliable pick-and-place, bin coordinates logged |
 | College Week 5 | Single arm + camera | Vision-guided sorting, one arm |
+| College Week 1 | Environment setup + physical assembly | Arms connected, 80×60 cm arena built, cubes painted |
+| College Week 2 | Vision pipeline (Global mm & Polar) | All 4 colors detected live with $(r, \theta)$ coordinates |
+| College Week 3 | ROS 2 nodes + pipelined scheduler | Node graph tested end-to-end with `arena_mutex` |
+| College Week 4 | Radial motion & Pitch LUT | Reliable radial pick-and-place into rear boxes |
+| College Week 5 | Single arm + camera integration | Vision-guided radial sorting, one arm |
 | College Week 6 | Full single-arm sort | 16+ cubes sorted, robust |
 | College Weeks 7–8 | Dual arm integration | Both arms pipeline-sorting simultaneously |
+| College Weeks 7–8 | Dual arm pipelined integration | Both arms sorting simultaneously with private rear boxes |
 | College Weeks 9–10 | Dashboard + polish | Demo-ready, 3 clean runs |
 | College Week 11 | Demo prep | Video, slides, report, GitHub release |
+
