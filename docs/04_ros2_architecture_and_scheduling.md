@@ -46,17 +46,17 @@ flowchart TD
     end
 
     CAM -->|V4L2 Frame| CN
-    CN -->|/camera/image_raw [sensor_msgs/Image]| VN
-    VN -->|/vision/detected_objects [DetectedObjectArray]| SN
+    CN -->|/camera/image_raw (sensor_msgs/Image)| VN
+    VN -->|/vision/detected_objects (DetectedObjectArray)| SN
 
-    SN -->|/arm1/task_goal [ArmTask]| AN1
-    SN -->|/arm2/task_goal [ArmTask]| AN2
+    SN -->|/arm1/task_goal (ArmTask)| AN1
+    SN -->|/arm2/task_goal (ArmTask)| AN2
 
-    AN1 -->|/arm1/status [ArmStatus]| SN
-    AN2 -->|/arm2/status [ArmStatus]| SN
+    AN1 -->|/arm1/status (ArmStatus)| SN
+    AN2 -->|/arm2/status (ArmStatus)| SN
 
-    AN1 -.->|acquire_zone / release_zone [AcquireZone.srv]| SN
-    AN2 -.->|acquire_zone / release_zone [AcquireZone.srv]| SN
+    AN1 -.->|acquire_zone / release_zone (AcquireZone.srv)| SN
+    AN2 -.->|acquire_zone / release_zone (AcquireZone.srv)| SN
 
     AN1 -->|115200 Baud Binary Packets| USB1
     AN2 -->|115200 Baud Binary Packets| USB2
