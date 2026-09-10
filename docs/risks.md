@@ -16,7 +16,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 | **R-06** | Comms      | WiFi latency jitter / packet drops causing arm stutter        |   **High**   | **Medium**  | Direct USB-to-UART serial connections (`/dev/ttyUSB0`, `/dev/ttyUSB1`)                                          |
 | **R-07** | Mechanical | Cube bounce off collection box partition rim on drop          |   **Low**    |   **Low**   | Boxes sit at table level ($Z = 0\text{ mm}$); arm drops inside rim with damping pads                            |
 | **R-08** | Mechanical | Table gouging from claw rotation at low angles                |   **High**   |   **Low**   | Fixed wrist orientation (locked $\text{Roll} = 0^\circ$)                                                        |
-| **R-09** | Multi-Arm  | Deadlock or race condition on shared arena access             |   **High**   |   **Low**   | Single `arena_mutex` with 8-second lease timeout; private NW/SW left boxes                                      |
+| **R-09** | Multi-Arm  | Deadlock or race condition on shared arena access             |   **High**   |   **Low**   | Single `arena_mutex` with 5.0-second watchdog timeout; private NW/SW left boxes                                 |
 | **R-10** | Vision     | ArUco marker occlusion by arm link along central axis         |  **Medium**  |   **Low**   | Markers 0 & 2 offset from base wiring; homography caching locks matrix                                          |
 | **R-11** | Hardware   | Base Servo $240^\circ$ ROM Mechanical Deadzone (Due West)     |   **High**   |   **Low**   | Relocate Box 1 to NW ($\approx +125^\circ$) and Box 2 to SW ($\approx -125^\circ$); total swing $\le 205^\circ$ |
 
@@ -61,8 +61,9 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 - Consult [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Stepping Stone 1) for physical assembly, NW/SW boxes, and power bay.
 - Consult [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2) for closed-form IK, reach proofs, dual-regime roll, and 5-phase trajectory profiling.
 - Consult [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3) for planar homography, HSV segmentation, sub-mm centroiding, and polar mapping.
+- Consult [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4) for distributed ROS 2 Humble node graph, dynamic load balancing across $Y = 300\text{ mm}$ midline, crossover spatial mutex state machine, and Linux udev rules.
 
-** See [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for detailed mathematical proofs showing why pure top-down picks fail beyond $158\text{ mm}$, the analytical inverse kinematics solver equations ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory profiling, and torque/friction models.
+\*\* See [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for detailed mathematical proofs showing why pure top-down picks fail beyond $158\text{ mm}$, the analytical inverse kinematics solver equations ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory profiling, and torque/friction models.
 
 ---
 

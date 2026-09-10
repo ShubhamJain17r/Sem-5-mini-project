@@ -22,6 +22,8 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 >
 > - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — Baseboard construction, spatial dimensions, component placements, barrier profiles, lighting, and wiring bay.
 > - **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) — Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque/friction mechanics, and 5-phase pick trajectory.
+> - **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography, hardware exposure lock, HSV color segmentation, and spatial centroid extraction.
+> - **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interfaces, dynamic load balancing with hysteresis, spatial crossover mutex, and production Python nodes.
 
 ---
 
@@ -119,25 +121,30 @@ Frame from camera (Overhead @ 65–75 cm above arena)
 
 ---
 
-## ROS 2 Architecture
+## ROS 2 Architecture & Coordination
+
+_(Full mathematical derivations, QoS profiles, mutex state machines, launch scripts, and Python implementations detailed in [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md))_:
 
 ### Nodes
 
-| Node             | Role                                                                                                      |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `camera_node`    | Publishes raw frames from USB webcam → `/camera/image_raw`                                                |
-| `vision_node`    | On trigger: runs ArUco homography + HSV pipeline on right arena → publishes `/detected_objects`           |
-| `scheduler_node` | Splits cubes by front/back midline ($Y = 300\text{ mm}$), assigns to Arm 1 / Arm 2, manages `arena_mutex` |
-| `arm_node`       | Executes task queue for one arm using Analytical IK / Pitch LUT (two instances: `arm_1`, `arm_2`)         |
-| `dashboard_node` | Runs rosbridge WebSocket server + HTTP server for web UI                                                  |
+| Node             | Role                                                                                                                                 |             Rate              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | :---------------------------: |
+| `camera_node`    | Acquires frames from `/dev/video0` with exposure lock ($156$) and WB lock ($4500\text{K}$) → `/camera/image_raw`                     |        $30\text{ Hz}$         |
+| `vision_node`    | Executes 4-point ArUco homography warp + HSV color segmentation → `/vision/detected_objects`                                         |   $10\text{--}15\text{ Hz}$   |
+| `scheduler_node` | Dynamic load balancing across $Y = 300\text{ mm}$ midline, crossover mutex arbitration ($Y \in [250, 350\text{ mm}]$), task dispatch |      $20\text{ Hz}$ loop      |
+| `arm1_node`      | North manipulator controller: closed-form analytical IK, 5-phase trajectory profiling, serial packet writer (`/dev/xarm_arm1`)       | Event + $50\text{ Hz}$ status |
+| `arm2_node`      | South manipulator controller: closed-form analytical IK, 5-phase trajectory profiling, serial packet writer (`/dev/xarm_arm2`)       | Event + $50\text{ Hz}$ status |
+| `dashboard_node` | System telemetry, cycle times, sorting counts, and diagnostics via Foxglove Studio / Web UI                                          |         $5\text{ Hz}$         |
 
-### Custom Messages
+### Custom Message & Service Interfaces
 
 ```text
-DetectedObject.msg    → string color, float32 x_mm, float32 y_mm, float32 r_mm, float32 theta_deg, string assigned_arm
-ArmTask.msg           → string color, float32 pick_r, float32 pick_theta, float32 pick_z,
-                         float32 bin_x, float32 bin_y, float32 bin_z, string arm_id
-ArmStatus.msg         → string arm_id, string state, int32 tasks_remaining, bool grip_ok
+DetectedObject.msg      → uint32 object_id, string color, float64 x_mm, float64 y_mm, float64 z_mm, float64 yaw_deg, float64 confidence
+DetectedObjectArray.msg  → std_msgs/Header header, DetectedObject[] objects, uint32 total_detected, bool homography_locked
+ArmTask.msg             → uint32 task_id, string arm_id, DetectedObject target_object, float64 target_r_mm, float64 target_theta_deg, string destination_box, int32 compartment_index, float64 drop_theta_deg, bool requires_mutex
+ArmStatus.msg           → std_msgs/Header header, string arm_id, string state, uint32 active_task_id, bool is_busy, bool has_cube, bool holds_mutex, float64[5] joint_angles_deg, float64 bus_voltage_v, string error_code
+AcquireZone.srv         → Request(arm_id, zone_id, timeout_sec) / Response(bool success, string message)
+ReleaseZone.srv         → Request(arm_id, zone_id) / Response(bool success)
 ```
 
 ---

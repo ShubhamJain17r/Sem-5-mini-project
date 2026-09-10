@@ -66,7 +66,7 @@ This project automates color-based object sorting using computer vision, inverse
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
   Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm
-  Vision Focus:    100% of camera pixels warped onto the picking arena 
+  Vision Focus:    100% of camera pixels warped onto the picking arena
   Zero Occlusion:  Drop boxes and Central Electronics Bay are completely excluded from vision
 ```
 
@@ -140,6 +140,8 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 
 - 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Mechanical construction, baseboard dimensions ($800\times 600\text{ mm}$), collinear arm mounting ($X = 360\text{ mm}$), NW/SW drop boxes resolving $240^\circ$ servo ROM, Central Electronics Bay layout, elevated arena platform ($+20\text{ mm}$), barrier profiles, lighting, and ArUco coplanar mounting.
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
+- 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), hardware exposure/WB locks, HSV color segmentation, spatial moments centroiding, and Python perception pipeline.
+- 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interface definitions, dynamic load balancing with hysteresis across $Y = 300\text{ mm}$ midline, spatial crossover mutex state machine, and production Python nodes.
 
 ### System Integration & Planning
 

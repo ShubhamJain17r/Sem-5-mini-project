@@ -46,7 +46,8 @@
 
 ## 🏫 College Week 3 — ROS 2 Nodes + Pipelined Scheduler
 
-**Goal**: Full ROS 2 graph operational; scheduler tested with single `arena_mutex`.
+**Goal**: Full ROS 2 graph operational; scheduler tested with single `arena_mutex`.  
+**Reference Document**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4)
 
 | Task                          | Detail                                                                                                       |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -70,7 +71,7 @@
 | Implement Analytical IK & Pitch LUT | Implement `XArmKinematics` solver from Stepping Stone 2 with dual-regime wrist roll                                                                                       |
 | Calibrate NW/SW Bin Coordinates     | Jog Arm 1 to Box 1 (NW) and Arm 2 to Box 2 (SW), record $(x, y, z)$ in `bin_coordinates.yaml`                                                                             |
 | Calibrate Pitch LUT                 | Empirically tune pitch angle $\alpha(r)$ from $R=12\text{ cm} (d_{\text{edge}}=5\text{ cm})$ ($45^\circ$) to $R=32\text{ cm} (d_{\text{edge}}=25\text{ cm})$ ($15^\circ$) |
-| Implement Radial Standoff           | Move to $r - 30\text{ mm}$, open claw, advance radially onto $15\text{ mm}$ raised surface                                                                                |
+| Implement Radial Standoff           | Move to $r - 30\text{ mm}$, open claw, advance radially onto $20\text{ mm}$ raised surface                                                                                |
 | Verify Friction Grasp               | Test clamping cubes on silicone mat—verify zero forward sliding                                                                                                           |
 | Run Full Pick-and-Drop Loop         | Pick on right $\rightarrow$ ascend $\rightarrow$ swing 205° to NW/SW box $\rightarrow$ drop in cell $\rightarrow$ home                                                    |
 | Repeat for xArm 2                   | Calibrate Arm 2's Pitch LUT and SW box coordinates                                                                                                                        |
