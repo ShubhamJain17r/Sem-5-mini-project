@@ -197,23 +197,23 @@ When an arm picks at a shallow pitch ($\phi \in [-20^\circ, 0^\circ]$):
    ───────┬──────────────┬────────         ───/──────/────────────────
       Cube: [ 25mm ]                      Low Finger Strikes Arena Floor!
    ═══════════════════════════════       ═════════════════════════════════
-     Arena Mat (Z = 15-20 mm)               Arena Mat Damaged / Jammed
+     Arena Mat (Z = +20 mm)                 Arena Mat Damaged / Jammed
 ```
 
 ### 5.3 Solution: The Dual-Regime Grasp Strategy
 
 Depending on radial distance $r$, we deploy two distinct orientation regimes:
 
-#### Regime A: Near-Field Grasping ($r \in [100, 145\text{ mm}]$ — Steep Pitch $\phi \approx -45^\circ$)
+#### Regime A: Near-Field Grasping ($r \in [120, 170\text{ mm}] \iff d_{\text{edge}} \in [5, 10\text{ cm}]$ — Steep Pitch $\phi \in [-75^\circ, -50^\circ]$)
 
 - At close range, the arm can pitch down steeply without running out of reach.
 - The camera detects the cube's planar bounding box angle $\theta_{\text{cube}} \in [-45^\circ, +45^\circ]$ via OpenCV `cv2.minAreaRect()`.
 - The claw approach vector has a strong vertical component.
 - **Motor 5 Calculation**:
   $$\theta_5 = \theta_{\text{cube}} - \theta_1$$
-  Motor 5 aligns the claw jaws perpendicular to the flat faces of the cube. Fingertip clearance from the table remains safe because the pitch is steep ($\approx 45^\circ$).
+  Motor 5 aligns the claw jaws perpendicular to the flat faces of the cube. Fingertip clearance from the table remains safe because the pitch is steep ($\approx 50^\circ\text{--}75^\circ$).
 
-#### Regime B: Mid-to-Far Grasping ($r \in [145, 240\text{ mm}]$ — Shallow Pitch $\phi \in [-20^\circ, 0^\circ]$)
+#### Regime B: Mid-to-Far Grasping ($r \in [170, 320\text{ mm}] \iff d_{\text{edge}} \in [10, 25\text{ cm}]$ — Shallow Pitch $\phi \in [-25^\circ, -5^\circ]$)
 
 - At medium and far reaches, the claw approaches nearly horizontally along the radius vector.
 - **Motor 5 is LOCKED strictly at $0^\circ$ (Roll = $0^\circ$)**. This ensures both fingers remain parallel to the table.
@@ -267,9 +267,9 @@ $$\tau_{\text{shoulder}} = m_1 g \cdot \frac{L_1}{2} \cos(\theta_2) + m_2 g \cdo
 
 - Mass of links + motors: $\approx 450\text{ g}$.
 - Mass of cube: $\approx 15\text{ g}$ (lightweight wood).
-- At full theoretical extension ($r \approx 270\text{ mm}$), $\tau_{\text{shoulder}}$ exceeds $1.4\text{ N}\cdot\text{m}$.
+- At full theoretical extension ($R_{\text{lockup}} \approx 344\text{ mm} \iff d_{\text{edge}} = 274\text{ mm}$), $\tau_{\text{shoulder}}$ exceeds $1.4\text{ N}\cdot\text{m}$.
 - Standard bus servos (rated $1.5\text{ N}\cdot\text{m}$ stall torque) operate at **90%+ of their thermal limits**, leading to voltage sag and brownouts.
-- **By capping reach at $R_{\max} = 320\text{ mm}$ and utilizing elevated arena ($Z=+15\text{--}20\text{ mm}$)**:
+- **By capping reach at $R_{\max} = 320\text{ mm} (d_{\text{edge}} = 25\text{ cm})$ and utilizing elevated arena ($Z = +20\text{ mm}$)**:
   $\tau_{\text{shoulder}}$ drops to $\approx 0.95\text{ N}\cdot\text{m}$ (a **32% torque reduction**), providing comfortable safety margins.
 
 ### 7.2 Friction Mat Grasp Physics

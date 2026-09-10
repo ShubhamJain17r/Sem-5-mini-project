@@ -38,10 +38,10 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 ### 2.2 The Collinear Arena ArUco Setup: Why We Moved Markers from Behind the Boxes
 
 - **Previous Vulnerability**: Placing ArUco markers at the far left corners of the baseboard forced the camera to capture a huge $80 \times 60\text{ cm}$ field of view, wasting over 50% of the image resolution on the container boxes and empty space. Furthermore, sorted cubes inside the boxes risked triggering false-positive color detections.
-- **The New Design**: Markers 0 and 2 are aligned with the central arm axis along the inner edge of the elevated arena ($X = 360\text{ mm}$), while Markers 1 and 3 are on the outer right boundary ($X = 740\text{ mm}$).
+- **The New Design**: Markers 0 and 2 are aligned with the central arm axis along the inner edge of the elevated arena ($X = 360\text{ mm}$), while Markers 1 and 3 are on the outer right boundary ($X = 730\text{ mm}$).
   - **Zero False Detections**: The drop boxes on the left are completely excluded from the camera's warped view.
   - **Double Pixel Density**: 100% of camera pixels are focused on the picking arena.
-  - **Lower Camera Mounting**: Boom stand can sit at $60\text{--}75\text{ cm}$ directly over the arena.
+  - **Lower Camera Mounting**: Boom stand can sit at $65\text{--}75\text{ cm}$ directly over the arena.
 
 ### 2.3 Coplanarity Rule (Crucial Optical Physics)
 
@@ -54,7 +54,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 ### 2.5 Bounding $R_{\max} = 320\text{ mm}$ (Eliminating Servo Stall)
 
-- Setting the outer curved boundary barrier at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 150^\circ$, retaining full torque margin and eliminating motor stalls.
+- Setting the outer curved boundary barrier at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 122^\circ$, retaining full torque margin and eliminating motor stalls.
 
 ### 2.6 Modular Stepping-Stone References
 

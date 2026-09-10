@@ -19,7 +19,7 @@
 | Install Sector Barriers           | Place curved physical barriers at $R_{\min}=120\text{ mm}$ and $R_{\max}=320\text{ mm}$ ($d_{\text{edge}} = 5\text{--}25\text{ cm}$) on the right |
 | Mount NW / SW Collection Boxes    | Secure Box 1 in North-West ($\approx +125^\circ$) and Box 2 in South-West ($\approx -125^\circ$) at table level ($0\text{ mm}$)                   |
 | Assemble Central Electronics Bay  | Mount Jetson Orin Nano / RPi 5 and dual 7.4V/10A power hub in central bay ($X \in [55, 175], Y \in [215, 385]$)                                   |
-| Mount Overhead Camera             | Boom stand at 60–75 cm height centered over right-side arena; confirm all 4 markers visible                                                       |
+| Mount Overhead Camera             | Boom stand at 65–75 cm height centered over right-side arena; confirm all 4 markers visible                                                       |
 | Spray-Paint Cubes                 | 4 colors (Red, Green, Blue, Yellow) — 4–5 cubes each = ~16–20 cubes                                                                               |
 
 **Exit criteria**: Both arms home reliably. Base servo swing verified inside $240^\circ$ ROM. Camera sees the 4 arena ArUco markers clearly. Elevated arena, electronics bay, and drop boxes fixed.

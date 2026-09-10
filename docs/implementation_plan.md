@@ -13,9 +13,9 @@ The operator views the setup from the **FRONT**. The two arms are aligned along 
   - **$240^\circ$ ROM Compliance**: Because the LewanSoul / Hiwonder LX-15D bus servos have a mechanical limit of $240^\circ$, directly behind the arm ($180^\circ$ due West) is a physical deadzone. Angling the boxes to NW and SW limits total rotation to $\approx 205^\circ \le 240^\circ$, completely preventing servo stall.
 - **Central Electronics & Power Bay**: The unutilized zone on the left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) hosts the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and 7.4V / 10A dual power distribution hub. This reduces USB-serial cable runs to $< 25\text{ cm}$, eliminates RF interference near the vision plane, and provides clean power distribution.
 - **Kinematic Sweet Spot**: Arms are mounted flat on the baseboard ($Z = 0\text{ mm}$), utilizing the built-in $65\text{ mm}$ height to Motor 2. Pick radius is bounded between $R_{\min} = 120\text{ mm} (d_{\text{edge}} = 5\text{ cm})$ and $R_{\max} = 320\text{ mm} (d_{\text{edge}} = 25\text{ cm})$ to eliminate joint singularities and motor stall at mechanical limits.
-- **Dedicated Arena Vision Framing**: The 4 ArUco markers are placed exclusively around the **elevated picking arena** on the right (Marker 0 and Marker 2 are collinear with the central arm axis at $X = 360\text{ mm}$; Marker 1 and Marker 3 are on the outer right boundary at $X = 740\text{ mm}$). All 4 markers sit on the elevated platform ($Z = 15\text{--}20\text{ mm}$) to ensure strict coplanarity. The drop boxes and electronics bay on the left are completely outside the camera's warped perspective frame.
+- **Dedicated Arena Vision Framing**: The 4 ArUco markers are placed exclusively around the **elevated picking arena** on the right (Marker 0 and Marker 2 are collinear with the central arm axis at $X = 360\text{ mm}$; Marker 1 and Marker 3 are on the outer right boundary at $X = 730\text{ mm}$). All 4 markers sit on the elevated platform ($Z = +20\text{ mm}$) to ensure strict coplanarity. The drop boxes and electronics bay on the left are completely outside the camera's warped perspective frame.
 
-An overhead USB camera mounted on a boom stand at 60–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5).
+An overhead USB camera mounted on a boom stand at 65–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5).
 
 > [!NOTE]
 > For in-depth mechanical and kinematic specifications, consult the dedicated stepping stone documents:
@@ -32,7 +32,7 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 | Arms             | 2× xArm 1s (5-DOF/6-DOF bus servo arms, Motor 2 axis at $65\text{ mm}$)                                                                             |
 | Mounting         | Mounted flat on main baseboard ($Z = 0\text{ mm}$) along collinear axis ($X = 360\text{ mm}$)                                                       |
 | Compute          | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (located in Central Electronics Bay)                                                          |
-| Camera           | Logitech C270 or C920 (USB) mounted on overhead boom at 60–75 cm                                                                                    |
+| Camera           | Logitech C270 or C920 (USB) mounted on overhead boom at 65–75 cm                                                                                    |
 | Baseboard        | $800\text{ mm} \times 600\text{ mm}$ flat rigid board                                                                                               |
 | Picking Arena    | 20 mm elevated board on RIGHT side with matte silicone friction mat                                                                                 |
 | ArUco Setup      | 4 markers framing the elevated arena: Markers 0 & 2 collinear with arms, Markers 1 & 3 on outer boundary (all at $Z = +20\text{ mm}$)               |
@@ -85,9 +85,9 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 ## Kinematics & Elevation Optimization
 
 1. **Shoulder Height Leverage**: The arm's Motor 2 (shoulder pitch axis) is already **$65\text{ mm}$** off the ground.
-2. **Elevated Arena ($+15\text{--}20\text{ mm}$)**: Raising the picking arena floor by $15\text{--}20\text{ mm}$ places the cube center at $Z \approx 32.5\text{ mm}$. The vertical drop from Motor 2 is only $\approx 35\text{ mm}$ instead of $52.5\text{ mm}$. The arm reaches horizontally in its maximum mechanical torque band without scraping the table.
-3. **Radial Boundary ($R_{\max} = 320\text{ mm} (d_{\text{edge}} = 25\text{ cm})$)**: Bounding the maximum reach at $24\text{ cm}$ (instead of $26\text{--}27\text{ cm}$) keeps the elbow joint at $\approx 150^\circ$, completely preventing joint singularity, servo stutter, and motor stalling.
-4. **Coplanar Marker Alignment**: Mounting all 4 ArUco markers directly on the raised arena ($Z = 15\text{--}20\text{ mm}$) guarantees zero perspective tilt error during homography calculation.
+2. **Elevated Arena ($+20\text{ mm}$)**: Raising the picking arena floor by $20\text{ mm}$ places the cube center at $Z \approx 32.5\text{ mm}$. The vertical drop from Motor 2 is only $\approx 35\text{ mm}$ instead of $52.5\text{ mm}$. The arm reaches horizontally in its maximum mechanical torque band without scraping the table.
+3. **Radial Boundary ($R_{\max} = 320\text{ mm} \iff d_{\text{edge}} = 25\text{ cm}$)**: Bounding the maximum reach at $25\text{ cm}$ from the baseplate edge ($32\text{ cm}$ from center) backs off $2.4\text{ cm}$ before mechanical lockup ($27.4\text{ cm}$), maintaining a healthy $\approx 122^\circ$ elbow angle to prevent motor stalling.
+4. **Coplanar Marker Alignment**: Mounting all 4 ArUco markers directly on the raised arena ($Z = +20\text{ mm}$) guarantees zero perspective tilt error during homography calculation.
 5. **$240^\circ$ Base Servo ROM Optimization**: Placing Box 1 in the North-West ($\approx +125^\circ$) and Box 2 in the South-West ($\approx -125^\circ$) keeps total base yaw swing to $\approx 205^\circ \le 240^\circ$, avoiding the $180^\circ$ physical deadzone directly behind the arm.
 6. **Full Analytical Inverse Kinematics (IK) & Grasp Planning**: See the dedicated mathematical and mechanical architecture document [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for closed-form joint angle equations ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque models, and 5-phase trajectory waypoint generation.
 
@@ -98,12 +98,12 @@ An overhead USB camera mounted on a boom stand at 60–75 cm captures the pickin
 **Technology**: Pure OpenCV — no machine learning, no training.
 
 ```text
-Frame from camera (Overhead @ 60–75 cm above arena)
+Frame from camera (Overhead @ 65–75 cm above arena)
   → Detect 4 ArUco markers framing the elevated arena:
-      - ArUco #0: Front-Center (X = 360 mm, Y = 45 mm, collinear with arms)
-      - ArUco #1: Front-Right  (X = 740 mm, Y = 45 mm)
-      - ArUco #2: Back-Center  (X = 360 mm, Y = 525 mm, collinear with arms)
-      - ArUco #3: Back-Right   (X = 740 mm, Y = 525 mm)
+      - ArUco #0: Front-Center (X = 360 mm, Y = 55 mm, collinear with arms)
+      - ArUco #1: Front-Right  (X = 730 mm, Y = 55 mm)
+      - ArUco #2: Back-Center  (X = 360 mm, Y = 545 mm, collinear with arms)
+      - ArUco #3: Back-Right   (X = 730 mm, Y = 545 mm)
   → Compute perspective transform → rectified top-down view (dedicated arena mm plane)
   → Convert rectified image to HSV
   → Threshold for 4 colors (Red, Green, Blue, Yellow) → binary masks
@@ -146,9 +146,11 @@ ArmStatus.msg         → string arm_id, string state, int32 tasks_remaining, bo
 
 ### Distance-Based Pitch Lookup Table (LUT)
 
-- **Near** ($r \approx 10\text{--}14\text{ cm}$): Steep downward pitch ($\approx 40^\circ\text{--}45^\circ$)
-- **Mid** ($r \approx 15\text{--}19\text{ cm}$): Moderate approach pitch ($\approx 25^\circ\text{--}30^\circ$)
-- **Far** ($r \approx 20\text{--}24\text{ cm}$): Shallow horizontal pitch ($\approx 15^\circ\text{--}20^\circ$)
+_(Full closed-form equations and empirical calibration detailed in [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md))_:
+
+- **Near** ($r \in [120, 170\text{ mm}] \iff d_{\text{edge}} \in [5, 10\text{ cm}]$): Steep downward approach ($\phi \in [-75^\circ, -60^\circ]$, Object-Aligned Roll $\theta_5$)
+- **Mid** ($r \in [170, 250\text{ mm}] \iff d_{\text{edge}} \in [10, 18\text{ cm}]$): Angled approach ($\phi \in [-50^\circ, -25^\circ]$, Object-Aligned Roll $\theta_5$)
+- **Far Boundary** ($r \in [250, 320\text{ mm}] \iff d_{\text{edge}} \in [18, 25\text{ cm}]$): Shallow horizontal approach ($\phi \in [-15^\circ, -5^\circ]$, Locked Level Roll $\theta_5 = 0^\circ$)
 
 ### Motion Execution Steps
 
