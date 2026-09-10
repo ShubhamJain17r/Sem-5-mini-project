@@ -8,19 +8,19 @@
 **Goal**: Baseboard assembled, arms mounted, elevated arena built, NW/SW drop boxes installed, Central Electronics Bay wired.  
 **Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Stepping Stone 1)
 
-| Task                              | Detail                                                                                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Set up Python venv & ROS 2 Humble | On Jetson Nano / RPi 5 (Ubuntu 22.04), install OpenCV and dependencies                                                                      |
-| Clone `xArm-Developer/xarm_ros2`  | Verify SDK and serial driver communication                                                                                                  |
-| Mount 80×60 cm Baseboard          | Secure flat baseboard on workbench                                                                                                          |
-| Mount Arms Front-to-Back          | Mount Arm 2 (Front @ 180 mm) and Arm 1 (Back @ 420 mm) flat on baseboard ($Z=0$), collinear along $X = 360\text{ mm}$ ($S = 240\text{ mm}$) |
-| Build Elevated Arena Platform     | Cut 20 mm board for RIGHT side; cover with high-friction silicone mat                                                                       |
-| Mount 4 ArUco Markers on Arena    | Mount Markers 0 & 2 collinear with arms; Markers 1 & 3 on outer boundary (all at $Z=15\text{--}20\text{ mm}$)                               |
-| Install Sector Barriers           | Place curved physical barriers at $R_{\min}=100\text{ mm}$ and $R_{\max}=240\text{ mm}$ on the right                                        |
-| Mount NW / SW Collection Boxes    | Secure Box 1 in North-West ($\approx +125^\circ$) and Box 2 in South-West ($\approx -125^\circ$) at table level ($0\text{ mm}$)             |
-| Assemble Central Electronics Bay  | Mount Jetson/RPi 5 and dual 7.4V/10A power hub in central bay ($X \in [55, 175], Y \in [215, 385]$)                                         |
-| Mount Overhead Camera             | Boom stand at 60–75 cm height centered over right-side arena; confirm all 4 markers visible                                                 |
-| Spray-Paint Cubes                 | 4 colors (Red, Green, Blue, Yellow) — 4–5 cubes each = ~16–20 cubes                                                                         |
+| Task                              | Detail                                                                                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Set up Python venv & ROS 2 Humble | On Jetson Orin Nano / RPi 5 (Ubuntu 22.04), install OpenCV and dependencies                                                                       |
+| Clone `xArm-Developer/xarm_ros2`  | Verify SDK and serial driver communication                                                                                                        |
+| Mount 80×60 cm Baseboard          | Secure flat baseboard on workbench                                                                                                                |
+| Mount Arms Front-to-Back          | Mount Arm 2 (Front @ 180 mm) and Arm 1 (Back @ 420 mm) flat on baseboard ($Z=0$), collinear along $X = 360\text{ mm}$ ($S = 240\text{ mm}$)       |
+| Build Elevated Arena Platform     | Cut 20 mm board for RIGHT side; cover with high-friction silicone mat                                                                             |
+| Mount 4 ArUco Markers on Arena    | Mount Markers 0 & 2 collinear with arms; Markers 1 & 3 on outer boundary (all at $Z=+20\text{ mm}$)                                               |
+| Install Sector Barriers           | Place curved physical barriers at $R_{\min}=120\text{ mm}$ and $R_{\max}=320\text{ mm}$ ($d_{\text{edge}} = 5\text{--}25\text{ cm}$) on the right |
+| Mount NW / SW Collection Boxes    | Secure Box 1 in North-West ($\approx +125^\circ$) and Box 2 in South-West ($\approx -125^\circ$) at table level ($0\text{ mm}$)                   |
+| Assemble Central Electronics Bay  | Mount Jetson Orin Nano / RPi 5 and dual 7.4V/10A power hub in central bay ($X \in [55, 175], Y \in [215, 385]$)                                   |
+| Mount Overhead Camera             | Boom stand at 60–75 cm height centered over right-side arena; confirm all 4 markers visible                                                       |
+| Spray-Paint Cubes                 | 4 colors (Red, Green, Blue, Yellow) — 4–5 cubes each = ~16–20 cubes                                                                               |
 
 **Exit criteria**: Both arms home reliably. Base servo swing verified inside $240^\circ$ ROM. Camera sees the 4 arena ArUco markers clearly. Elevated arena, electronics bay, and drop boxes fixed.
 

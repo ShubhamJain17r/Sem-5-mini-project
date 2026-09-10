@@ -10,7 +10,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 | -------- | ---------- | ------------------------------------------------------------- | :----------: | :---------: | --------------------------------------------------------------------------------------------------------------- |
 | **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 20 mm elevated arena + high-friction silicone mat + textured claw pads                                          |
 | **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 320\text{ mm}$) + $65\text{ mm}$ Motor 2 height alignment                           |
-| **R-03** | Vision     | Non-coplanar ArUco distortion if markers sit at mixed heights |   **High**   |   **Low**   | Mount all 4 ArUco markers directly on the raised arena ($Z = 15\text{--}20\text{ mm}$)                          |
+| **R-03** | Vision     | Non-coplanar ArUco distortion if markers sit at mixed heights |   **High**   |   **Low**   | Mount all 4 ArUco markers directly on the raised arena ($Z = +20\text{ mm}$)                                    |
 | **R-04** | Vision     | HSV color threshold drift from changing lab lights            |   **High**   | **Medium**  | Fixed camera exposure + dedicated 5V diffuse LED ring                                                           |
 | **R-05** | Hardware   | Voltage brownout / servo reset under dual-arm torque          | **Critical** | **Medium**  | Separate 7.4V / 5A power supply per arm with shared ground in Central Electronics Bay                           |
 | **R-06** | Comms      | WiFi latency jitter / packet drops causing arm stutter        |   **High**   | **Medium**  | Direct USB-to-UART serial connections (`/dev/ttyUSB0`, `/dev/ttyUSB1`)                                          |
@@ -33,7 +33,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
   - Arm 1 rotates CCW by $\approx 205^\circ$ from its southernmost pick angle to drop in Box 1.
   - Arm 2 rotates CW by $\approx 205^\circ$ from its northernmost pick angle to drop in Box 2.
   - Both paths stay safely inside the $240^\circ$ physical limit, guaranteeing zero servo stall.
-- **Central Electronics Bay Bonus**: Clearing the central-left area creates space for the Jetson Nano / Raspberry Pi 5 and 7.4V power distribution hub directly between the arms, shortening serial and power cables to $< 25\text{ cm}$.
+- **Central Electronics Bay Bonus**: Clearing the central-left area creates space for the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and 7.4V power distribution hub directly between the arms, shortening serial and power cables to $< 25\text{ cm}$.
 
 ### 2.2 The Collinear Arena ArUco Setup: Why We Moved Markers from Behind the Boxes
 
@@ -45,20 +45,24 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 ### 2.3 Coplanarity Rule (Crucial Optical Physics)
 
-- A 2D homography maps a flat plane ($Z = \text{constant}$). Because the right-side picking arena is **elevated by $15\text{--}20\text{ mm}$**, all 4 ArUco markers **must sit on that same elevated platform**. If markers sat at different heights, the homography would compute a false tilt and distort cube coordinates by up to $10\text{ mm}$.
+- A 2D homography maps a flat plane ($Z = \text{constant}$). Because the right-side picking arena is **elevated by $+20\text{ mm}$**, all 4 ArUco markers **must sit on that same elevated platform**. If markers sat at different heights, the homography would compute a false tilt and distort cube coordinates by up to $10\text{ mm}$.
 
 ### 2.4 The Elevation Setup: Why We Elevated the Arena and NOT the xArm
 
 - **Built-in Height**: Motor 2 (shoulder pitch axis) is already **$65\text{ mm}$** above the base. Raising the arm base would force the arm to point steeply down, reducing horizontal reach and scraping brackets.
-- **Elevating the arena by 20 mm**: Cube centers sit at $Z \approx 30\text{ mm}$, only $\approx 35\text{ mm}$ below Motor 2. The arm reaches **straight out horizontally** in its natural power band. Motor torque strain drops by ~30%.
+- **Elevating the arena by 20 mm**: Cube centers sit at $Z \approx 32.5\text{ mm}$, only $32.5\text{ mm}$ below Motor 2. The arm reaches **straight out horizontally** in its natural power band. Motor torque strain drops by ~30%.
 
 ### 2.5 Bounding $R_{\max} = 320\text{ mm}$ (Eliminating Servo Stall)
 
 - Setting the outer curved boundary barrier at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 150^\circ$, retaining full torque margin and eliminating motor stalls.
 
-### 2.6 Comprehensive Kinematics, Mechanics & Grasp Planning Reference
+### 2.6 Modular Stepping-Stone References
 
-- See [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for detailed mathematical proofs showing why pure top-down picks fail beyond $158\text{ mm}$, the analytical inverse kinematics solver equations ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory profiling, and torque/friction models.
+- Consult [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Stepping Stone 1) for physical assembly, NW/SW boxes, and power bay.
+- Consult [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2) for closed-form IK, reach proofs, dual-regime roll, and 5-phase trajectory profiling.
+- Consult [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3) for planar homography, HSV segmentation, sub-mm centroiding, and polar mapping.
+
+** See [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for detailed mathematical proofs showing why pure top-down picks fail beyond $158\text{ mm}$, the analytical inverse kinematics solver equations ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory profiling, and torque/friction models.
 
 ---
 
@@ -66,7 +70,7 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 Before running autonomous sorting:
 
-- [ ] **Coplanar Marker Level**: Confirm all 4 ArUco markers sit flat on the elevated arena platform ($Z = 15\text{--}20\text{ mm}$).
+- [ ] **Coplanar Marker Level**: Confirm all 4 ArUco markers sit flat on the elevated arena platform ($Z = +20\text{ mm}$).
 - [ ] **Arena ROI Check**: Confirm the homography warp only shows the elevated picking arena and completely excludes the left-side drop boxes and Central Electronics Bay.
 - [ ] **Friction Check**: Test dragging a cube on the silicone mat—confirm it holds static position when lightly touched.
 - [ ] **Boundary Verification**: Jog arm to $R=320\text{ mm}$; confirm claw clears outer barrier comfortably.

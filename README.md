@@ -19,15 +19,15 @@ This project automates color-based object sorting using computer vision, inverse
    - The overhead camera focuses **100% of its sensor resolution exclusively on the picking arena**, completely excluding the collection boxes to eliminate false-positive color detections.
 2. **Elevated Two-Center Stadium Arena (Right Side)**:
    - Spans a continuous $180^\circ\text{--}220^\circ$ elliptical pick envelope across the right flank of both arms.
-   - Elevated by **$15\text{--}20\text{ mm}$** and lined with a high-friction matte silicone mat. This aligns the $25\text{ mm}$ cubes with the natural **$65\text{ mm}$ shoulder height of Motor 2**, allowing horizontal picks in the maximum motor torque band without claw drag on the table.
-3. **Safe Reach Boundaries ($R_{\min} = 100\text{ mm}$, $R_{\max} = 240\text{ mm}$)**:
-   - Capping reach at $24\text{ cm}$ (instead of the straight-arm $29.9\text{ cm}$ limit) maintains a healthy $\approx 150^\circ$ elbow angle, eliminating motor stalls, servo jitter, and joint singularities.
+   - Elevated by **$+20\text{ mm}$** and lined with a high-friction matte silicone mat. This aligns the $25\text{ mm}$ cubes with the natural **$65\text{ mm}$ shoulder height of Motor 2**, allowing horizontal picks in the maximum motor torque band without claw drag on the table.
+3. **Safe Reach Boundaries ($d_{\text{edge}} = 5\text{--}25\text{ cm} \iff R = 120\text{--}320\text{ mm}$)**:
+   - Operating reach $5\text{--}25\text{ cm}$ from baseplate edge ($12\text{--}32\text{ cm}$ from center, backing off $2.4\text{ cm}$ from straight-arm limit) maintains a healthy $\approx 150^\circ$ elbow angle, eliminating motor stalls, servo jitter, and joint singularities.
 4. **Angled Drop Boxes (North-West & South-West) Resolving $240^\circ$ Base Servo ROM**:
    - The xArm 1s base bus servos (LX-15D) have a $240^\circ$ travel limit, creating an unreachable deadzone directly behind the arm ($180^\circ$ due West).
    - Placing **Box 1 in the North-West ($\approx +125^\circ$)** and **Box 2 in the South-West ($\approx -125^\circ$)** constrains total travel to $\approx 205^\circ \le 240^\circ$, eliminating servo stall.
    - Drops occur by gravity with **zero contention** (**no `box_mutex` required**), allowing both arms to drop simultaneously.
 5. **Central Electronics & Power Bay**:
-   - The left-center flank between the boxes ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) houses the Jetson Nano / Raspberry Pi 5 and dual 7.4V / 10A power hub.
+   - The left-center flank between the boxes ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) houses the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and dual 7.4V / 10A power hub.
    - Shortens USB and power cable runs to $< 25\text{ cm}$, eliminates wire snagging during $205^\circ$ swings, and provides clean power distribution.
 6. **Pipelined Scheduling with Single `arena_mutex`**:
    - While Arm 2 picks on the right, Arm 1 drops in Box 1 (NW).
@@ -49,7 +49,7 @@ This project automates color-based object sorting using computer vision, inverse
 │                                                │  ◤ ArUco #2      │  CONTINUOUS       ││
 │   ┌─────────────────┐             ═════════════╪══════════════════│- TWO-CENTER       ││
 │   │  CENTRAL        │               Midline Partition (Y=300mm)   │  STADIUM ARENA    ││
-│   │  ELECTRONICS    │                          │                  │  (ELEVATED 15mm)  ││
+│   │  ELECTRONICS    │                          │                  │  (ELEVATED 20mm)  ││
 │   │  BAY: Hub & RPi │                          │                  /                   │ │
 │   └─────────────────┘                     ┌────────┐             /                     │
 │                                           │ xArm 2 │ ──────────►│  Arm 2 Arc Zone    │ │
@@ -79,10 +79,10 @@ This project automates color-based object sorting using computer vision, inverse
 | **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 2 shoulder axis @ $65\text{ mm}$)                                     |
 | **Link Lengths**    | Base-to-Shoulder: $65\text{ mm}$ · Upper Arm: $101\text{ mm}$ · Forearm: $95\text{ mm}$ · Tool: $150\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 5 axial roll, Motor 6 clamp)                              |
-| **Compute**         | Jetson Nano / Raspberry Pi 5 (Ubuntu 22.04 LTS, mounted in Central Electronics Bay)                             |
+| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, mounted in Central Electronics Bay)    |
 | **Camera**          | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$                            |
 | **Main Baseboard**  | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$)                                                |
-| **Picking Arena**   | Raised platform ($+15\text{--}20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$)               |
+| **Picking Arena**   | Raised platform ($+20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$)                          |
 | **Collection Bins** | 2× dedicated $2\times 2$ boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, $Z = 0\text{ mm}$)      |
 | **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$)          |
 | **Objects**         | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors                                       |

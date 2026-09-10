@@ -52,16 +52,16 @@ We establish a right-handed Cartesian base coordinate frame $\mathcal{F}_{\text{
 
 From technical measurements ([`docs/xArm demensions.png`](file:///d:/Sem-3-mini-project/docs/xArm%20demensions.png)):
 
-| Parameter                 | Description                                                     |                  Value                   |
-| ------------------------- | --------------------------------------------------------------- | :--------------------------------------: |
-| $d_1$                     | Base floor ($Z=0$) to Motor 2 Shoulder Pitch Axis               |             $65.0\text{ mm}$             |
-| $L_1$                     | Motor 2 Shoulder Axis to Motor 3 Elbow Axis                     |            $101.0\text{ mm}$             |
-| $L_2$                     | Motor 3 Elbow Axis to Motor 4 Wrist Pitch Axis                  |             $95.0\text{ mm}$             |
-| $L_3$                     | Motor 4 Wrist Axis to Gripper Fingertip Grasp Center            |        $\approx 150.0\text{ mm}$         |
-| $w_{\max}$                | Maximum Gripper Jaw Opening Width                               |             $55.0\text{ mm}$             |
-| $d_{\text{cube}}$         | Target Wooden Cube Side Length                                  |             $25.0\text{ mm}$             |
-| $Z_{\text{arena}}$        | Elevated Picking Arena Floor Surface                            |    $++20.0\text{ mm}$    |
-| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) | $\approx 32.5\text{ mm}$ |
+| Parameter                 | Description                                                     |           Value           |
+| ------------------------- | --------------------------------------------------------------- | :-----------------------: |
+| $d_1$                     | Base floor ($Z=0$) to Motor 2 Shoulder Pitch Axis               |     $65.0\text{ mm}$      |
+| $L_1$                     | Motor 2 Shoulder Axis to Motor 3 Elbow Axis                     |     $101.0\text{ mm}$     |
+| $L_2$                     | Motor 3 Elbow Axis to Motor 4 Wrist Pitch Axis                  |     $95.0\text{ mm}$      |
+| $L_3$                     | Motor 4 Wrist Axis to Gripper Fingertip Grasp Center            | $\approx 150.0\text{ mm}$ |
+| $w_{\max}$                | Maximum Gripper Jaw Opening Width                               |     $55.0\text{ mm}$      |
+| $d_{\text{cube}}$         | Target Wooden Cube Side Length                                  |     $25.0\text{ mm}$      |
+| $Z_{\text{arena}}$        | Elevated Picking Arena Floor Surface                            |     $+20.0\text{ mm}$     |
+| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) | $\approx 32.5\text{ mm}$  |
 
 ---
 
@@ -83,7 +83,7 @@ By the Pythagorean theorem, the maximum radial distance $r_{\max,\text{vertical}
 $$r_{\max,\text{vertical}} = \sqrt{(L_1 + L_2)^2 - \Delta z^2} = \sqrt{196^2 - 115^2} = \sqrt{38416 - 13225} = \sqrt{25191} \approx 158.7\text{ mm}$$
 
 > [!WARNING]
-> **Physical Constraint**: Under a pure vertical top-down orientation ($\phi = -90^\circ$), the arm **cannot physically reach any object beyond $15.8\text{ cm}$** from its base. Any cube placed in the outer arena ($r \in [160, 240\text{ mm}]$) is kinematically unreachable top-down.
+> **Physical Constraint**: Under a pure vertical top-down orientation ($\phi = -90^\circ$), the arm **cannot physically reach any object beyond $15.8\text{ cm}$** from its base. Any cube placed in the outer arena ($r \in [160, 320\text{ mm}] (d_{\text{edge}} \in [9, 25\text{ cm}])$) is kinematically unreachable top-down.
 
 ### 3.2 Why Radial / Angled Picking Resolves the Paradox
 
@@ -325,28 +325,27 @@ How can we make the physical grasping system significantly better?
 
 ## 9. Physical Limitations, Singularities & Failure Boundaries
 
-| Limitation / Boundary                                | Cause                                                                 | Manifestation                                                                                                         | Software Enforcement                                                          |
-| ---------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **Boundary Singularity ($R > 240\text{ mm}$)**       | Fully extended elbow ($L_1, L_2$ collinear)                           | Jacobian determinant $\det(J) \rightarrow 0$; infinite joint velocity required for radial motion; severe servo jitter | Software clamps all picks to $r \le 240\text{ mm}$                            |
-| **Base Collision Singularity ($R < 100\text{ mm}$)** | Proximity to $140\times 154\text{ mm}$ base mounting plate            | Wrist / Link 2 hits base servo chassis                                                                                | Software rejects any detection with $r < 100\text{ mm}$                       |
-| **Backlash Error Envelope**                          | Gear play in plastic/brass spur gearboxes ($1^\circ\text{--}2^\circ$) | End-effector has $\pm 2.5\text{ mm}$ mechanical slack at $240\text{ mm}$ reach                                        | Compensated by wide $55\text{ mm}$ jaw opening ($> 2\times$ cube size)        |
-| **Drop Clearance Limit**                             | Left collection box partition height ($H \approx 30\text{ mm}$)       | Arm could clip box wall if dropped at low altitude                                                                    | Planner enforces ascent to $Z = +50\text{ mm}$ before descending into bin     |
-| **Bus Contention Latency**                           | Half-duplex UART communication over shared bus at 115200 baud         | Querying all 6 servo registers takes $\approx 18\text{ ms}$                                                           | Status queries run asynchronously; motion commands broadcast in packet bursts |
+| Limitation / Boundary                                                                 | Cause                                                                 | Manifestation                                                                                                         | Software Enforcement                                                          |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Boundary Singularity ($R > 320\text{ mm} (d_{\text{edge}} > 250\text{ mm})$)**      | Fully extended elbow ($L_1, L_2$ collinear)                           | Jacobian determinant $\det(J) \rightarrow 0$; infinite joint velocity required for radial motion; severe servo jitter | Software clamps all picks to $r \le 320\text{ mm}$                            |
+| **Base Collision Singularity ($R < 120\text{ mm} (d_{\text{edge}} < 50\text{ mm})$)** | Proximity to $140\times 154\text{ mm}$ base mounting plate            | Wrist / Link 2 hits base servo chassis                                                                                | Software rejects any detection with $r < 120\text{ mm}$                       |
+| **Backlash Error Envelope**                                                           | Gear play in plastic/brass spur gearboxes ($1^\circ\text{--}2^\circ$) | End-effector has $\pm 2.5\text{ mm}$ mechanical slack at $240\text{ mm}$ reach                                        | Compensated by wide $55\text{ mm}$ jaw opening ($> 2\times$ cube size)        |
+| **Drop Clearance Limit**                                                              | Left collection box partition height ($H \approx 30\text{ mm}$)       | Arm could clip box wall if dropped at low altitude                                                                    | Planner enforces ascent to $Z = +50\text{ mm}$ before descending into bin     |
+| **Bus Contention Latency**                                                            | Half-duplex UART communication over shared bus at 115200 baud         | Querying all 6 servo registers takes $\approx 18\text{ ms}$                                                           | Status queries run asynchronously; motion commands broadcast in packet bursts |
 
 ---
 
 ## 10. Kinematic Lookup Table (LUT) & Implementation Reference
 
-For maximum performance on embedded hardware (Jetson Nano / Raspberry Pi 5), the system pre-computes an empirical **Distance-to-Pitch LUT** to bypass complex runtime numerical optimization.
+For maximum performance on embedded hardware (NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5)), the system pre-computes an empirical **Distance-to-Pitch LUT** to bypass complex runtime numerical optimization.
 
 ### 10.1 Empirical Distance-to-Pitch Table
 
-|               Distance Range $r$               | Approach Pitch $\phi(r)$ | Standoff Radius $r - \Delta r$ | Grasp Elevation $Z_{\text{pick}}$ |                       Motor 5 Roll Mode                       |
-| :--------------------------------------------: | :----------------------: | :----------------------------: | :-------------------------------: | :-----------------------------------------------------------: |
-|     **$100\text{--}130\text{ mm}$** (Near)     |       $-45^\circ$        |       $r - 20\text{ mm}$       |         $32.0\text{ mm}$          | Object-Aligned ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
-|   **$130\text{--}165\text{ mm}$** (Near-Mid)   |       $-35^\circ$        |       $r - 25\text{ mm}$       |         $30.0\text{ mm}$          | Object-Aligned ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
-|   **$165\text{--}200\text{ mm}$** (Mid-Far)    |       $-20^\circ$        |       $r - 30\text{ mm}$       |         $28.0\text{ mm}$          |            **Locked Level ($\theta_5 = 0^\circ$)**            |
-| **$200\text{--}240\text{ mm}$** (Far Boundary) | $-10^\circ$ to $0^\circ$ |       $r - 30\text{ mm}$       |         $27.0\text{ mm}$          |            **Locked Level ($\theta_5 = 0^\circ$)**            |
+|       Distance Range $r_{\text{center}}$       | Distance from Edge $d_{\text{edge}}$ |        Approach Pitch $\phi(r)$        | Standoff Radius $r - \Delta r$ | Grasp Elevation $Z_{\text{pick}}$ |                         Motor 5 Roll Mode                         |
+| :--------------------------------------------: | :----------------------------------: | :------------------------------------: | :----------------------------: | :-------------------------------: | :---------------------------------------------------------------: |
+|     **$120\text{--}170\text{ mm}$** (Near)     |     **$5\text{--}10\text{ cm}$**     |   $-75^\circ$ to $-60^\circ$ (Steep)   |       $r - 20\text{ mm}$       |         $32.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
+|     **$170\text{--}250\text{ mm}$** (Mid)      |    **$10\text{--}18\text{ cm}$**     |  $-50^\circ$ to $-25^\circ$ (Angled)   |       $r - 25\text{ mm}$       |         $32.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
+| **$250\text{--}320\text{ mm}$** (Far Boundary) |    **$18\text{--}25\text{ cm}$**     | $-15^\circ$ to $-5^\circ$ (Horizontal) |       $r - 30\text{ mm}$       |         $32.5\text{ mm}$          | **Locked Level** ($\theta_5 = 0^\circ$, Parallel Self-Centering)  |
 
 ### 10.2 Python IK Solver Reference Implementation
 
@@ -362,21 +361,20 @@ class XArmKinematics:
         self.L3 = 150.0      # Wrist pitch to gripper grasp center
 
         # Operational Boundaries (mm)
-        self.r_min = 100.0
-        self.r_max = 240.0
-        self.z_arena = 18.0  # Elevated arena surface (15-20 mm)
+        self.d_offset = 70.0 # Motor 1 center to baseplate outer flat edge
+        self.r_min = 120.0   # 50 mm (5 cm) from baseplate edge
+        self.r_max = 320.0   # 250 mm (25 cm) from baseplate edge (24 mm safety backoff)
+        self.z_arena = 20.0  # Elevated arena surface (+20 mm)
         self.cube_h = 25.0
 
     def get_pitch_angle(self, r):
         """Distance-based pitch approach angle LUT (degrees)"""
-        if r < 130.0:
-            return -45.0
-        elif r < 165.0:
-            return -35.0
-        elif r < 200.0:
-            return -20.0
-        else:
-            return -10.0
+        if r < 170.0:        # d_edge < 10 cm (Near Zone)
+            return -65.0     # Steep approach from above (prevents base collision)
+        elif r < 250.0:      # 10 cm <= d_edge < 18 cm (Mid Zone)
+            return -35.0     # Balanced angled approach
+        else:                # 18 cm <= d_edge <= 25 cm (Far Zone)
+            return -5.0      # Near-horizontal radial approach (max elbow torque)
 
     def solve_ik(self, x_target, y_target, cube_angle=0.0):
         """
@@ -423,11 +421,11 @@ class XArmKinematics:
         # 5. Wrist Pitch (theta_4)
         theta_4 = phi_deg - (theta_2 - theta_3)
 
-        # 6. Wrist Roll (Motor 5)
-        if r < 165.0:
-            theta_5 = cube_angle - theta_1  # Align with cube face
+        # 6. Wrist Roll (Motor 5) - Dual-Regime Strategy
+        if r < 170.0:
+            theta_5 = cube_angle - theta_1  # Active roll alignment for steep picks
         else:
-            theta_5 = 0.0                   # Lock level with table
+            theta_5 = 0.0                   # Lock level (0°) for horizontal picks
 
         return {
             'motor_1_azimuth': theta_1,
