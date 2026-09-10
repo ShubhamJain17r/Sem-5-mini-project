@@ -66,7 +66,7 @@ This project automates color-based object sorting using computer vision, inverse
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
   Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm
-  Vision Focus:    100% of camera pixels warped onto the picking arena
+  Vision Focus:    100% of camera pixels warped onto the picking arena 
   Zero Occlusion:  Drop boxes and Central Electronics Bay are completely excluded from vision
 ```
 
