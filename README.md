@@ -142,11 +142,13 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
 - 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), hardware exposure/WB locks, HSV color segmentation, spatial moments centroiding, and Python perception pipeline.
 - 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interface definitions, dynamic load balancing with hysteresis across $Y = 300\text{ mm}$ midline, spatial crossover mutex state machine, and production Python nodes.
+- 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), Arduino Uno R4 WiFi test bench, servo deviation zeroing, and tick-to-angle conversion.
+- 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 6 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
 
 ### System Integration & Planning
 
 - 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
-- 📄 [`docs/roadmap.md`](docs/roadmap.md): 11-week college-only development schedule detailing milestones from physical assembly and vision calibration to dual-arm stress testing and final demo.
+- 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4) replacing rigid weekly schedules.
 - 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
 
 ### Technical Drawings & Schematics
@@ -159,7 +161,13 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 ## 📂 Project Directory Structure
 
 ```text
-Sem-3-mini-project/
+Sem-5-mini-project/
+│
+├── arduino/                        # Microcontroller Test & Calibration Firmware
+│   ├── xarm_zero_calibration/      # Interactive servo zeroing & deviation calibration
+│   │   └── xarm_zero_calibration.ino
+│   └── xarm_test_bench/            # Multi-mode test bench (Joystick/Pot/Button/CLI)
+│       └── xarm_test_bench.ino
 │
 ├── config/                         # Configuration YAMLs
 │   ├── colors.yaml                 # Tuned HSV color threshold ranges
@@ -170,10 +178,13 @@ Sem-3-mini-project/
 │   ├── 01_arena_and_layout.md      # Stepping Stone 1: Arena & Component Placement
 │   ├── 02_kinematics_and_grasp_planning.md # Stepping Stone 2: Kinematics & Grasp Planning
 │   ├── 03_computer_vision_and_calibration.md # Stepping Stone 3: Vision & Calibration Pipeline
+│   ├── 04_ros2_architecture_and_scheduling.md # Stepping Stone 4: ROS 2 & Mutex Scheduling
+│   ├── 05_hardware_bringup_and_firmware_control.md # Stepping Stone 5: Low-Level Protocols & Bringup
+│   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
 │   ├── design.png                  # High-resolution architectural schematic
 │   ├── implementation_plan.md      # System architecture & integration blueprint
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
-│   ├── roadmap.md                  # 11-week college development roadmap
+│   ├── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
 │   └── xArm demensions.png         # Physical robot dimension schematic
 │
 ├── dashboard/                      # Web Dashboard UI

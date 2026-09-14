@@ -18,12 +18,14 @@ The operator views the setup from the **FRONT**. The two arms are aligned along 
 An overhead USB camera mounted on a boom stand at 65–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5).
 
 > [!NOTE]
-> For in-depth mechanical and kinematic specifications, consult the dedicated stepping stone documents:
+> For in-depth mechanical, kinematic, optical, and diagnostic specifications, consult the dedicated stepping stone documents:
 >
 > - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — Baseboard construction, spatial dimensions, component placements, barrier profiles, lighting, and wiring bay.
 > - **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) — Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque/friction mechanics, and 5-phase pick trajectory.
 > - **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography, hardware exposure lock, HSV color segmentation, and spatial centroid extraction.
 > - **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interfaces, dynamic load balancing with hysteresis, spatial crossover mutex, and production Python nodes.
+> - **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol, Arduino Uno R4 WiFi test bench, servo deviation zeroing, and tick-to-angle mapping.
+> - **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 6 grip verification, empirical Z-sag compensation, and lens undistortion.
 
 ---
 
@@ -92,6 +94,9 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 4. **Coplanar Marker Alignment**: Mounting all 4 ArUco markers directly on the raised arena ($Z = +20\text{ mm}$) guarantees zero perspective tilt error during homography calculation.
 5. **$240^\circ$ Base Servo ROM Optimization**: Placing Box 1 in the North-West ($\approx +125^\circ$) and Box 2 in the South-West ($\approx -125^\circ$) keeps total base yaw swing to $\approx 205^\circ \le 240^\circ$, avoiding the $180^\circ$ physical deadzone directly behind the arm.
 6. **Full Analytical Inverse Kinematics (IK) & Grasp Planning**: See the dedicated mathematical and mechanical architecture document [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for closed-form joint angle equations ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque models, and 5-phase trajectory waypoint generation.
+7. **Nearest-First Pick Policy (Corridor Collision Avoidance)**: To prevent horizontal claw approaches from plowing through foreground cubes, the queue is strictly sorted by ascending radial distance $r$. See [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
+8. **Empirical Z-Sag Compensation**: To counteract mechanical gear backlash and linkage flex at extreme reach ($r > 180\text{ mm}$), commanded elevation incorporates a linear sag offset $Z_{\text{cmd}} = Z_{\text{target}} + k_{\text{sag}} \cdot (r - 180)$.
+9. **Software Grip Confirmation via Motor 6 Readback**: Post-clamping position readback ($< 220\text{ ticks} = \text{miss}$, $380\text{--}520\text{ ticks} = \text{cube grasped}$) prevents empty $205^\circ$ drop swings.
 
 ---
 
@@ -101,12 +106,13 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 
 ```text
 Frame from camera (Overhead @ 65–75 cm above arena)
+  → Intrinsic Lens Undistortion: cv2.undistort() with camera matrix K and distortion vector D
   → Detect 4 ArUco markers framing the elevated arena:
       - ArUco #0: Front-Center (X = 360 mm, Y = 55 mm, collinear with arms)
       - ArUco #1: Front-Right  (X = 730 mm, Y = 55 mm)
       - ArUco #2: Back-Center  (X = 360 mm, Y = 545 mm, collinear with arms)
       - ArUco #3: Back-Right   (X = 730 mm, Y = 545 mm)
-  → Compute perspective transform → rectified top-down view (dedicated arena mm plane)
+  → Compute & freeze perspective transform → rectified top-down view (dedicated arena mm plane)
   → Convert rectified image to HSV
   → Threshold for 4 colors (Red, Green, Blue, Yellow) → binary masks
   → Find contours per mask → filter by area (25 mm cube profile)
@@ -116,6 +122,7 @@ Frame from camera (Overhead @ 65–75 cm above arena)
       ΔX = X_arena - X_base,  ΔY = Y_arena - Y_base
       r = sqrt(ΔX² + ΔY²),    θ = atan2(ΔY, ΔX)
   → Boundary check: Verify 120 mm ≤ r ≤ 320 mm (5 cm ≤ d_edge ≤ 25 cm) within right-flank arc
+  → Nearest-First Sort: Order queue by ascending r
   → Output: [{color, x_mm, y_mm, r_mm, theta_deg, target_arm}, ...]
 ```
 
