@@ -167,6 +167,16 @@ Session.vim
 
 
 # ------------------------------------------------------------
+# 🐳 DOCKER / CONTAINER ARTIFACTS
+# ------------------------------------------------------------
+.docker/
+docker-compose.override.yml
+*.tar
+*.tar.gz
+.env.docker
+
+
+# ------------------------------------------------------------
 # 📦 MISCELLANEOUS
 # ------------------------------------------------------------
 # Compiled C extensions (from any Python packages built locally)

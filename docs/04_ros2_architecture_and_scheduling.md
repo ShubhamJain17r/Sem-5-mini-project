@@ -936,6 +936,22 @@ def generate_launch_description():
 
 ### 7.1 System Bringup Checklist
 
+#### Method A: Project-Isolated Docker (Recommended for Laptop & Jetson)
+```bash
+# 1. Build project container (from repository root)
+./docker/build.sh
+
+# 2. Enter container with hardware/GUI passthrough
+./docker/run.sh
+
+# 3. Inside container: build and launch system
+cd /workspace/ros2_ws
+colcon build --symlink-install
+source install/setup.bash
+ros2 launch xarm_bringup xarm_system.launch.py
+```
+
+#### Method B: Native Host Bringup (Ubuntu 22.04 LTS)
 ```bash
 # 1. Source ROS 2 Humble workspace
 source /opt/ros/humble/setup.bash

@@ -207,6 +207,16 @@ Sem-5-mini-project/
 │   ├── test_aruco_warp.py          # Dedicated arena homography verification
 │   └── tune_hsv.py                 # Interactive HSV color tuning tool
 │
+├── .devcontainer/                 # VS Code Dev Container configuration
+│   └── devcontainer.json           # 1-click isolated ROS 2 environment
+│
+├── docker/                         # Project-Level Docker Environment
+│   ├── Dockerfile                  # Multi-arch (x86_64 / arm64) ROS 2 Humble image
+│   ├── build.sh                    # Host UID/GID matching build script
+│   ├── run.sh                      # Launch script with Intel GPU, GUI, & hardware pass-through
+│   ├── entrypoint.sh               # Environment overlay auto-source entrypoint
+│   └── README.md                   # Container usage & Jetson deployment guide
+│
 ├── README.md                       # Project landing page & documentation
 └── requirements.txt                # Python dependencies
 ```
@@ -215,20 +225,57 @@ Sem-5-mini-project/
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
+You can run this project using the **Project-Isolated Docker Environment** (recommended for Ubuntu 24.04/26.04 hosts and cross-platform Jetson deployment) or **Native Ubuntu 22.04**.
 
-- Ubuntu 22.04 LTS with [ROS 2 Humble](https://docs.ros.org/en/humble/Installation.html)
+---
+
+### Option A: Project-Isolated Docker (Recommended)
+
+Keeps your host operating system clean, avoids global ROS package conflicts, and runs seamlessly on both **Intel GPU laptops** and **NVIDIA Jetson (ARM64)** boards.
+
+#### 1. Prerequisites
+- Docker Engine installed (`docker run hello-world` runs without `sudo`)
+- USB Webcam (Logitech C270 or C920)
+- 2× xArm 1s Robotic Arms connected via USB-UART
+
+#### 2. Build the Project Container
+From the repository root:
+```bash
+./docker/build.sh
+```
+
+#### 3. Launch the Container Shell
+```bash
+./docker/run.sh
+```
+*(This automatically configures Intel GPU acceleration `/dev/dri`, X11 GUI forwarding for RViz2/OpenCV, and passes through USB serial and video devices).*
+
+#### 4. Build Workspace & Run Nodes (Inside Container)
+```bash
+# Build ROS 2 workspace
+cd /workspace/ros2_ws
+colcon build --symlink-install
+source install/setup.bash
+
+# Launch camera and vision pipeline
+ros2 launch sorting_vision vision.launch.py
+
+# Launch dual-arm scheduler and controllers
+ros2 launch sorting_scheduler system.launch.py
+```
+
+---
+
+### Option B: Native Installation (Ubuntu 22.04 LTS Only)
+
+#### 1. Prerequisites
+- Ubuntu 22.04 LTS with [ROS 2 Humble Desktop](https://docs.ros.org/en/humble/Installation.html)
 - Python 3.10+
 - USB Webcam (Logitech C270 or C920)
 - 2× xArm 1s Robotic Arms connected via USB-UART
 
-### 2. Installation
-
+#### 2. Installation & Build
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd Sem-3-mini-project
-
 # Install Python dependencies
 pip install -r requirements.txt
 
@@ -238,8 +285,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-### 3. Launching the System
-
+#### 3. Launching the System
 ```bash
 # Launch camera and vision pipeline
 ros2 launch sorting_vision vision.launch.py
