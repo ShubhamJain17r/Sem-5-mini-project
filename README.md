@@ -217,6 +217,7 @@ Sem-5-mini-project/
 │   ├── entrypoint.sh               # Environment overlay auto-source entrypoint
 │   └── README.md                   # Container usage & Jetson deployment guide
 │
+├── DOCKER_GUIDE.md                 # Complete Docker & ROS 2 Humble user manual
 ├── README.md                       # Project landing page & documentation
 └── requirements.txt                # Python dependencies
 ```
@@ -232,6 +233,8 @@ You can run this project using the **Project-Isolated Docker Environment** (reco
 ### Option A: Project-Isolated Docker (Recommended)
 
 Keeps your host operating system clean, avoids global ROS package conflicts, and runs seamlessly on both **Intel GPU laptops** and **NVIDIA Jetson (ARM64)** boards.
+
+> 📖 **Full Guide**: See [**`DOCKER_GUIDE.md`**](DOCKER_GUIDE.md) for the complete manual, multi-terminal workflow, hardware configuration, and troubleshooting.
 
 #### 1. Prerequisites
 - Docker Engine installed (`docker run hello-world` runs without `sudo`)
