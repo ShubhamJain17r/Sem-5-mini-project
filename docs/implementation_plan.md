@@ -20,6 +20,7 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 > [!NOTE]
 > For in-depth mechanical, kinematic, optical, and diagnostic specifications, consult the dedicated stepping stone documents:
 >
+> - **Stepping Stone 0**: [`docs/00_docker_and_ros2_development_guide.md`](00_docker_and_ros2_development_guide.md) — Docker containerization, hybrid host/container workflow, and ROS 2 Humble package development standards.
 > - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — Baseboard construction, spatial dimensions, component placements, barrier profiles, lighting, and wiring bay.
 > - **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) — Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque/friction mechanics, and 5-phase pick trajectory.
 > - **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography, hardware exposure lock, HSV color segmentation, and spatial centroid extraction.

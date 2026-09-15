@@ -175,6 +175,8 @@ Sem-5-mini-project/
 │   └── camera_calibration.yaml     # Camera intrinsic and distortion params
 │
 ├── docs/                           # Stepping-Stone & System Documentation
+│   ├── README.md                   # Documentation Index & Architecture Map
+│   ├── 00_docker_and_ros2_development_guide.md # Stepping Stone 0: Docker & ROS 2 Workflow
 │   ├── 01_arena_and_layout.md      # Stepping Stone 1: Arena & Component Placement
 │   ├── 02_kinematics_and_grasp_planning.md # Stepping Stone 2: Kinematics & Grasp Planning
 │   ├── 03_computer_vision_and_calibration.md # Stepping Stone 3: Vision & Calibration Pipeline
@@ -214,8 +216,7 @@ Sem-5-mini-project/
 │   ├── Dockerfile                  # Multi-arch (x86_64 / arm64) ROS 2 Humble image
 │   ├── build.sh                    # Host UID/GID matching build script
 │   ├── run.sh                      # Launch script with Intel GPU, GUI, & hardware pass-through
-│   ├── entrypoint.sh               # Environment overlay auto-source entrypoint
-│   └── README.md                   # Container usage & Jetson deployment guide
+│   └── entrypoint.sh               # Environment overlay auto-source entrypoint
 │
 ├── DOCKER_GUIDE.md                 # Complete Docker & ROS 2 Humble user manual
 ├── README.md                       # Project landing page & documentation
@@ -309,6 +310,7 @@ ros2 launch sorting_scheduler system.launch.py
 
 ## 📅 Project Status
 
+- [x] Stepping Stone 0: Docker & ROS 2 Development Environment (`docs/00_docker_and_ros2_development_guide.md`)
 - [x] Stepping Stone 1: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
 - [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
 - [x] Technical Schematic Design (`docs/design.png`)
