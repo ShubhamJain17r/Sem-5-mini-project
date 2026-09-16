@@ -1,0 +1,272 @@
+# =====================================================================================
+# Dual xArm 1s Color-Sorting Robot — Static Hardware & Kinematic Configuration
+# File: config/dual_xarm_hardware.yaml
+#
+# PURPOSE:
+#   Defines immutable physical and kinematic parameters for both robotic manipulators:
+#   - Workspace mounting origins (X, Y, Z) and shared collinear axis (X = 360 mm)
+#   - Physical link lengths (DH parameters)
+#   - Joint travel limits (min_ticks, max_ticks)
+#   - Rotation direction multipliers (+1 / -1) and semantic physical descriptions
+#   - Multi-state waypoint poses (home_tucked, ready_standoff, drop_container)
+#   - Dedicated drop box container targets (Box 1 NW, Box 2 SW)
+#
+# NOTE ON DEVIATIONS:
+#   Volatile screw-tightening deviation offsets are decoupled and stored separately in:
+#   config/servo_calibration.yaml.
+#   Recalibrating deviations after tightening screws NEVER requires editing this file!
+# =====================================================================================
+
+version: "1.0"
+date_created: "2026-09-16"
+
+# -------------------------------------------------------------------------------------
+# GLOBAL WORKCELL COORDINATE FRAME
+# -------------------------------------------------------------------------------------
+workspace:
+  dimensions_mm:
+    width_x: 800.0
+    depth_y: 600.0
+  origin: "Front-Left table corner (Operator at Y=0 looking toward +Y)"
+  collinear_axis_x_mm: 360.0
+  picking_arena:
+    elevation_z_mm: 20.0
+    silicone_friction_coeff: 0.8
+    cube_size_mm: 25.0
+    cube_center_z_mm: 32.5  # 20mm elevation + 12.5mm half-cube height
+
+# -------------------------------------------------------------------------------------
+# MANIPULATORS CONFIGURATION
+# -------------------------------------------------------------------------------------
+manipulators:
+
+  # ===================================================================================
+  # xArm 1: REAR / BACK MANIPULATOR
+  # ===================================================================================
+  xarm_1:
+    name: "xArm 1 (Back / North Manipulator)"
+    role: "Sorts objects in rear arena quadrant (Y >= 300 mm) into North-West Box 1"
+    
+    # Mounting position relative to global workspace origin
+    base_mount_mm:
+      x: 360.0
+      y: 420.0
+      z: 0.0
+      nominal_heading_deg: 0.0  # 500 ticks points East (+X) toward picking arena
+
+    # Serial interface
+    communication:
+      primary_uart_device: "/dev/ttyUSB0"
+      controller_baud_rate: 9600     # Hiwonder secondary UART runs at 9600 baud
+      host_pc_baud_rate: 115200
+
+    # Physical link lengths (millimeters)
+    link_lengths_mm:
+      base_to_shoulder_L1: 65.0   # Vertical offset to Motor 5 shoulder axis
+      upper_arm_L2: 101.0         # Link between shoulder and elbow
+      forearm_L3: 95.0            # Link between elbow and wrist pitch
+      tool_claw_L4: 150.0         # Link from wrist pitch to claw fingertip center
+
+    # Dedicated Collection Box (North-West)
+    collection_box:
+      id: 1
+      name: "Box 1 (North-West)"
+      center_world_mm:
+        x: 115.0
+        y: 500.0
+        z: 0.0
+      azimuth_from_base_deg: 125.0  # +125° CCW swing from nominal heading (East)
+      base_yaw_drop_tick: 820       # Solves 240° ROM constraint (205° total travel)
+      grid_layout: "2x2"
+      compartment_size_mm: 60.0
+
+    # Motor specifications, travel limits & direction mapping (End-Effector to Base)
+    motors:
+      motor_1:
+        joint_name: "claw_gripper"
+        hardware_id: 1
+        min_tick: 150
+        max_tick: 800
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks opens claw; decreasing ticks clamps"
+        tick_states:
+          fully_closed_empty: 150
+          grip_cube_25mm: 250
+          fully_open: 750
+
+      motor_2:
+        joint_name: "wrist_roll"
+        hardware_id: 2
+        min_tick: 200
+        max_tick: 800
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks rolls claw clockwise (facing end-effector)"
+
+      motor_3:
+        joint_name: "wrist_pitch"
+        hardware_id: 3
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks pitches wrist downward toward table"
+
+      motor_4:
+        joint_name: "elbow_pitch"
+        hardware_id: 4
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks extends forearm forward; decreasing folds back"
+
+      motor_5:
+        joint_name: "shoulder_pitch"
+        hardware_id: 5
+        min_tick: 200
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: -1
+        motion_description: "Increasing ticks tilts shoulder backward/upright; decreasing tilts forward"
+
+      motor_6:
+        joint_name: "base_yaw"
+        hardware_id: 6
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500   # 500 ticks = 120° (Facing East toward +X arena)
+        direction_multiplier: 1
+        motion_description: "Increasing ticks rotates CCW (toward NW Box 1); decreasing rotates CW"
+
+    # Predefined Multi-State Poses (Theoretical Ticks: [M1, M2, M3, M4, M5, M6])
+    poses:
+      home_tucked:
+        ticks: [700, 500, 500, 280, 720, 500]
+        description: "Compact low-inertia transit pose; claw open, elbow tucked high"
+        transit_time_ms: 1500
+      ready_standoff:
+        ticks: [700, 500, 520, 500, 600, 420]
+        description: "Hovering 70mm above rear arena picking zone awaiting mutex"
+        transit_time_ms: 1600
+      drop_container:
+        ticks: [250, 500, 460, 460, 560, 820]
+        description: "Lowered over NW collection box ready to release object"
+        transit_time_ms: 1800
+
+
+  # ===================================================================================
+  # xArm 2: FRONT / SOUTH MANIPULATOR
+  # ===================================================================================
+  xarm_2:
+    name: "xArm 2 (Front / South Manipulator)"
+    role: "Sorts objects in front arena quadrant (Y < 300 mm) into South-West Box 2"
+
+    # Mounting position relative to global workspace origin
+    base_mount_mm:
+      x: 360.0
+      y: 180.0
+      z: 0.0
+      nominal_heading_deg: 0.0  # 500 ticks points East (+X) toward picking arena
+
+    # Serial interface
+    communication:
+      primary_uart_device: "/dev/ttyUSB1"
+      controller_baud_rate: 9600     # Hiwonder secondary UART runs at 9600 baud
+      host_pc_baud_rate: 115200
+
+    # Physical link lengths (millimeters)
+    link_lengths_mm:
+      base_to_shoulder_L1: 65.0
+      upper_arm_L2: 101.0
+      forearm_L3: 95.0
+      tool_claw_L4: 150.0
+
+    # Dedicated Collection Box (South-West)
+    collection_box:
+      id: 2
+      name: "Box 2 (South-West)"
+      center_world_mm:
+        x: 115.0
+        y: 100.0
+        z: 0.0
+      azimuth_from_base_deg: -125.0 # -125° CW swing from nominal heading (East)
+      base_yaw_drop_tick: 180       # Solves 240° ROM constraint (205° total travel)
+      grid_layout: "2x2"
+      compartment_size_mm: 60.0
+
+    # Motor specifications, travel limits & direction mapping (End-Effector to Base)
+    motors:
+      motor_1:
+        joint_name: "claw_gripper"
+        hardware_id: 1
+        min_tick: 150
+        max_tick: 800
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks opens claw; decreasing ticks clamps"
+        tick_states:
+          fully_closed_empty: 150
+          grip_cube_25mm: 250
+          fully_open: 750
+
+      motor_2:
+        joint_name: "wrist_roll"
+        hardware_id: 2
+        min_tick: 200
+        max_tick: 800
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks rolls claw clockwise (facing end-effector)"
+
+      motor_3:
+        joint_name: "wrist_pitch"
+        hardware_id: 3
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks pitches wrist downward toward table"
+
+      motor_4:
+        joint_name: "elbow_pitch"
+        hardware_id: 4
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: 1
+        motion_description: "Increasing ticks extends forearm forward; decreasing folds back"
+
+      motor_5:
+        joint_name: "shoulder_pitch"
+        hardware_id: 5
+        min_tick: 200
+        max_tick: 850
+        nominal_center_tick: 500
+        direction_multiplier: -1
+        motion_description: "Increasing ticks tilts shoulder backward/upright; decreasing tilts forward"
+
+      motor_6:
+        joint_name: "base_yaw"
+        hardware_id: 6
+        min_tick: 150
+        max_tick: 850
+        nominal_center_tick: 500   # 500 ticks = 120° (Facing East toward +X arena)
+        direction_multiplier: 1
+        motion_description: "Increasing ticks rotates CCW; decreasing rotates CW (toward SW Box 2)"
+
+    # Predefined Multi-State Poses (Theoretical Ticks: [M1, M2, M3, M4, M5, M6])
+    poses:
+      home_tucked:
+        ticks: [700, 500, 500, 280, 720, 500]
+        description: "Compact low-inertia transit pose; claw open, elbow tucked high"
+        transit_time_ms: 1500
+      ready_standoff:
+        ticks: [700, 500, 520, 500, 600, 580]
+        description: "Hovering 70mm above front arena picking zone awaiting mutex"
+        transit_time_ms: 1600
+      drop_container:
+        ticks: [250, 500, 460, 460, 560, 180]
+        description: "Lowered over SW collection box ready to release object"
+        transit_time_ms: 1800
