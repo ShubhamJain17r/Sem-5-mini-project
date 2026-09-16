@@ -59,11 +59,10 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Align Motor 4 (Wrist Pitch) collinearly with forearm.
   - [ ] Align Motor 5 (Wrist Roll) such that claw jaws are level with table.
   - [ ] Trim deviations using `+`, `-`, `>`, `<` keys. Type `p` and export deviation array to `config/servo_calibration.yaml`.
-- [ ] **Multi-Mode Interactive Hardware Rig (`xarm_test_bench.ino`)**:
-  - [ ] Flash `arduino/xarm_test_bench/xarm_test_bench.ino`.
-  - [ ] Connect Joystick (`A0=X`, `A1=Y`), Potentiometer (`A2`), Pushbutton (`D2`), LEDs (`D8=Green`, `D9=Yellow`, `D10=Red`).
-  - [ ] Select Motor 1 with potentiometer; jog with joystick to determine minimum and maximum travel ticks. Verify Motor 1 stops safely at $150$ and $850\text{ ticks}$ without hitting the $240^\circ$ physical deadzone.
-  - [ ] Test Pushbutton on `D2`: verify smooth cycling between Home, Near Pick, Far Reach, and NW/SW Drop poses.
+- [x] **Breadboard-Free Interactive Teleoperation & Reach Test (`xarm_direct_test.ino`)**:
+  - [x] Flash `arduino/xarm_direct_test/xarm_direct_test.ino` (9600 baud `Serial1` to xArm, 115200 baud USB `Serial`).
+  - [x] Motor mapping verified: Motor 1 (Claw), Motor 2 (Roll), Motor 3 (Wrist Pitch), Motor 4 (Elbow), Motor 5 (Shoulder), Motor 6 (Base).
+  - [x] Multi-step Pick-and-Place reach test (`action` and `loop` commands) successfully validated across 120° base yaw swing.
 - [ ] **Claw Grip Characterization (Software Grasp Discrimination)**:
   - [ ] Type `GRIP` in Serial Monitor.
   - [ ] Measure position ticks with claw empty (fully closed): record baseline ticks ($P_{\text{empty}} \approx 150\text{--}180$).
