@@ -23,7 +23,13 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
-from sorting_arm.kinematics import IKSolution, solve_ik
+from sorting_arm.kinematics import (
+    IKSolution,
+    get_compartment_target,
+    load_kinematic_parameters,
+    solve_ik,
+)
+
 
 STANDARD_JOINT_NAMES = [
     "claw_gripper",
@@ -100,6 +106,15 @@ class PolarTeleopNode(Node):
         """Initialize teleop state, limits, and command publishers."""
         super().__init__("polar_teleop_node")
 
+        # Configuration parameters
+        self.declare_parameter("config_path", "config/dual_xarm_hardware.yaml")
+        self.declare_parameter("arm_id", "xarm_1")
+        self.config_path = (
+            self.get_parameter("config_path").get_parameter_value().string_value
+        )
+        self.arm_id = self.get_parameter("arm_id").get_parameter_value().string_value
+        self.params = load_kinematic_parameters(self.config_path, self.arm_id)
+
         # Publisher to driver with depth 1 QoS to eliminate buffered lag
         cmd_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -114,6 +129,10 @@ class PolarTeleopNode(Node):
         self.z = 80.0         # mm (range 20 to 180)
         self.claw_tick = 750  # Open by default
         self.roll_tick = 500  # Level
+
+        # Color compartment presets
+        self.color_targets = ["red", "green", "blue", "yellow"]
+        self.active_color: Optional[str] = None
 
         # Speed presets: FINE, NORMAL, FAST
         self.speed_mode = "NORMAL"
@@ -140,6 +159,7 @@ class PolarTeleopNode(Node):
             phi=None,  # Natural auto-pitch keeping wrist safe and as level as possible
             claw_tick=self.claw_tick,
             roll_tick=self.roll_tick,
+            params=self.params,
         )
         self.last_solution = sol
         if sol.success:
@@ -181,6 +201,7 @@ class PolarTeleopNode(Node):
         reach_pct = (self.r / 300.0) * 100.0
         bar = "#" * int(reach_pct / 5)
         claw_status = "OPEN (Release)" if self.claw_tick >= 500 else "CLAMPED (Grip)"
+        comp_name = self.active_color.upper() if self.active_color else "MANUAL"
 
         lines = [
             "=" * 68,
@@ -191,6 +212,7 @@ class PolarTeleopNode(Node):
             f"   [Left/Right Arrow] or [A/E]: Rotate Base Yaw (theta ± {self.step_theta:.1f}°)",
             f"   [U] / [D]                 : Gripper Height Up / Down (z ± {self.step_z:.1f} mm)",
             "   [1] / [2] / [3]           : Speed: Fine (2mm) / Normal (5mm) / Fast (10mm)",
+            "   [C]                       : Cycle Color Compartment (Red/Green/Blue/Yellow)",
             "   [Space]                   : Claw Grip / Release Toggle",
             "   [H]                       : Safe Home Pose",
             "   [X]                       : Emergency Stop (Torque Cutoff)",
@@ -205,6 +227,7 @@ class PolarTeleopNode(Node):
                 f"   Speed Preset     : [{self.speed_mode}] "
                 f"(r±{self.step_r:.1f}mm, θ±{self.step_theta:.1f}°, z±{self.step_z:.1f}mm)"
             ),
+            f"   Target Box Comp  : {comp_name}",
             "-" * 68,
         ]
 
@@ -311,6 +334,32 @@ class PolarTeleopNode(Node):
                     self.claw_tick = 250 if self.claw_tick >= 500 else 750
                     dirty = True
 
+                # Cycle Collection Box Compartment Targets
+                elif key in ["c", "C"]:
+                    if self.active_color is None:
+                        self.active_color = self.color_targets[0]
+                    else:
+                        cur = self.color_targets.index(self.active_color)
+                        self.active_color = self.color_targets[(cur + 1) % len(self.color_targets)]
+
+                    target = get_compartment_target(
+                        self.active_color,
+                        arm_id=self.arm_id,
+                        config_path=self.config_path,
+                    )
+                    if target:
+                        self.r = round(float(target["r"]), 1)
+                        self.theta = round(float(target["theta_deg"]), 1)
+                        self.z = round(float(target["z"]), 1)
+                        self.status_msg = (
+                            f"Targeting {self.active_color.upper()} compartment "
+                            f"(drop yaw tick {target['drop_yaw_tick']})"
+                        )
+                        dirty = True
+                    else:
+                        self.status_msg = f"Could not resolve {self.active_color} target."
+                        dirty = True
+
                 # Safe Home
                 elif key in ["h", "H"]:
                     self.r = 220.0
@@ -318,6 +367,7 @@ class PolarTeleopNode(Node):
                     self.z = 80.0
                     self.claw_tick = 750
                     self.roll_tick = 500
+                    self.active_color = None
                     dirty = True
                     self.status_msg = "Reset to Home Reference Pose."
 

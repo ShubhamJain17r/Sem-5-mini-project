@@ -1,4 +1,11 @@
-from sorting_arm.kinematics import solve_ik, solve_fk, MIN_SAFE_TICKS, MAX_SAFE_TICKS
+from sorting_arm.kinematics import (
+    MAX_SAFE_TICKS,
+    MIN_SAFE_TICKS,
+    get_compartment_target,
+    load_kinematic_parameters,
+    solve_fk,
+    solve_ik,
+)
 from sorting_arm.xarm_protocol import XArmDriver
 
 
@@ -56,3 +63,64 @@ def test_protocol_calibration_and_limits():
 
     # Limit clamping: tick 50 on Motor 1 should be clamped to 150
     assert driver.apply_deviations_and_limits(1, 50) == 150
+
+
+def test_load_kinematic_parameters():
+    cfg = "config/dual_xarm_hardware.yaml"
+    params1 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_1")
+    assert params1.d1 == 65.0
+    assert params1.L1 == 101.0
+    assert params1.L2 == 95.0
+    assert params1.L3_grip == 150.0
+    assert params1.L3_tip == 168.0
+    assert params1.min_safe_ticks[1] == 150
+    assert params1.max_safe_ticks[6] == 850
+
+    params2 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_2")
+    assert params2.L1 == 101.0
+    assert params2.L2 == 95.0
+
+
+def test_get_compartment_target():
+    cfg = "config/dual_xarm_hardware.yaml"
+    colors = ["red", "green", "blue", "yellow"]
+    for color in colors:
+        target = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
+        assert target is not None, f"Failed to get target for color {color}"
+        assert target["color"] == color
+        assert target["r"] > 0.0
+        assert "target_world_mm" in target or "world_xyz" in target
+        assert "drop_yaw_tick" in target
+        assert 700 <= target["drop_yaw_tick"] <= 900
+
+    # Invalid color returns None
+    assert get_compartment_target("magenta", arm_id="xarm_1") is None
+
+
+def test_near_field_wrist_pitch_safe():
+    # Targets close to shoulder (r <= 220mm, z <= 80mm) previously caused Motor 3
+    # to demand ~151 ticks (physical collision with forearm bracket).
+    # With adaptive pitch, Motor 3 tick must remain well above 250 ticks.
+    close_targets = [
+        (200.0, 0.0, 30.0),
+        (210.0, 10.0, 40.0),
+        (220.0, -10.0, 20.0),
+        (220.0, 0.0, 80.0),
+    ]
+    for r, th, z in close_targets:
+        sol = solve_ik(r=r, theta=th, z=z)
+        assert sol.success, f"Failed at close target ({r}, {th}, {z}): {sol.message}"
+        m3_tick = sol.ticks[3]
+        assert m3_tick >= 250, (
+            f"Motor 3 tick ({m3_tick}) dangerously close to mechanical limit for ({r}, {th}, {z})"
+        )
+
+
+def test_ik_with_claw_tip():
+    # Test IK computation using outer claw tip vs grip center
+    sol_grip = solve_ik(r=250.0, theta=0.0, z=50.0, use_claw_tip=False)
+    sol_tip = solve_ik(r=250.0, theta=0.0, z=50.0, use_claw_tip=True)
+    assert sol_grip.success
+    assert sol_tip.success
+    # With longer tool length (tip), shoulder/elbow angles must differ to reach same position
+    assert sol_grip.ticks[5] != sol_tip.ticks[5]
