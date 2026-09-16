@@ -45,7 +45,7 @@ volatile bool eStopHandled = false;
 
 // --- BAUD RATES & SERIAL PORT ---
 const unsigned long PC_BAUD   = 115200;
-const unsigned long XARM_BAUD = 115200;
+unsigned long xArmBaud        = 9600; // Hiwonder secondary UART defaults to 9600 (type 'BAUD' in CLI to toggle 115200)
 
 #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
   // For Arduino Uno R3: Hardware Serial (Pins 0/1). Disconnect TX Pin 1 during USB uploading!
@@ -89,6 +89,21 @@ unsigned long lastTelemetryTime = 0;
 const unsigned long JOG_INTERVAL_MS = 40; // 25 Hz jog update rate
 
 /**
+ * Toggle xArm Serial1 Baud Rate between 9600 and 115200
+ */
+void toggleBaudRate() {
+  if (xArmBaud == 9600) {
+    xArmBaud = 115200;
+  } else {
+    xArmBaud = 9600;
+  }
+  xArmSerial.begin(xArmBaud);
+  Serial.print(F("\n[BAUD] Switched xArm Serial1 to: "));
+  Serial.print(xArmBaud);
+  Serial.println(F(" baud."));
+}
+
+/**
  * Hardware Interrupt Service Routine for Emergency Stop (Pin D3)
  */
 void handleEStopISR() {
@@ -106,20 +121,15 @@ void triggerEmergencyStop() {
   digitalWrite(PIN_LED_MOTION, LOW);
   digitalWrite(PIN_LED_WARN, HIGH);
 
-  // Send binary torque unload command (CMD 0x1D or 0x0E, Param 0 = torque off)
-  for (byte id = 1; id <= 6; id++) {
-    byte len = 4;
-    byte cmd = 0x1D;
-    byte param = 0x00; // 0 = torque off / limp mode
-    byte checksum = ~(id + len + cmd + param) & 0xFF;
-    xArmSerial.write(0x55);
-    xArmSerial.write(0x55);
-    xArmSerial.write(id);
-    xArmSerial.write(len);
-    xArmSerial.write(cmd);
-    xArmSerial.write(param);
-    xArmSerial.write(checksum);
-  }
+  // Send multi-servo unload command (CMD 0x14) to cut motor torque on all 6 servos (11 bytes, NO checksum)
+  byte unloadFrame[11] = {
+    0x55, 0x55,
+    0x09,       // Length = 9
+    0x14,       // CMD_MULT_SERVO_UNLOAD
+    0x06,       // 6 servos
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+  };
+  xArmSerial.write(unloadFrame, 11);
 
   Serial.println(F("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
   Serial.println(F("           *** EMERGENCY STOP TRIGGERED! ***            "));
@@ -141,22 +151,6 @@ void clearEmergencyStop() {
 
   Serial.println(F("\n[SAFETY] Clearing E-Stop latch. Re-enabling servo torque..."));
 
-  // Re-enable torque on all servos (CMD 0x1D, Param 1 = torque on)
-  for (byte id = 1; id <= 6; id++) {
-    byte len = 4;
-    byte cmd = 0x1D;
-    byte param = 0x01;
-    byte checksum = ~(id + len + cmd + param) & 0xFF;
-    xArmSerial.write(0x55);
-    xArmSerial.write(0x55);
-    xArmSerial.write(id);
-    xArmSerial.write(len);
-    xArmSerial.write(cmd);
-    xArmSerial.write(param);
-    xArmSerial.write(checksum);
-  }
-  delay(100);
-
   isEStopped = false;
   eStopHandled = false;
   digitalWrite(PIN_LED_WARN, LOW);
@@ -168,6 +162,8 @@ void clearEmergencyStop() {
 
 /**
  * Send binary packet to drive a single servo via xArm controller
+ * Format: 0x55 0x55 [Length=8] [CMD 0x03] [Count=1] [TimeL] [TimeH] [ID] [PosL] [PosH]
+ * Total length: Exactly 10 bytes (NO CHECKSUM!)
  */
 void sendServoMove(byte id, uint16_t position, uint16_t timeMs) {
   if (isEStopped) return; // Drop motion commands while E-Stopped
@@ -184,24 +180,25 @@ void sendServoMove(byte id, uint16_t position, uint16_t timeMs) {
   byte timeL = timeMs & 0xFF;
   byte timeH = (timeMs >> 8) & 0xFF;
 
-  // Checksum = ~(Length + Cmd + Count + TimeL + TimeH + ID + PosL + PosH) & 0xFF
-  byte checksum = ~(len + 0x03 + 1 + timeL + timeH + id + posL + posH) & 0xFF;
+  byte frame[10] = {
+    0x55, 0x55,
+    len,
+    0x03,        // CMD_SERVO_MOVE
+    0x01,        // Count = 1
+    timeL,
+    timeH,
+    id,
+    posL,
+    posH
+  };
 
-  xArmSerial.write(0x55);
-  xArmSerial.write(0x55);
-  xArmSerial.write(len);        // Byte 2: Length (8)
-  xArmSerial.write(0x03);       // Byte 3: Command CMD_SERVO_MOVE (0x03)
-  xArmSerial.write(0x01);       // Byte 4: Servo Count (1)
-  xArmSerial.write(timeL);      // Byte 5: Time LSB
-  xArmSerial.write(timeH);      // Byte 6: Time MSB
-  xArmSerial.write(id);         // Byte 7: Servo ID
-  xArmSerial.write(posL);       // Byte 8: Position LSB
-  xArmSerial.write(posH);       // Byte 9: Position MSB
-  xArmSerial.write(checksum);   // Byte 10: Checksum
+  xArmSerial.write(frame, 10);
 }
 
 /**
  * Move all 6 servos synchronously in a single clean multi-servo packet frame
+ * Format: 0x55 0x55 [Length=23] [CMD 0x03] [Count=6] [TimeL] [TimeH] [ID1, P1L, P1H] ...
+ * Total length: Exactly 25 bytes (2 header bytes + 23 data bytes, NO CHECKSUM!)
  */
 void executePose(const int targetPose[7], uint16_t timeMs) {
   if (isEStopped) return;
@@ -213,11 +210,11 @@ void executePose(const int targetPose[7], uint16_t timeMs) {
   Serial.print(timeMs);
   Serial.println(F(" ms..."));
 
-  // Build Multi-Servo Binary Frame (26 bytes for 6 servos)
+  // Build Multi-Servo Binary Frame (25 bytes total for 6 servos)
   byte count = 6;
-  byte len = (count * 3) + 5; // 23 bytes
-  byte totalLen = len + 3;    // 26 bytes total frame
-  byte frame[26];
+  byte len = (count * 3) + 5; // 23 bytes following header
+  byte totalLen = len + 2;    // Exactly 25 bytes total
+  byte frame[25];
 
   frame[0] = 0x55;
   frame[1] = 0x55;
@@ -227,9 +224,7 @@ void executePose(const int targetPose[7], uint16_t timeMs) {
   frame[5] = timeMs & 0xFF;   // Time LSB
   frame[6] = (timeMs >> 8) & 0xFF; // Time MSB
 
-  uint16_t sum = len + 0x03 + count + frame[5] + frame[6];
   uint8_t idx = 7;
-
   for (int i = 1; i <= 6; i++) {
     int pos = targetPose[i];
     if (pos < MIN_TICK[i]) pos = MIN_TICK[i];
@@ -242,11 +237,7 @@ void executePose(const int targetPose[7], uint16_t timeMs) {
     frame[idx++] = i;     // Servo ID
     frame[idx++] = posL;  // Pos LSB
     frame[idx++] = posH;  // Pos MSB
-
-    sum += i + posL + posH;
   }
-
-  frame[idx] = (~sum) & 0xFF; // Checksum
 
   xArmSerial.write(frame, totalLen);
 
@@ -383,10 +374,14 @@ void handleSerialCLI() {
       Serial.println(F("  POSE3       : NW/SW Drop pose (205 deg)"));
       Serial.println(F("  GRIP        : Run Claw Grip diagnostic routine"));
       Serial.println(F("  STATUS      : Print all 6 motor tick positions"));
+      Serial.println(F("  BAUD        : Toggle xArm Serial1 Baud (9600 <-> 115200)"));
       Serial.println(F("  ESTOP / !   : Trigger EMERGENCY STOP (Cuts motor torque immediately)"));
       Serial.println(F("  RESUME      : Clear E-Stop latch and re-enable motors"));
       Serial.println(F("  SET <id> <pos> <time> : Example: SET 1 600 500"));
       Serial.println(F("------------------------\n"));
+    }
+    else if (line.equalsIgnoreCase("BAUD") || line.equalsIgnoreCase("B")) {
+      toggleBaudRate();
     }
     else if (line.equalsIgnoreCase("ESTOP") || line.equalsIgnoreCase("STOP") || line.equals("!")) {
       triggerEmergencyStop();
@@ -421,6 +416,8 @@ void handleSerialCLI() {
         Serial.print(deg, 1);
         Serial.println(F(" deg)"));
       }
+      Serial.print(F("xArm Serial1 Baud Rate: "));
+      Serial.println(xArmBaud);
     }
     else if (line.startsWith("SET ")) {
       // Parse: SET <id> <pos> <time>
@@ -457,7 +454,7 @@ void setup() {
   Serial.begin(PC_BAUD);
   while (!Serial && millis() < 3000);
 
-  xArmSerial.begin(XARM_BAUD);
+  xArmSerial.begin(xArmBaud);
 
   // Configure Pins
   pinMode(PIN_BTN_POSE, INPUT_PULLUP);
@@ -481,10 +478,13 @@ void setup() {
   Serial.println(F("  - Joystick X (A0)    : Live Analog Jog"));
   Serial.println(F("  - Pushbutton (D2)    : Cycles Predefined Safety Poses"));
   Serial.println(F("  - E-Stop Button (D3) : EMERGENCY STOP (Hardware Interrupt)"));
-  Serial.println(F("  - Serial Monitor     : Type HELP for CLI, ! for E-Stop"));
+  Serial.println(F("  - Serial Monitor     : Type HELP for CLI, ! for E-Stop, BAUD to toggle baud"));
   Serial.println(F("========================================================"));
 
   // Initialize arm into safe home pose
+  Serial.print(F("[INIT] Connecting to xArm at "));
+  Serial.print(xArmBaud);
+  Serial.println(F(" baud..."));
   executePose(POSE_HOME, 1500);
 }
 

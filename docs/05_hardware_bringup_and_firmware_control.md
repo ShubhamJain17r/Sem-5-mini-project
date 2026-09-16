@@ -25,39 +25,41 @@ The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconn
      (Base Yaw)     (Shoulder)       (Elbow)       (Wrist Pitch)   (Wrist Roll)     (Gripper)
 ```
 
-### 1.1 Binary Packet Protocol (Hiwonder / LewanSoul Bus Protocol)
+### 1.1 Secondary Development Controller UART Protocol (Arduino to xArm Base)
 
-Each binary command packet transmitted across the UART interface is framed as follows:
+The secondary development UART header on the xArm base board (`RX TX GND`) interfaces with the onboard host microcontroller. Commands sent across this interface use the **Hiwonder / Lobot Bus Servo Controller Protocol**:
 
 | Field | Size | Value / Formula | Description |
 | :--- | :---: | :---: | :--- |
 | **Header 1** | 1 byte | `0x55` | Packet start delimiter byte 1 |
 | **Header 2** | 1 byte | `0x55` | Packet start delimiter byte 2 |
-| **Servo ID** | 1 byte | `0x01` to `0x06` (`0xFE` for broadcast) | Target motor identifier |
-| **Data Length** | 1 byte | $N + 2$ | Total bytes following this field up to Checksum |
+| **Data Length** | 1 byte | $\text{Params} + 2$ | Total bytes following this field ($N \text{ parameters} + 1 \text{ byte Command} + 1 \text{ byte Length}$) |
 | **Command ID** | 1 byte | e.g., `0x03` (`CMD_SERVO_MOVE`) | Operation code |
-| **Parameters** | $N$ bytes | Command dependent | Arguments (e.g., target ticks, duration) |
-| **Checksum** | 1 byte | $\sim(\text{ID} + \text{Length} + \text{Cmd} + \sum \text{Params}) \ \& \ \text{0xFF}$ | Bitwise NOT of arithmetic byte sum |
+| **Parameters** | $N$ bytes | Command dependent | Arguments (e.g., servo count, duration, ID, position) |
 
-#### Key Command Identifiers:
-* `0x03 (CMD_SERVO_MOVE)`: Move servo to target position ($0\text{--}1000\text{ ticks}$) in duration $T$ ($0\text{--}30000\text{ ms}$).
-  * Params: `Pos_Low`, `Pos_High`, `Time_Low`, `Time_High` ($4\text{ bytes}$).
-* `0x0E (CMD_SERVO_LOAD_OR_UNLOAD_WRITE)`: Enable or disable motor torque output ($1\text{ byte}: 0 = \text{unload}, 1 = \text{load}$).
-* `0x15 (CMD_SERVO_POS_READ)`: Query current real-time potentiometer position ($0\text{--}1000\text{ ticks}$).
-* `0x1B (CMD_SERVO_ANGLE_OFFSET_ADJUST)`: Adjust runtime deviation offset without writing to flash.
-* `0x1D (CMD_SERVO_ANGLE_OFFSET_WRITE)`: Permanently save current deviation offset into internal EEPROM.
+> [!IMPORTANT]
+> **NO CHECKSUM ON SECONDARY CONTROLLER UART HEADER:**
+> The secondary development controller board UART header does **not** take a checksum. Appending a checksum byte causes the controller's FIFO parser to encounter an extra byte when searching for the next `0x55 0x55` header, triggering a **packet frame error** and sounding the **buzzer ("beep beep")** while rejecting the command.
+> (The checksum is only used internally on the 1-wire half-duplex bus between the controller and the individual LX-15D bus servos).
 
-### 1.2 ASCII Serial Command Protocol (Secondary UART Header)
+#### Key Command Formats:
+* **Single Servo Move (`CMD_SERVO_MOVE = 0x03`)**: Length = 8 (10 bytes total)
+  $$\texttt{0x55 0x55 [0x08] [0x03] [Count=0x01] [Time\_L] [Time\_H] [ID] [Pos\_L] [Pos\_H]}$$
+* **Multi-Servo Move (`CMD_SERVO_MOVE = 0x03`)**: Length = $\text{Count} \times 3 + 5$ (25 bytes for 6 servos)
+  $$\texttt{0x55 0x55 [0x17] [0x03] [0x06] [Time\_L] [Time\_H] [ID\_1] [P1\_L] [P1\_H] ... [ID\_6] [P6\_L] [P6\_H]}$$
+* **Unload Motor Torque (`CMD_MULT_SERVO_UNLOAD = 0x14`)**: Length = 9 (11 bytes total)
+  $$\texttt{0x55 0x55 [0x09] [0x14] [0x06] [0x01] [0x02] [0x03] [0x04] [0x05] [0x06]}$$
+* **Read Battery Voltage (`CMD_GET_BATTERY_VOLT = 0x0F`)**: Length = 3 (5 bytes total)
+  $$\texttt{0x55 0x55 [0x03] [0x0F] [0x00]}$$
 
-For rapid human debugging and microcontroller interfacing, the onboard controller parses high-level ASCII strings terminated by an exclamation mark (`!`):
+### 1.2 Baud Rate & Buzzer Diagnostics
 
-$$\text{Format: } \texttt{\#<ID>P<Position>T<Time\_ms>!}$$
-
-* **Single Servo Move**: `"#001P0600T0500!"` $\implies$ Move Motor 1 to $600\text{ ticks}$ over $500\text{ ms}$.
-* **Synchronized Multi-Servo Move**: `"#001P0500T1000!#002P0700T1000!#003P0300T1000!"`
-* **Stop Motion**: `"#001PDST!"` $\implies$ Immediately decelerates and holds current position.
-
-Both `arduino/xarm_zero_calibration/xarm_zero_calibration.ino` and `arduino/xarm_test_bench/xarm_test_bench.ino` dual-transmit both formats to guarantee plug-and-play compatibility across all xArm 1s firmware revisions.
+* **Secondary Development UART Baud Rate**:
+  The default factory baud rate of the secondary development UART header (`RX TX GND`) is **9600 baud** on standard Hiwonder bus servo controller boards (some units may be flashed with 115200 baud). Both Arduino sketches provide live toggling between 9600 and 115200 (type `b` in the zero-calibration sketch or `BAUD` in the test bench).
+* **Buzzer Error Indication ("Beep Beep")**:
+  The onboard buzzer sounds an alarm and the blue signal LED (LED2) stays lit under two conditions:
+  1. **Malformed Packet / Framing Error**: Extra bytes (like an unexpected checksum), wrong data length, or baud rate mismatch.
+  2. **Low Voltage Alarm**: If battery or power supply voltage drops below $6.2\text{V}$ under load.
 
 ---
 

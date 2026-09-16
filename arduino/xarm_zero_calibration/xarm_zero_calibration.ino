@@ -29,7 +29,7 @@
 
 // Baud rates
 const unsigned long PC_BAUD   = 115200;
-const unsigned long XARM_BAUD = 115200; // Default Hiwonder / LewanSoul controller baud
+unsigned long xArmBaud        = 9600; // Hiwonder / LewanSoul secondary UART defaults to 9600 (type 'b' to toggle 115200)
 
 #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
   // For Arduino Uno R3: Hardware Serial (Pins 0/1). Disconnect TX Pin 1 during USB uploading!
@@ -49,10 +49,26 @@ int servoDeviations[7] = { 0, 0, 0, 0, 0, 0, 0 };             // Deviation trims
 
 int selectedMotor = 1; // Currently selected motor for trimming (1 to 6)
 
-// Hiwonder / LewanSoul Packet Command Constants
+// Hiwonder / LewanSoul Controller Command Constants
+// NOTE: Communication to the secondary development UART header uses NO checksum!
 const byte CMD_SERVO_MOVE          = 0x03;
-const byte CMD_GET_SERVO_POS       = 0x15;
-const byte CMD_SERVO_DEVIATION     = 0x1B; // Write deviation to EEPROM
+const byte CMD_MULT_SERVO_UNLOAD   = 0x14; // Power off / unload motor torque
+const byte CMD_GET_BATTERY_VOLT    = 0x0F;
+
+/**
+ * Toggle xArm Serial1 Baud Rate between 9600 and 115200
+ */
+void toggleBaudRate() {
+  if (xArmBaud == 9600) {
+    xArmBaud = 115200;
+  } else {
+    xArmBaud = 9600;
+  }
+  xArmSerial.begin(xArmBaud);
+  Serial.print(F("\n[BAUD] Switched xArm Serial1 to: "));
+  Serial.print(xArmBaud);
+  Serial.println(F(" baud."));
+}
 
 /**
  * Hardware Interrupt Service Routine for Emergency Stop
@@ -67,20 +83,15 @@ void handleEStopISR() {
 void triggerEmergencyStop() {
   isEStopped = true;
   
-  // Send torque unload (CMD 0x1D, Param 0 = torque off)
-  for (byte id = 1; id <= 6; id++) {
-    byte len = 4;
-    byte cmd = 0x1D;
-    byte param = 0x00; // Torque off
-    byte checksum = ~(id + len + cmd + param) & 0xFF;
-    xArmSerial.write(0x55);
-    xArmSerial.write(0x55);
-    xArmSerial.write(id);
-    xArmSerial.write(len);
-    xArmSerial.write(cmd);
-    xArmSerial.write(param);
-    xArmSerial.write(checksum);
-  }
+  // Send multi-servo unload command (CMD 0x14) to cut torque on all 6 servos (11 bytes, NO checksum)
+  byte unloadFrame[11] = {
+    0x55, 0x55,
+    0x09,       // Length = 9 (Command + Count + 6 IDs)
+    CMD_MULT_SERVO_UNLOAD, // 0x14
+    0x06,       // 6 servos
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+  };
+  xArmSerial.write(unloadFrame, 11);
 
   Serial.println(F("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
   Serial.println(F("           *** EMERGENCY STOP TRIGGERED! ***            "));
@@ -97,26 +108,15 @@ void clearEmergencyStop() {
     Serial.println(F("[WARN] Cannot resume: E-Stop button on D3 is still pressed!"));
     return;
   }
-  for (byte id = 1; id <= 6; id++) {
-    byte len = 4;
-    byte cmd = 0x1D;
-    byte param = 0x01; // Torque on
-    byte checksum = ~(id + len + cmd + param) & 0xFF;
-    xArmSerial.write(0x55);
-    xArmSerial.write(0x55);
-    xArmSerial.write(id);
-    xArmSerial.write(len);
-    xArmSerial.write(cmd);
-    xArmSerial.write(param);
-    xArmSerial.write(checksum);
-  }
   isEStopped = false;
-  Serial.println(F("[SAFETY] Torque restored. You may continue trimming deviations."));
+  Serial.println(F("[SAFETY] Torque restored. Returning arm to calibrated center..."));
+  applyAllPositions(1000);
 }
 
 /**
  * Send LewanSoul / Hiwonder binary packet to drive a single servo
- * Packet format: 0x55 0x55 [Length] [CMD 0x03] [Count=1] [TimeL] [TimeH] [ID] [PosL] [PosH] [Checksum]
+ * Packet format: 0x55 0x55 [Length=8] [CMD 0x03] [Count=1] [TimeL] [TimeH] [ID] [PosL] [PosH]
+ * Total length: Exactly 10 bytes (NO CHECKSUM!)
  */
 void sendServoMove(byte id, uint16_t position, uint16_t timeMs) {
   if (position > 1000) position = 1000;
@@ -127,41 +127,39 @@ void sendServoMove(byte id, uint16_t position, uint16_t timeMs) {
   byte timeL = timeMs & 0xFF;
   byte timeH = (timeMs >> 8) & 0xFF;
   
-  byte checksum = ~(len + CMD_SERVO_MOVE + 1 + timeL + timeH + id + posL + posH) & 0xFF;
+  byte frame[10] = {
+    0x55, 0x55,
+    len,
+    CMD_SERVO_MOVE,
+    0x01,
+    timeL, timeH,
+    id,
+    posL, posH
+  };
   
-  xArmSerial.write(0x55);
-  xArmSerial.write(0x55);
-  xArmSerial.write(len);
-  xArmSerial.write(CMD_SERVO_MOVE);
-  xArmSerial.write(0x01);
-  xArmSerial.write(timeL);
-  xArmSerial.write(timeH);
-  xArmSerial.write(id);
-  xArmSerial.write(posL);
-  xArmSerial.write(posH);
-  xArmSerial.write(checksum);
+  xArmSerial.write(frame, 10);
 }
 
 /**
  * Move all 6 servos to their calibrated positions in a single multi-servo packet frame
+ * Packet format: 0x55 0x55 [Length=23] [CMD 0x03] [Count=6] [TimeL] [TimeH] [ID1, P1L, P1H] ...
+ * Total length: Exactly 25 bytes (2 header bytes + 23 data bytes, NO CHECKSUM!)
  */
 void applyAllPositions(uint16_t timeMs) {
   byte count = 6;
-  byte len = (count * 3) + 5; // 23
-  byte totalLen = len + 3;    // 26
-  byte frame[26];
+  byte len = (count * 3) + 5; // 23 bytes following header
+  byte totalLen = len + 2;    // Exactly 25 bytes total
+  byte frame[25];
 
   frame[0] = 0x55;
   frame[1] = 0x55;
-  frame[2] = len;
-  frame[3] = CMD_SERVO_MOVE;
-  frame[4] = count;
+  frame[2] = len;             // 23
+  frame[3] = CMD_SERVO_MOVE;  // 0x03
+  frame[4] = count;           // 6 servos
   frame[5] = timeMs & 0xFF;
   frame[6] = (timeMs >> 8) & 0xFF;
 
-  uint16_t sum = len + CMD_SERVO_MOVE + count + frame[5] + frame[6];
   uint8_t idx = 7;
-
   for (int i = 1; i <= 6; i++) {
     int target = servoPositions[i] + servoDeviations[i];
     if (target < 0) target = 0;
@@ -173,11 +171,7 @@ void applyAllPositions(uint16_t timeMs) {
     frame[idx++] = i;
     frame[idx++] = posL;
     frame[idx++] = posH;
-
-    sum += i + posL + posH;
   }
-
-  frame[idx] = (~sum) & 0xFF;
 
   xArmSerial.write(frame, totalLen);
 }
@@ -193,6 +187,7 @@ void printHeader() {
   Serial.println(F("  z        : Reset selected motor deviation to 0"));
   Serial.println(F("  Z        : Reset ALL motor deviations to 0"));
   Serial.println(F("  h        : Move all motors to theoretical CENTER (500 ticks)"));
+  Serial.println(F("  b        : Toggle xArm Serial1 Baud Rate (9600 <-> 115200)"));
   Serial.println(F("  p        : Print current deviation array for ROS 2 / C++"));
   Serial.println(F("  ! / e    : EMERGENCY STOP (Cut motor torque immediately)"));
   Serial.println(F("  r        : Resume / restore motor torque"));
@@ -227,6 +222,8 @@ void printStatus() {
   }
   Serial.print(F("Active Selection: Motor "));
   Serial.println(selectedMotor);
+  Serial.print(F("xArm Serial1 Baud Rate: "));
+  Serial.println(xArmBaud);
 }
 
 void printCalibrationOutput() {
@@ -256,7 +253,7 @@ void setup() {
   while (!Serial && millis() < 3000); // Wait up to 3s for Serial Monitor on Uno R4
 
   // Initialize Hardware Serial (Pins 0/1) to xArm 1s
-  xArmSerial.begin(XARM_BAUD);
+  xArmSerial.begin(xArmBaud);
 
   // Configure Emergency Stop Button on Pin D3
   pinMode(PIN_BTN_ESTOP, INPUT_PULLUP);
@@ -265,7 +262,10 @@ void setup() {
   printHeader();
   
   // Command arm to safe center on startup (1500 ms gentle transit)
-  Serial.println(F("\n[INIT] Moving all joints to nominal center (500 ticks) in 1500 ms..."));
+  Serial.print(F("\n[INIT] Connecting to xArm at "));
+  Serial.print(xArmBaud);
+  Serial.println(F(" baud. Moving all joints to nominal center (500 ticks) in 1500 ms..."));
+  Serial.println(F("[TIP] If xArm does not move, type 'b' to toggle baud rate between 9600 and 115200!"));
   applyAllPositions(1500);
   delay(1600);
   printStatus();
@@ -346,6 +346,10 @@ void loop() {
     else if (c == 'h' || c == 'H') {
       Serial.println(F("Commanding all motors to 500 ticks (with current deviations)..."));
       applyAllPositions(1000);
+    }
+    // Toggle baud rate
+    else if (c == 'b' || c == 'B') {
+      toggleBaudRate();
     }
     // Print formatted array
     else if (c == 'p' || c == 'P') {
