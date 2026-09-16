@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Ensure hardware device permissions for user
+sudo chmod 666 /dev/hidraw* /dev/ttyUSB* /dev/ttyACM* /dev/video* 2>/dev/null || true
+
 # Source ROS 2 Humble core environment
 source /opt/ros/humble/setup.bash
 
