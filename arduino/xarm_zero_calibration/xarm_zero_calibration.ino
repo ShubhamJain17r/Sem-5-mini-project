@@ -31,6 +31,14 @@
 const unsigned long PC_BAUD   = 115200;
 const unsigned long XARM_BAUD = 115200; // Default Hiwonder / LewanSoul controller baud
 
+#if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
+  // For Arduino Uno R3: Hardware Serial (Pins 0/1). Disconnect TX Pin 1 during USB uploading!
+  #define xArmSerial Serial
+#else
+  // For Arduino Uno R4 / Mega 2560 / ESP32: Hardware Serial1
+  #define xArmSerial Serial1
+#endif
+
 // Emergency Stop Button on Pin D3 (Hardware Interrupt INT1)
 const int PIN_BTN_ESTOP = 3;
 volatile bool isEStopped = false;
@@ -58,23 +66,21 @@ void handleEStopISR() {
  */
 void triggerEmergencyStop() {
   isEStopped = true;
-  Serial1.print("#000PDST!"); // ASCII stop
   
-  // Send torque unload (CMD 0x0E, Param 0) to all servos
+  // Send torque unload (CMD 0x1D, Param 0 = torque off)
   for (byte id = 1; id <= 6; id++) {
     byte len = 4;
-    byte cmd = 0x0E;
+    byte cmd = 0x1D;
     byte param = 0x00; // Torque off
-    byte checksum = ~(id + len + cmd + param);
-    Serial1.write(0x55);
-    Serial1.write(0x55);
-    Serial1.write(id);
-    Serial1.write(len);
-    Serial1.write(cmd);
-    Serial1.write(param);
-    Serial1.write(checksum);
+    byte checksum = ~(id + len + cmd + param) & 0xFF;
+    xArmSerial.write(0x55);
+    xArmSerial.write(0x55);
+    xArmSerial.write(id);
+    xArmSerial.write(len);
+    xArmSerial.write(cmd);
+    xArmSerial.write(param);
+    xArmSerial.write(checksum);
   }
-  Serial1.print("#000PUL!");
 
   Serial.println(F("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
   Serial.println(F("           *** EMERGENCY STOP TRIGGERED! ***            "));
@@ -93,68 +99,87 @@ void clearEmergencyStop() {
   }
   for (byte id = 1; id <= 6; id++) {
     byte len = 4;
-    byte cmd = 0x0E;
+    byte cmd = 0x1D;
     byte param = 0x01; // Torque on
-    byte checksum = ~(id + len + cmd + param);
-    Serial1.write(0x55);
-    Serial1.write(0x55);
-    Serial1.write(id);
-    Serial1.write(len);
-    Serial1.write(cmd);
-    Serial1.write(param);
-    Serial1.write(checksum);
+    byte checksum = ~(id + len + cmd + param) & 0xFF;
+    xArmSerial.write(0x55);
+    xArmSerial.write(0x55);
+    xArmSerial.write(id);
+    xArmSerial.write(len);
+    xArmSerial.write(cmd);
+    xArmSerial.write(param);
+    xArmSerial.write(checksum);
   }
-  Serial1.print("#000PLD!");
   isEStopped = false;
   Serial.println(F("[SAFETY] Torque restored. You may continue trimming deviations."));
 }
 
 /**
  * Send LewanSoul / Hiwonder binary packet to drive a single servo
- * Packet format: 0x55 0x55 [ID] [Length] [Cmd] [Params...] [Checksum]
+ * Packet format: 0x55 0x55 [Length] [CMD 0x03] [Count=1] [TimeL] [TimeH] [ID] [PosL] [PosH] [Checksum]
  */
 void sendServoMove(byte id, uint16_t position, uint16_t timeMs) {
-  // Clamp safety limits [0, 1000]
   if (position > 1000) position = 1000;
   
-  // Also send ASCII command format supported by xArm secondary controller boards:
-  // Format: #<id>P<pos>T<time>!
-  char asciiCmd[32];
-  snprintf(asciiCmd, sizeof(asciiCmd), "#%03dP%04dT%04d!", id, position, timeMs);
-  Serial1.print(asciiCmd);
-  
-  // Also send native binary packet in case controller is in transparent bus mode
-  byte len = 7;
+  byte len = 8;
   byte posL = position & 0xFF;
   byte posH = (position >> 8) & 0xFF;
   byte timeL = timeMs & 0xFF;
   byte timeH = (timeMs >> 8) & 0xFF;
   
-  byte checksum = ~(id + len + CMD_SERVO_MOVE + posL + posH + timeL + timeH);
+  byte checksum = ~(len + CMD_SERVO_MOVE + 1 + timeL + timeH + id + posL + posH) & 0xFF;
   
-  Serial1.write(0x55);
-  Serial1.write(0x55);
-  Serial1.write(id);
-  Serial1.write(len);
-  Serial1.write(CMD_SERVO_MOVE);
-  Serial1.write(posL);
-  Serial1.write(posH);
-  Serial1.write(timeL);
-  Serial1.write(timeH);
-  Serial1.write(checksum);
+  xArmSerial.write(0x55);
+  xArmSerial.write(0x55);
+  xArmSerial.write(len);
+  xArmSerial.write(CMD_SERVO_MOVE);
+  xArmSerial.write(0x01);
+  xArmSerial.write(timeL);
+  xArmSerial.write(timeH);
+  xArmSerial.write(id);
+  xArmSerial.write(posL);
+  xArmSerial.write(posH);
+  xArmSerial.write(checksum);
 }
 
 /**
- * Move all 6 servos to their calibrated positions
+ * Move all 6 servos to their calibrated positions in a single multi-servo packet frame
  */
 void applyAllPositions(uint16_t timeMs) {
+  byte count = 6;
+  byte len = (count * 3) + 5; // 23
+  byte totalLen = len + 3;    // 26
+  byte frame[26];
+
+  frame[0] = 0x55;
+  frame[1] = 0x55;
+  frame[2] = len;
+  frame[3] = CMD_SERVO_MOVE;
+  frame[4] = count;
+  frame[5] = timeMs & 0xFF;
+  frame[6] = (timeMs >> 8) & 0xFF;
+
+  uint16_t sum = len + CMD_SERVO_MOVE + count + frame[5] + frame[6];
+  uint8_t idx = 7;
+
   for (int i = 1; i <= 6; i++) {
     int target = servoPositions[i] + servoDeviations[i];
     if (target < 0) target = 0;
     if (target > 1000) target = 1000;
-    sendServoMove(i, target, timeMs);
-    delay(20);
+
+    byte posL = target & 0xFF;
+    byte posH = (target >> 8) & 0xFF;
+
+    frame[idx++] = i;
+    frame[idx++] = posL;
+    frame[idx++] = posH;
+
+    sum += i + posL + posH;
   }
+
+  frame[idx] = (~sum) & 0xFF;
+
+  xArmSerial.write(frame, totalLen);
 }
 
 void printHeader() {
@@ -230,8 +255,8 @@ void setup() {
   Serial.begin(PC_BAUD);
   while (!Serial && millis() < 3000); // Wait up to 3s for Serial Monitor on Uno R4
 
-  // Initialize Hardware Serial1 (Pins 0/1) to xArm 1s
-  Serial1.begin(XARM_BAUD);
+  // Initialize Hardware Serial (Pins 0/1) to xArm 1s
+  xArmSerial.begin(XARM_BAUD);
 
   // Configure Emergency Stop Button on Pin D3
   pinMode(PIN_BTN_ESTOP, INPUT_PULLUP);
