@@ -1,3 +1,5 @@
+import os
+from glob import glob
 from setuptools import find_packages, setup
 
 package_name = 'sorting_arm'
@@ -10,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +27,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'direct_test = sorting_arm.direct_test:main',
+            'driver_node = sorting_arm.driver_node:main',
+            'polar_teleop = sorting_arm.polar_teleop_node:main',
         ],
     },
 )
