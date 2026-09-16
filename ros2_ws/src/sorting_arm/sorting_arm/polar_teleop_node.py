@@ -16,11 +16,12 @@ Publishes to /xarm/joint_commands (sensor_msgs/msg/JointState).
 import select
 import sys
 import termios
-import tty
+import time
 from typing import Optional
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from sorting_arm.kinematics import IKSolution, solve_ik
 
@@ -43,7 +44,9 @@ class NonBlockingTerminal:
         self.old_settings = None
 
     def __enter__(self):
-        """Set terminal into non-blocking cbreak mode with echo disabled."""
+        """Set terminal to cbreak mode (unbuffered characters, echo off)."""
+        if not sys.stdin.isatty():
+            return self
         self.old_settings = termios.tcgetattr(self.fd)
         new_settings = termios.tcgetattr(self.fd)
         # Disable canonical mode and echo, preserve output translation (\n -> \r\n)
@@ -97,8 +100,13 @@ class PolarTeleopNode(Node):
         """Initialize teleop state, limits, and command publishers."""
         super().__init__("polar_teleop_node")
 
-        # Publisher to driver
-        self.cmd_pub = self.create_publisher(JointState, "/xarm/joint_commands", 10)
+        # Publisher to driver with depth 1 QoS to eliminate buffered lag
+        cmd_qos = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+        )
+        self.cmd_pub = self.create_publisher(JointState, "/xarm/joint_commands", cmd_qos)
 
         # Current Cylindrical Target State
         self.r = 220.0        # mm (range ~150 to 290)
@@ -107,10 +115,15 @@ class PolarTeleopNode(Node):
         self.claw_tick = 750  # Open by default
         self.roll_tick = 500  # Level
 
-        # Step sizes
+        # Speed presets: FINE, NORMAL, FAST
+        self.speed_mode = "NORMAL"
         self.step_r = 5.0      # mm
         self.step_theta = 2.5  # deg
         self.step_z = 5.0      # mm
+
+        # Rate limiter to smooth out keyboard auto-repeat (max 25 Hz)
+        self.min_pub_interval = 0.04
+        self.last_pub_time = 0.0
 
         self.last_solution: Optional[IKSolution] = None
         self.status_msg = "Ready. Press any control key to jog."
@@ -137,9 +150,14 @@ class PolarTeleopNode(Node):
             return False
 
     def publish_target_joints(self):
-        """Publish the current IK ticks to /xarm/joint_commands."""
+        """Publish the current IK ticks to /xarm/joint_commands with rate limiting."""
         if not self.last_solution or not self.last_solution.success:
             return
+
+        now = time.time()
+        elapsed = now - self.last_pub_time
+        if elapsed < self.min_pub_interval:
+            time.sleep(self.min_pub_interval - elapsed)
 
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -156,6 +174,7 @@ class PolarTeleopNode(Node):
             float(ticks[6]),
         ]
         self.cmd_pub.publish(msg)
+        self.last_pub_time = time.time()
 
     def draw_hud(self):
         """Render live ANSI terminal HUD without flicker or staircase artifacts."""
@@ -168,9 +187,10 @@ class PolarTeleopNode(Node):
             "          xArm 1S - Polar IK Keyboard Teleoperation (Stage 2)",
             "=" * 68,
             " Controls:",
-            "   [Up/Down Arrow] or [W/S]   : Reach Forward / Backward (r ± 5 mm)",
-            "   [Left/Right Arrow] or [A/E]: Rotate Base Yaw (theta ± 2.5°)",
-            "   [U] / [D]                 : Gripper Height Up / Down (z ± 5 mm)",
+            f"   [Up/Down Arrow] or [W/S]   : Reach Forward / Backward (r ± {self.step_r:.1f} mm)",
+            f"   [Left/Right Arrow] or [A/E]: Rotate Base Yaw (theta ± {self.step_theta:.1f}°)",
+            f"   [U] / [D]                 : Gripper Height Up / Down (z ± {self.step_z:.1f} mm)",
+            "   [1] / [2] / [3]           : Speed: Fine (2mm) / Normal (5mm) / Fast (10mm)",
             "   [Space]                   : Claw Grip / Release Toggle",
             "   [H]                       : Safe Home Pose",
             "   [X]                       : Emergency Stop (Torque Cutoff)",
@@ -181,6 +201,10 @@ class PolarTeleopNode(Node):
             f"   Base Yaw (theta) : {self.theta:6.1f} deg  (0° = East / Forward)",
             f"   Height (z)       : {self.z:6.1f} mm   (Table mat = 0 mm)",
             f"   Claw State       : {claw_status} [{self.claw_tick} ticks]",
+            (
+                f"   Speed Preset     : [{self.speed_mode}] "
+                f"(r±{self.step_r:.1f}mm, θ±{self.step_theta:.1f}°, z±{self.step_z:.1f}mm)"
+            ),
             "-" * 68,
         ]
 
@@ -209,7 +233,7 @@ class PolarTeleopNode(Node):
             "=" * 68,
         ])
 
-        # Overwrite in-place starting at top-left, clearing each line to eliminate flicker and staircase
+        # Overwrite in-place starting at top-left, clearing each line to eliminate flicker
         frame = "\x1b[H" + "".join(f"{line}\x1b[K\r\n" for line in lines)
         sys.stdout.write(frame)
         sys.stdout.flush()
@@ -234,6 +258,29 @@ class PolarTeleopNode(Node):
                     sys.stdout.write("\r\nExiting Polar Teleoperation...\r\n")
                     sys.stdout.flush()
                     break
+
+                # Speed Mode Selection
+                elif key == "1":
+                    self.speed_mode = "FINE"
+                    self.step_r = 2.0
+                    self.step_theta = 1.0
+                    self.step_z = 2.0
+                    self.status_msg = "Speed: FINE (r±2mm, θ±1.0°, z±2mm)"
+                    dirty = True
+                elif key == "2":
+                    self.speed_mode = "NORMAL"
+                    self.step_r = 5.0
+                    self.step_theta = 2.5
+                    self.step_z = 5.0
+                    self.status_msg = "Speed: NORMAL (r±5mm, θ±2.5°, z±5mm)"
+                    dirty = True
+                elif key == "3":
+                    self.speed_mode = "FAST"
+                    self.step_r = 10.0
+                    self.step_theta = 5.0
+                    self.step_z = 10.0
+                    self.status_msg = "Speed: FAST (r±10mm, θ±5.0°, z±10mm)"
+                    dirty = True
 
                 # Radial Reach: In / Out
                 elif key in ["KEY_UP", "w", "W"]:

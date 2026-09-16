@@ -16,6 +16,7 @@ from typing import Dict
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from sorting_arm.kinematics import DEG_PER_TICK, TICKS_PER_DEG
 from sorting_arm.xarm_protocol import XArmDriver
@@ -54,7 +55,7 @@ STANDARD_JOINT_NAMES = [
 
 
 class XArmDriverNode(Node):
-    """ROS 2 Node interfacing with physical xArm 1S over USB serial."""
+    """ROS 2 Node interfacing with physical xArm 1S over USB serial/HID."""
 
     def __init__(self):
         """Initialize parameters, communication interfaces, and timer loops."""
@@ -65,16 +66,21 @@ class XArmDriverNode(Node):
         self.declare_parameter("baudrate", 115200)
         self.declare_parameter("arm_id", "xarm_1")
         self.declare_parameter("config_path", "config/servo_calibration.yaml")
-        self.declare_parameter("default_move_time_ms", 200)
-        self.declare_parameter("stagger_ms", 15)
+        self.declare_parameter("default_move_time_ms", 120)
+        self.declare_parameter("stagger_ms", 0)
+        self.declare_parameter("synchronized", True)
+        self.declare_parameter("adaptive_timing", True)
 
         self.port = self.get_parameter("port").get_parameter_value().string_value
         self.baudrate = self.get_parameter("baudrate").get_parameter_value().integer_value
         self.arm_id = self.get_parameter("arm_id").get_parameter_value().string_value
         self.config_path = self.get_parameter("config_path").get_parameter_value().string_value
-        move_time = self.get_parameter("default_move_time_ms").get_parameter_value().integer_value
-        self.move_time_ms = move_time
+        move_param = self.get_parameter("default_move_time_ms")
+        self.move_time_ms = move_param.get_parameter_value().integer_value
         self.stagger_ms = self.get_parameter("stagger_ms").get_parameter_value().integer_value
+        self.synchronized = self.get_parameter("synchronized").get_parameter_value().bool_value
+        adaptive_param = self.get_parameter("adaptive_timing")
+        self.adaptive_timing = adaptive_param.get_parameter_value().bool_value
 
         # Load calibration offsets
         deviations = self._load_deviations(self.config_path, self.arm_id)
@@ -96,12 +102,17 @@ class XArmDriverNode(Node):
                 f"Failed to connect to xArm on {self.port}. Driver running in offline mode."
             )
 
-        # Subscribers
+        # Subscribers: Use depth 1 QoS to avoid stale buffered commands
+        cmd_qos = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+        )
         self.command_sub = self.create_subscription(
             JointState,
             "/xarm/joint_commands",
             self.joint_command_callback,
-            10,
+            cmd_qos,
         )
 
         # Publishers
@@ -189,12 +200,40 @@ class XArmDriverNode(Node):
 
             target_ticks[sid] = tick
 
-        if target_ticks:
-            self.driver.send_multi_servo_move(
-                target_ticks,
-                time_ms=self.move_time_ms,
-                stagger_ms=self.stagger_ms,
+        if not target_ticks:
+            return
+
+        # Deadband filter: identify which servos actually changed target
+        # Filtering out servos with 0 tick change prevents continuous hunting/buzzing
+        changed_ticks = {}
+        for sid, tick in target_ticks.items():
+            prev = self.driver.current_ticks.get(sid, 500)
+            if abs(tick - prev) >= 1:
+                changed_ticks[sid] = tick
+
+        # If nothing changed, do not send redundant packet
+        if not changed_ticks:
+            return
+
+        # Adaptive duration: calculate smooth execution duration based on max displacement
+        if self.adaptive_timing:
+            max_delta = max(
+                abs(tick - self.driver.current_ticks.get(sid, 500))
+                for sid, tick in changed_ticks.items()
             )
+            # Minimum 70ms for hardware interpolation, + 1.5ms per tick
+            move_time = int(min(1500, max(70, 50 + max_delta * 1.5)))
+        else:
+            move_time = self.move_time_ms
+
+        stagger = 0 if self.synchronized else self.stagger_ms
+
+        self.driver.send_multi_servo_move(
+            changed_ticks,
+            time_ms=move_time,
+            stagger_ms=stagger,
+            synchronized=self.synchronized,
+        )
 
     def publish_joint_states(self):
         """Publish current cached joint states to /xarm/joint_states."""

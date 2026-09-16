@@ -290,37 +290,68 @@ class XArmDriver:
         self,
         target_ticks: Dict[int, int],
         time_ms: int = 1000,
-        stagger_ms: int = 25,
+        stagger_ms: int = 0,
+        synchronized: bool = True,
     ) -> bool:
         """
         Move multiple servos smoothly.
 
-        By default, sends individual joint commands with 25ms stagger
-        (Base -> Shoulder -> Elbow -> Wrist Pitch -> Roll -> Claw)
-        to prevent PSU inrush brownouts.
+        If synchronized=True (default): sends a single native Hiwonder multi-servo
+        CMD_SERVO_MOVE packet so all joints start simultaneously and interpolate
+        in lockstep without blocking sleep or jitter.
+        If synchronized=False: dispatches individual joint commands with stagger_ms delay.
         """
         if self.is_estopped:
             logger.warning("Multi-servo movement rejected: Emergency Stop is active.")
             return False
 
-        priority_order = [6, 5, 4, 3, 2, 1]
-        success = True
+        if not self.is_connected:
+            logger.error("Cannot send move: Device not connected.")
+            return False
 
-        for servo_id in priority_order:
-            if servo_id in target_ticks:
-                tick = target_ticks[servo_id]
-                ok = self.send_servo_move(servo_id, tick, time_ms)
-                if not ok:
-                    success = False
-                if stagger_ms > 0:
-                    time.sleep(stagger_ms / 1000.0)
+        # Filter valid IDs 1..6
+        valid_targets = {sid: int(tick) for sid, tick in target_ticks.items() if 1 <= sid <= 6}
+        if not valid_targets:
+            return True
 
-        return success
+        if synchronized and stagger_ms == 0:
+            count = len(valid_targets)
+            length = count * 3 + 5
+            time_ms = max(0, min(30000, int(time_ms)))
+            time_l = time_ms & 0xFF
+            time_h = (time_ms >> 8) & 0xFF
+
+            packet = bytearray([
+                0x55, 0x55,
+                length,
+                CMD_SERVO_MOVE,
+                count,
+                time_l, time_h,
+            ])
+
+            for sid, theoretical_tick in valid_targets.items():
+                hw_pos = self.apply_deviations_and_limits(sid, theoretical_tick)
+                self.current_ticks[sid] = theoretical_tick
+                packet.extend([sid, hw_pos & 0xFF, (hw_pos >> 8) & 0xFF])
+
+            return self._write_packet(packet)
+        else:
+            priority_order = [6, 5, 4, 3, 2, 1]
+            success = True
+            for servo_id in priority_order:
+                if servo_id in valid_targets:
+                    tick = valid_targets[servo_id]
+                    ok = self.send_servo_move(servo_id, tick, time_ms)
+                    if not ok:
+                        success = False
+                    if stagger_ms > 0:
+                        time.sleep(stagger_ms / 1000.0)
+            return success
 
     def move_home(self, time_ms: int = 1500) -> bool:
         """Move arm into safe tucked transit pose."""
         logger.info(f"Moving to Home Pose in {time_ms} ms...")
-        return self.send_multi_servo_move(POSE_HOME_TICKS, time_ms=time_ms, stagger_ms=30)
+        return self.send_multi_servo_move(POSE_HOME_TICKS, time_ms=time_ms, synchronized=True)
 
     def emergency_stop(self) -> bool:
         """
