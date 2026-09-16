@@ -166,8 +166,8 @@ Sem-5-mini-project/
 ├── arduino/                        # Microcontroller Test & Calibration Firmware
 │   ├── xarm_zero_calibration/      # Interactive servo zeroing & deviation calibration
 │   │   └── xarm_zero_calibration.ino
-│   └── xarm_test_bench/            # Multi-mode test bench (Joystick/Pot/Button/CLI)
-│       └── xarm_test_bench.ino
+│   └── xarm_direct_test/           # Breadboard-free teleoperation, reach & pick-and-place testing
+│       └── xarm_direct_test.ino
 │
 ├── config/                         # Configuration YAMLs
 │   ├── colors.yaml                 # Tuned HSV color threshold ranges
