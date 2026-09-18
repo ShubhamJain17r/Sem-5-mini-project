@@ -49,16 +49,12 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Connect xArm to PC or smartphone via official Hiwonder/LewanSoul software.
   - [ ] Verify all 6 servos respond to manual slider commands.
   - [ ] Check for abnormal gear clicking, binding, or excessive heat.
-- [ ] **Mechanical Deviation Zeroing (`xarm_zero_calibration.ino`)**:
-  - [ ] Flash `arduino/xarm_zero_calibration/xarm_zero_calibration.ino` to Arduino Uno R4.
-  - [ ] Connect Arduino `Pin 0 (RX)` to xArm `TX`, and `Pin 1 (TX)` to xArm `RX`.
-  - [ ] Open Serial Monitor at `115200 baud`. Observe arm moving to nominal midpoint ($500\text{ ticks}$).
-  - [ ] Align Motor 1 (Base Yaw) collinearly with baseplate centerline.
-  - [ ] Align Motor 2 (Shoulder) perpendicular ($90^\circ$) to baseplate.
-  - [ ] Align Motor 3 (Elbow) at a clean $90^\circ$ right angle with upper arm link.
-  - [ ] Align Motor 4 (Wrist Pitch) collinearly with forearm.
-  - [ ] Align Motor 5 (Wrist Roll) such that claw jaws are level with table.
-  - [ ] Trim deviations using `+`, `-`, `>`, `<` keys. Type `p` and export deviation array to `config/servo_calibration.yaml`.
+- [x] **Mechanical Deviation Zeroing (`xarm_zero_calibration.ino`)**:
+  - [x] Flash `arduino/xarm_zero_calibration/xarm_zero_calibration.ino` to Arduino Uno R4.
+  - [x] Connect Arduino `Pin 0 (RX)` to xArm `TX`, and `Pin 1 (TX)` to xArm `RX`.
+  - [x] Open Serial Monitor at `115200 baud`. Observe arm moving to nominal midpoint ($500\text{ ticks}$).
+  - [x] Align joints collinearly / upright (Motor 6 Base, Motor 5 Shoulder, Motor 4 Elbow, Motor 3 Wrist Pitch, Motor 2 Wrist Roll, Motor 1 Claw).
+  - [x] Trim deviations using `+`, `-`, `>`, `<` keys. Type `p` and export deviation array to `config/servo_calibration.yaml` (xarm_1: M1: 1, M2: 3, M3: -3, M4: -13, M5: 0, M6: 0).
 - [x] **Breadboard-Free Interactive Teleoperation & Reach Test (`xarm_direct_test.ino`)**:
   - [x] Flash `arduino/xarm_direct_test/xarm_direct_test.ino` (9600 baud `Serial1` to xArm, 115200 baud USB `Serial`).
   - [x] Motor mapping verified: Motor 1 (Claw), Motor 2 (Roll), Motor 3 (Wrist Pitch), Motor 4 (Elbow), Motor 5 (Shoulder), Motor 6 (Base).
@@ -86,20 +82,17 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ### Lab Action Checklist
 
-- [ ] **Linux Serial & Udev Configuration**:
-  - [ ] Plug xArm controller into laptop USB. Identify device node (`/dev/ttyUSB0` or `/dev/ttyCH341`).
-  - [ ] Set serial latency timer to $1\text{ ms}$: `setserial /dev/ttyUSB0 low_latency`.
-  - [ ] Grant user dialout permissions: `sudo usermod -a -G dialout $USER`.
-- [ ] **ROS 2 Workspace & Driver Package Build**:
-  - [ ] Create workspace `ros2_ws/src` and build packages with `colcon build --symlink-install`.
-  - [ ] Verify `arm1_node.py` connects to serial bus and streams `/arm1/status` at $50\text{ Hz}$.
-- [ ] **Analytical Inverse Kinematics Verification**:
-  - [ ] Implement `XArmKinematics` closed-form solver from Stepping Stone 2.
-  - [ ] Inject test coordinates into IK solver:
-    - Target 1: $(X = 140\text{ mm}, Y = 0\text{ mm}, Z = 32.5\text{ mm})$ $\implies$ Near-Field Pick.
-    - Target 2: $(X = 250\text{ mm}, Y = 0\text{ mm}, Z = 32.5\text{ mm})$ $\implies$ Mid-Field Pick.
-    - Target 3: $(X = 300\text{ mm}, Y = 100\text{ mm}, Z = 32.5\text{ mm})$ $\implies$ Far-Field Pick.
-  - [ ] Confirm solver calculates valid joint angles $(\theta_1\text{--}\theta_5)$ without numerical domain errors ($\text{NaN}$).
+- [x] **Docker Container & Isolated ROS 2 Workspace (Stepping Stone 0)**:
+  - [x] Build multi-arch container (`docker/Dockerfile`, `docker/build.sh`, `docker/run.sh`).
+  - [x] Configure Intel GPU `/dev/dri`, USB serial, and video forwarding.
+- [x] **ROS 2 Workspace & Driver Package Build**:
+  - [x] Create workspace `ros2_ws/src` and build `sorting_arm` package with `colcon build --symlink-install`.
+  - [x] Implement `driver_node.py` and `xarm_protocol.py` with auto HID/serial detection, synchronized multi-servo dispatch, and E-stop service.
+  - [x] Implement keyboard polar teleoperation node (`polar_teleop_node.py`).
+- [x] **Analytical Inverse Kinematics Verification**:
+  - [x] Implement `kinematics.py` closed-form polar solver (cylindrical coordinates $r, \theta, z$).
+  - [x] Add near-field wrist pitch safe heuristics and 4-compartment target resolver (`get_compartment_target`).
+  - [x] Verify reachability and mathematical roundtrip consistency via automated unit test suite (`ros2_ws/src/sorting_arm/test/test_kinematics.py`).
 - [ ] **Physical Cartesian Positioning Accuracy Test**:
   - [ ] Place millimeter grid paper on table in front of arm base.
   - [ ] Command arm to 5 discrete grid points via ROS 2 CLI: `ros2 topic pub --once /arm1/task_goal ...`.

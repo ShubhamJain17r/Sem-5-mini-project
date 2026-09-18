@@ -14,7 +14,8 @@ docs/
 ├── README.md                                          # Documentation Suite Index (This File)
 │
 ├── 🛠️ Development Environment
-│   └── 00_docker_and_ros2_development_guide.md       # Stepping Stone 0: Docker & ROS 2 Humble Development Guide
+│   ├── 00_docker_and_ros2_development_guide.md       # Stepping Stone 0: Docker & ROS 2 Humble Development Guide
+│   └── ../DOCKER_GUIDE.md                            # Comprehensive Docker & Hardware Pass-Through User Manual
 │
 ├── 🏗️ Physical & Spatial Architecture
 │   ├── 01_arena_and_layout.md                         # Stepping Stone 1: Arena Construction, Layout & Dimensions
@@ -31,7 +32,8 @@ docs/
 │   └── 04_ros2_architecture_and_scheduling.md        # Stepping Stone 4: Computation Graph, Message Registry & Spatial Mutex
 │
 ├── 🔌 Hardware Bringup & Low-Level Control
-│   └── 05_hardware_bringup_and_firmware_control.md    # Stepping Stone 5: Binary Serial Protocols, Servo Zeroing & Arduino Rig
+│   ├── 05_hardware_bringup_and_firmware_control.md    # Stepping Stone 5: Binary Serial Protocols, Servo Zeroing & Arduino Rig
+│   └── pcb module.webp                                # Secondary UART & Electrical Hardware Interfacing Photo
 │
 ├── 🧪 Testing & Verification
 │   └── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Z-Sag Compensation, Grip Testing & Diagnostics
