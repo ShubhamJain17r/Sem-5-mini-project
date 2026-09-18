@@ -97,7 +97,12 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 6. **Full Analytical Inverse Kinematics (IK) & Grasp Planning**: See the dedicated mathematical and mechanical architecture document [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for closed-form joint angle equations ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque models, and 5-phase trajectory waypoint generation.
 7. **Nearest-First Pick Policy (Corridor Collision Avoidance)**: To prevent horizontal claw approaches from plowing through foreground cubes, the queue is strictly sorted by ascending radial distance $r$. See [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 8. **Empirical Z-Sag Compensation**: To counteract mechanical gear backlash and linkage flex at extreme reach ($r > 180\text{ mm}$), commanded elevation incorporates a linear sag offset $Z_{\text{cmd}} = Z_{\text{target}} + k_{\text{sag}} \cdot (r - 180)$.
-9. **Software Grip Confirmation via Motor 6 Readback**: Post-clamping position readback ($< 220\text{ ticks} = \text{miss}$, $380\text{--}520\text{ ticks} = \text{cube grasped}$) prevents empty $205^\circ$ drop swings.
+9. **Software Grip Confirmation via Motor 1 (Claw / $\theta_6$) Readback**: Post-clamping position readback ($< 220\text{ ticks} = \text{miss}$, $380\text{--}520\text{ ticks} = \text{cube grasped}$) prevents empty $205^\circ$ drop swings.
+
+> [!NOTE]
+> **Kinematic Joint Indices vs. Physical Hardware Motor IDs**:
+> In mathematical kinematics ($\theta_1\text{--}\theta_6$), joints are indexed base-to-tip ($\theta_1 = \text{Base Yaw}, \theta_2 = \text{Shoulder Pitch}, \dots, \theta_6 = \text{Claw Clamp}$).
+> On the physical **Hiwonder xArm 1s** bus servo daisy chain, hardware IDs are addressed tip-to-base: Hardware ID 1 = Claw Gripper, ID 2 = Wrist Roll, ID 3 = Wrist Pitch, ID 4 = Elbow Pitch, ID 5 = Shoulder Pitch, ID 6 = Base Yaw. Both `config/dual_xarm_hardware.yaml` and the ROS 2 driver explicitly preserve this mapping.
 
 ---
 

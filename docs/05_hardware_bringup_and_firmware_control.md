@@ -21,9 +21,21 @@ The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconn
     └─────────────┬─────────────┘
                   │ (1-Wire Half-Duplex Bus @ 115200 Baud)
                   ▼
-    [ Motor 1 ] ──► [ Motor 2 ] ──► [ Motor 3 ] ──► [ Motor 4 ] ──► [ Motor 5 ] ──► [ Motor 6 ]
+    [ Motor 6 ] ──► [ Motor 5 ] ──► [ Motor 4 ] ──► [ Motor 3 ] ──► [ Motor 2 ] ──► [ Motor 1 ]
      (Base Yaw)     (Shoulder)       (Elbow)       (Wrist Pitch)   (Wrist Roll)     (Gripper)
 ```
+
+> [!NOTE]
+> **Kinematic Joint Indices vs. Physical Hardware Motor IDs**:
+> In standard robotics literature (Denavit-Hartenberg notation), kinematic joints are indexed from base to tip ($\theta_1 = \text{Base Yaw}, \theta_2 = \text{Shoulder Pitch}, \theta_3 = \text{Elbow Pitch}, \theta_4 = \text{Wrist Pitch}, \theta_5 = \text{Wrist Roll}, \theta_6 = \text{Claw Clamp}$).
+> However, on the physical **Hiwonder / LewanSoul xArm 1s** bus servo daisy chain, hardware servo IDs are factory-addressed from end-effector to base:
+> - **Hardware Motor 1**: Claw Gripper
+> - **Hardware Motor 2**: Wrist Roll
+> - **Hardware Motor 3**: Wrist Pitch
+> - **Hardware Motor 4**: Elbow Pitch
+> - **Hardware Motor 5**: Shoulder Pitch
+> - **Hardware Motor 6**: Base Yaw
+> Both the Arduino firmware (`xarm_direct_test.ino`, `xarm_zero_calibration.ino`), configuration (`config/dual_xarm_hardware.yaml`), and ROS 2 driver (`driver_node.py`) strictly adhere to these official hardware IDs.
 
 ### 1.1 Secondary Development Controller UART Protocol (Arduino to xArm Base)
 
@@ -88,6 +100,8 @@ The secondary development UART header on the xArm base board (`RX TX GND`) inter
 > 2. **Strict Common Ground**: The Arduino `GND` **must** be connected directly to the xArm controller `GND`. Floating grounds cause floating UART logic levels and corrupt packets.
 > 3. **Logic Level Compatibility**: The Arduino Uno R4 WiFi features $5\text{V}$ tolerant I/O on `Serial1` (`Pin 0 = RX`, `Pin 1 = TX`), which natively mates with the xArm controller's $5\text{V}$ TTL UART header without requiring a logic level shifter.
 
+![xArm 1s Secondary Development Controller Board Pinout and Interfaces](pcb%20module.webp)
+
 ### 2.1 Test Bench Pinout Table (Arduino Uno R4 WiFi)
 
 | Component | Pin on Uno R4 | Signal Type | Description |
@@ -112,11 +126,12 @@ Every hobby robotic arm experiences physical assembly tolerance errors: a servo 
 ```text
     Theoretical Center (500 ticks / 120°):
     
-         Motor 2 (Shoulder):   Arm segment points 90° straight UP
-         Motor 3 (Elbow):      Forearm forms exactly 90° angle with upper arm
-         Motor 4 (Wrist):      Claw points straight along forearm axis
-         Motor 5 (Roll):       Claw fingers are perfectly horizontal
-         Motor 6 (Claw):       Fingers mid-span (approx 25 mm gap)
+         Motor 6 (Base Yaw):      Points collinearly along chassis midline (East / +X)
+         Motor 5 (Shoulder):      Upper arm segment points 90° straight UP (perpendicular to table)
+         Motor 4 (Elbow):         Forearm forms exactly 90° right angle with upper arm
+         Motor 3 (Wrist Pitch):   Claw assembly points straight along forearm axis (collinear)
+         Motor 2 (Wrist Roll):    Claw fingers are perfectly horizontal (parallel to table)
+         Motor 1 (Claw Gripper):  Fingers at nominal mid-span (~40 mm opening)
 ```
 
 ### 3.1 Step-by-Step Zeroing Procedure (30-Minute Lab Protocol)
@@ -131,19 +146,20 @@ Every hobby robotic arm experiences physical assembly tolerance errors: a servo 
    * Set baud rate to **`115200 baud`**.
    * The arm will immediately move to its default midpoint ($500\text{ ticks}$ on all motors) over $1.5\text{ seconds}$.
 4. **Mechanical Alignment Verification**:
-   * **Motor 1 (Base Yaw)**: Verify the arm points directly along the chassis midline.
-   * **Motor 2 (Shoulder)**: Inspect if the upper arm segment is perpendicular to the base mounting plate.
-   * **Motor 3 (Elbow)**: Check if the forearm forms a clean right angle ($90^\circ$) with the upper arm.
-   * **Motor 4 (Wrist Pitch)**: Confirm the tool assembly is collinearly aligned with the forearm.
-   * **Motor 5 (Wrist Roll)**: Verify the claw jaws are parallel to the table.
+   * **Motor 6 (Base Yaw / $\theta_1$)**: Verify the arm points directly along the chassis midline (East / +X).
+   * **Motor 5 (Shoulder Pitch / $\theta_2$)**: Inspect if the upper arm segment is perpendicular to the base mounting plate.
+   * **Motor 4 (Elbow Pitch / $\theta_3$)**: Check if the forearm forms a clean right angle ($90^\circ$) with the upper arm.
+   * **Motor 3 (Wrist Pitch / $\theta_4$)**: Confirm the tool assembly is collinearly aligned with the forearm.
+   * **Motor 2 (Wrist Roll / $\theta_5$)**: Verify the claw jaws are parallel to the table.
+   * **Motor 1 (Claw Gripper / $\theta_6$)**: Confirm fingers rest at nominal mid-span ($500\text{ ticks}$).
 5. **Trimming Deviations Interactively**:
-   * Type `1` through `6` into the Serial Monitor to select a motor.
+   * Type `1` through `6` into the Serial Monitor to select a motor (e.g. `6` for Base Yaw).
    * Type `+` or `-` to adjust the deviation by $\pm 1\text{ tick}$ ($0.24^\circ$).
    * Type `>` or `<` to adjust by $\pm 10\text{ ticks}$ ($2.4^\circ$).
    * Observe physical joint movement until the chassis alignment marks match perfectly.
 6. **Export Calibration Offsets**:
    * Type `p` in the Serial Monitor.
-   * The sketch outputs a formatted C++ / Python array representing the measured deviations.
+   * The sketch outputs a formatted C++ / Python / YAML array representing the measured deviations.
    * Save these values to `config/servo_calibration.yaml` for use by the ROS 2 driver!
 
 ---
@@ -172,11 +188,11 @@ $$\text{Offset Formula: } \quad \text{Ticks}_{\text{commanded}} = 500 + \text{ro
 
 To prevent internal gear-stripping or driving linkages into mechanical hard stops, software bounds are strictly enforced in firmware and ROS 2 drivers:
 
-| Motor ID | Joint Name | Min Safe Ticks | Max Safe Ticks | Safe Angle Span | Role / Constraint |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| **Motor 1** | Base Yaw ($\theta_1$) | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ ($\Delta = 168^\circ$) | Confined within $205^\circ$ swing to avoid $240^\circ$ deadzone |
-| **Motor 2** | Shoulder Pitch ($\theta_2$) | `200` | `850` | $48.0^\circ\text{ to }204.0^\circ$ | Prevents backward hyperextension against baseplate |
-| **Motor 3** | Elbow Pitch ($\theta_3$) | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ | Operates in Elbow-Up configuration |
-| **Motor 4** | Wrist Pitch ($\theta_4$) | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ | Maintains approach pitch $\phi \in [-75^\circ, 0^\circ]$ |
-| **Motor 5** | Wrist Roll ($\theta_5$) | `200` | `800` | $48.0^\circ\text{ to }192.0^\circ$ | Locked to $0^\circ$ in Regime B to prevent claw tilt |
-| **Motor 6** | Claw Gripper | `150` (Closed) | `750` (Open) | $36.0^\circ\text{ to }180.0^\circ$ | $150\text{ ticks} = 0\text{ mm}$, $750\text{ ticks} = 55\text{ mm}$ opening |
+| Hardware ID | Kinematic Joint | Joint Name | Min Safe Ticks | Max Safe Ticks | Safe Angle Span | Role / Constraint |
+| :---: | :---: | :--- | :---: | :---: | :---: | :--- |
+| **Motor 1** | $\theta_6$ | Claw Gripper | `150` (Closed) | `800` (Open) | $36.0^\circ\text{ to }192.0^\circ$ | $150\text{ ticks} = 0\text{ mm}$, $750\text{ ticks} = 55\text{ mm}$ opening |
+| **Motor 2** | $\theta_5$ | Wrist Roll | `200` | `800` | $48.0^\circ\text{ to }192.0^\circ$ | Locked to $0^\circ$ in Regime B to prevent claw tilt |
+| **Motor 3** | $\theta_4$ | Wrist Pitch | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ | Maintains approach pitch $\phi \in [-75^\circ, 0^\circ]$ |
+| **Motor 4** | $\theta_3$ | Elbow Pitch | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ | Operates in Elbow-Up configuration |
+| **Motor 5** | $\theta_2$ | Shoulder Pitch | `200` | `850` | $48.0^\circ\text{ to }204.0^\circ$ | Prevents backward hyperextension against baseplate |
+| **Motor 6** | $\theta_1$ | Base Yaw | `150` | `850` | $36.0^\circ\text{ to }204.0^\circ$ ($\Delta = 168^\circ$) | Confined within $205^\circ$ swing to avoid $240^\circ$ deadzone |

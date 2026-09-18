@@ -76,9 +76,9 @@ This project automates color-based object sorting using computer vision, inverse
 
 | Component           | Specification                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 2 shoulder axis @ $65\text{ mm}$)                                     |
-| **Link Lengths**    | Base-to-Shoulder: $65\text{ mm}$ · Upper Arm: $101\text{ mm}$ · Forearm: $95\text{ mm}$ · Tool: $150\text{ mm}$ |
-| **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 5 axial roll, Motor 6 clamp)                              |
+| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 5 shoulder axis @ $65\text{ mm}$)                                     |
+| **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
+| **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
 | **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, mounted in Central Electronics Bay)    |
 | **Camera**          | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$                            |
 | **Main Baseboard**  | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$)                                                |
@@ -87,7 +87,12 @@ This project automates color-based object sorting using computer vision, inverse
 | **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$)          |
 | **Objects**         | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors                                       |
 | **Power Supply**    | Dedicated 7.4V / 5A power supply per arm with common ground                                                     |
-| **Communication**   | Direct USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 baud                                     |
+| **Communication**   | Direct USB HID / USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 / 9600 baud                     |
+
+> [!NOTE]
+> **Joint Naming vs. Hiwonder Hardware IDs**:
+> In mathematical kinematics ($\theta_1\text{--}\theta_6$), joints are indexed from base to claw ($\theta_1 = \text{Base Yaw}, \theta_2 = \text{Shoulder}, \theta_3 = \text{Elbow}, \theta_4 = \text{Wrist Pitch}, \theta_5 = \text{Wrist Roll}, \theta_6 = \text{Claw Clamp}$).
+> On the physical Hiwonder xArm 1s bus servo daisy chain, hardware IDs are addressed tip-to-base: **ID 1 = Claw Gripper**, **ID 2 = Wrist Roll**, **ID 3 = Wrist Pitch**, **ID 4 = Elbow Pitch**, **ID 5 = Shoulder Pitch**, **ID 6 = Base Yaw**. All code and configuration files explicitly maintain this mapping.
 
 ---
 
@@ -138,6 +143,7 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 
 ### Stepping-Stone Specifications
 
+- 📄 **Stepping Stone 0**: [`docs/00_docker_and_ros2_development_guide.md`](docs/00_docker_and_ros2_development_guide.md) — Docker containerization, hybrid host/container development workflow, Intel GPU acceleration, USB hardware mapping, and ROS 2 Humble package build standards.
 - 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Mechanical construction, baseboard dimensions ($800\times 600\text{ mm}$), collinear arm mounting ($X = 360\text{ mm}$), NW/SW drop boxes resolving $240^\circ$ servo ROM, Central Electronics Bay layout, elevated arena platform ($+20\text{ mm}$), barrier profiles, lighting, and ArUco coplanar mounting.
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
 - 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), hardware exposure/WB locks, HSV color segmentation, spatial moments centroiding, and Python perception pipeline.
@@ -154,6 +160,7 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 ### Technical Drawings & Schematics
 
 - 🖼️ [`docs/design.png`](docs/design.png): High-resolution architectural diagram showing baseboard dimensions, collinear axis, NW/SW drop boxes, Central Electronics Bay, and elevated stadium arena.
+- 🖼️ [`docs/pcb module.webp`](docs/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
 - 🖼️ [`docs/xArm demensions.png`](docs/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
 
 ---
@@ -164,15 +171,14 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 Sem-5-mini-project/
 │
 ├── arduino/                        # Microcontroller Test & Calibration Firmware
-│   ├── xarm_zero_calibration/      # Interactive servo zeroing & deviation calibration
-│   │   └── xarm_zero_calibration.ino
-│   └── xarm_direct_test/           # Breadboard-free teleoperation, reach & pick-and-place testing
-│       └── xarm_direct_test.ino
+│   ├── xarm_direct_test/           # Breadboard-free teleoperation, reach & pick-and-place testing
+│   │   └── xarm_direct_test.ino
+│   └── xarm_zero_calibration/      # Interactive servo zeroing & deviation calibration
+│       └── xarm_zero_calibration.ino
 │
 ├── config/                         # Configuration YAMLs
-│   ├── colors.yaml                 # Tuned HSV color threshold ranges
-│   ├── bin_coordinates.yaml        # Calibrated NW/SW 2×2 box drop coordinates
-│   └── camera_calibration.yaml     # Camera intrinsic and distortion params
+│   ├── dual_xarm_hardware.yaml     # Immutable link lengths, mounting origins, joint limits & 4 color compartments
+│   └── servo_calibration.yaml      # Measured zero-point deviation trims per joint
 │
 ├── docs/                           # Stepping-Stone & System Documentation
 │   ├── README.md                   # Documentation Index & Architecture Map
@@ -185,29 +191,31 @@ Sem-5-mini-project/
 │   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
 │   ├── design.png                  # High-resolution architectural schematic
 │   ├── implementation_plan.md      # System architecture & integration blueprint
+│   ├── pcb module.webp             # Controller board pinout diagram
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
 │   ├── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
 │   └── xArm demensions.png         # Physical robot dimension schematic
 │
-├── dashboard/                      # Web Dashboard UI
-│   ├── index.html                  # Operator dashboard interface
-│   ├── styles.css                  # UI styling & status indicators
-│   └── app.js                      # Rosbridge WebSocket client
-│
 ├── ros2_ws/                        # ROS 2 Humble Workspace
 │   └── src/
-│       ├── sorting_interfaces/     # Custom message definitions
-│       │   ├── msg/DetectedObject.msg
-│       │   ├── msg/ArmTask.msg
-│       │   └── msg/ArmStatus.msg
-│       ├── sorting_vision/         # Camera & OpenCV processing nodes
-│       ├── sorting_scheduler/      # Task allocation & arena_mutex
-│       └── sorting_arm/            # Serial driver & motion planning
-│
-├── vision/                         # Standalone OpenCV Calibration Scripts
-│   ├── calibrate_camera.py         # Intrinsic camera calibration script
-│   ├── test_aruco_warp.py          # Dedicated arena homography verification
-│   └── tune_hsv.py                 # Interactive HSV color tuning tool
+│       └── sorting_arm/            # Hardware driver node, analytical polar IK, & teleop
+│           ├── launch/
+│           │   └── xarm_driver.launch.py
+│           ├── sorting_arm/
+│           │   ├── direct_test.py      # Standalone USB HID/serial driver test
+│           │   ├── driver_node.py      # ROS 2 hardware driver node with E-Stop
+│           │   ├── kinematics.py       # Closed-form analytical polar IK solver
+│           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
+│           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
+│           ├── test/
+│           │   ├── test_copyright.py
+│           │   ├── test_flake8.py
+│           │   ├── test_kinematics.py  # Analytical IK and reachability unit tests
+│           │   └── test_pep257.py
+│           ├── package.xml
+│           ├── setup.cfg
+│           └── setup.py
+│       # (Planned future packages: sorting_interfaces, sorting_vision, sorting_scheduler)
 │
 ├── .devcontainer/                 # VS Code Dev Container configuration
 │   └── devcontainer.json           # 1-click isolated ROS 2 environment
@@ -256,16 +264,23 @@ From the repository root:
 
 #### 4. Build Workspace & Run Nodes (Inside Container)
 ```bash
-# Build ROS 2 workspace
+# 1. Build ROS 2 workspace
 cd /workspace/ros2_ws
 colcon build --symlink-install
 source install/setup.bash
 
-# Launch camera and vision pipeline
-ros2 launch sorting_vision vision.launch.py
+# 2. Run automated analytical kinematics tests
+pytest src/sorting_arm/test/test_kinematics.py
 
-# Launch dual-arm scheduler and controllers
-ros2 launch sorting_scheduler system.launch.py
+# 3. Launch xArm 1s hardware driver node (auto-detects USB HID / serial)
+ros2 launch sorting_arm xarm_driver.launch.py
+
+# 4. Or run interactive polar teleoperation node
+ros2 run sorting_arm polar_teleop_node
+
+# (Future Full Pipeline — Phase 3+):
+# ros2 launch sorting_vision vision.launch.py
+# ros2 launch sorting_scheduler system.launch.py
 ```
 
 ---
@@ -291,11 +306,18 @@ source install/setup.bash
 
 #### 3. Launching the System
 ```bash
-# Launch camera and vision pipeline
-ros2 launch sorting_vision vision.launch.py
+# Run automated kinematics tests
+pytest src/sorting_arm/test/test_kinematics.py
 
-# Launch dual-arm scheduler and controllers
-ros2 launch sorting_scheduler system.launch.py
+# Launch xArm 1s hardware driver node
+ros2 launch sorting_arm xarm_driver.launch.py
+
+# Or run polar teleoperation node
+ros2 run sorting_arm polar_teleop_node
+
+# (Future Full Pipeline — Phase 3+):
+# ros2 launch sorting_vision vision.launch.py
+# ros2 launch sorting_scheduler system.launch.py
 ```
 
 ---
@@ -313,10 +335,13 @@ ros2 launch sorting_scheduler system.launch.py
 - [x] Stepping Stone 0: Docker & ROS 2 Development Environment (`docs/00_docker_and_ros2_development_guide.md`)
 - [x] Stepping Stone 1: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
 - [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
-- [x] Technical Schematic Design (`docs/design.png`)
+- [x] Stepping Stone 5: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
+- [x] Technical Schematic Design (`docs/design.png` & `docs/pcb module.webp`)
 - [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
-- [ ] Physical Assembly & Hardware Mounting _(Week 1)_
-- [ ] OpenCV Dedicated Arena Homography _(Week 2)_
+- [x] Phase 0: Arduino Hardware Bringup, Calibration & Reach Testing (`arduino/`)
+- [x] Phase 1 Core: ROS 2 Hardware Driver, Closed-Form Polar IK, & Teleop (`ros2_ws/src/sorting_arm/`)
+- [ ] Physical Assembly & Arena Mounting _(Week 1)_
+- [ ] OpenCV Dedicated Arena Homography & HSV Tuning _(Week 2)_
 - [ ] ROS 2 Graph & Mutex Scheduler _(Week 3)_
 - [ ] Single Arm Pick & Pitch LUT Calibration _(Weeks 4–6)_
 - [ ] Dual Arm Pipelined Integration _(Weeks 7–8)_
