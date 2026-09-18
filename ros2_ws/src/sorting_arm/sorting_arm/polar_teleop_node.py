@@ -121,7 +121,9 @@ class PolarTeleopNode(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
         )
-        self.cmd_pub = self.create_publisher(JointState, "/xarm/joint_commands", cmd_qos)
+        # Use relative topic if in custom namespace, otherwise target arm_id namespace
+        topic_name = "joint_commands" if self.get_namespace() != "/" else f"/{self.arm_id}/joint_commands"
+        self.cmd_pub = self.create_publisher(JointState, topic_name, cmd_qos)
 
         # Current Cylindrical Target State
         self.r = 220.0        # mm (range ~150 to 290)
@@ -195,6 +197,14 @@ class PolarTeleopNode(Node):
         ]
         self.cmd_pub.publish(msg)
         self.last_pub_time = time.time()
+
+    def publish_direct_ticks(self, ticks_list):
+        """Publish an explicit list of 6 servo ticks directly."""
+        msg = JointState()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.name = STANDARD_JOINT_NAMES
+        msg.position = [float(t) for t in ticks_list[:6]]
+        self.cmd_pub.publish(msg)
 
     def draw_hud(self):
         """Render live ANSI terminal HUD without flicker or staircase artifacts."""
@@ -348,14 +358,39 @@ class PolarTeleopNode(Node):
                         config_path=self.config_path,
                     )
                     if target:
-                        self.r = round(float(target["r"]), 1)
-                        self.theta = round(float(target["theta_deg"]), 1)
-                        self.z = round(float(target["z"]), 1)
-                        self.status_msg = (
-                            f"Targeting {self.active_color.upper()} compartment "
-                            f"(drop yaw tick {target['drop_yaw_tick']})"
-                        )
-                        dirty = True
+                        cand_r = round(float(target["r"]), 1)
+                        cand_th = round(float(target["theta_deg"]), 1)
+                        cand_z = round(float(target["z"]), 1)
+
+                        if target.get("ik_success", False):
+                            self.r = cand_r
+                            self.theta = cand_th
+                            self.z = cand_z
+                            self.status_msg = (
+                                f"Targeting {self.active_color.upper()} compartment via IK "
+                                f"(drop yaw tick {target['drop_yaw_tick']})"
+                            )
+                            dirty = True
+                        else:
+                            # Cartesian IK outside limits: fallback to drop preset
+                            drop_yaw = target.get("drop_yaw_tick")
+                            drop_pose = target.get("drop_pose_preset")
+                            if drop_pose and len(drop_pose) >= 6:
+                                self.publish_direct_ticks(drop_pose)
+                                self.status_msg = (
+                                    f"PRESET POSE: {self.active_color.upper()} dispatched via drop_container pose."
+                                )
+                                dirty = False
+                            elif drop_yaw is not None:
+                                p_base_zero = self.params.base_zero_deg
+                                self.theta = round(p_base_zero + (drop_yaw - 500) * (240.0 / 1000.0), 1)
+                                self.status_msg = (
+                                    f"PRESET YAW: {self.active_color.upper()} set to tick {drop_yaw} ({self.theta}°)."
+                                )
+                                dirty = True
+                            else:
+                                self.status_msg = f"LIMIT: {self.active_color.upper()} unreachable ({target.get('ik_message', '')})."
+                                dirty = False
                     else:
                         self.status_msg = f"Could not resolve {self.active_color} target."
                         dirty = True

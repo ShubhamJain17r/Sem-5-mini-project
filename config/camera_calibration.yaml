@@ -1,0 +1,79 @@
+# =====================================================================================
+# Dual xArm 1s Color-Sorting Robot — Overhead Camera Calibration Parameters
+# File: config/camera_calibration.yaml
+#
+# PURPOSE:
+#   Stores intrinsic optical parameters, distortion coefficients, and planar homography
+#   matrices for rectifying overhead webcam frames to the physical arena metric grid.
+#   This file will be populated by the camera calibration routine.
+# =====================================================================================
+
+version: "1.0"
+date_calibrated: "pending_calibration"
+camera_name: "overhead_camera"
+
+# Camera native sensor resolution
+image_width: 1920
+image_height: 1080
+
+# Camera Intrinsic Matrix K (3x3)
+# [ fx   0  cx ]
+# [  0  fy  cy ]
+# [  0   0   1 ]
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [
+    1420.0,    0.0, 960.0,
+       0.0, 1420.0, 540.0,
+       0.0,    0.0,   1.0
+  ]
+
+# Lens Distortion Model & Coefficients
+distortion_model: "plumb_bob"
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [0.0, 0.0, 0.0, 0.0, 0.0]  # [k1, k2, p1, p2, k3]
+
+# Rectification Matrix R (Identity for monocular cameras)
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0
+  ]
+
+# Projection Matrix P (3x4)
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [
+    1420.0,    0.0, 960.0, 0.0,
+       0.0, 1420.0, 540.0, 0.0,
+       0.0,    0.0,   1.0, 0.0
+  ]
+
+# Planar Homography H (Image Pixels [u, v, 1] -> Physical Arena [X_w, Y_w, 1] in mm)
+planar_homography:
+  scale_px_per_mm: 2.0
+  matrix:
+    rows: 3
+    cols: 3
+    data: [
+      1.0, 0.0, 0.0,
+      0.0, 1.0, 0.0,
+      0.0, 0.0, 1.0
+    ]
+
+# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on elevated arena Z = 20mm)
+aruco_reference_markers:
+  dictionary: "DICT_4X4_50"
+  marker_size_mm: 40.0
+  markers:
+    marker_0: {id: 0, role: "collinear_arm2_front", world_x: 360.0, world_y: 55.0,  world_z: 20.0}
+    marker_1: {id: 1, role: "outer_arena_front",   world_x: 730.0, world_y: 55.0,  world_z: 20.0}
+    marker_2: {id: 2, role: "collinear_arm1_back",  world_x: 360.0, world_y: 545.0, world_z: 20.0}
+    marker_3: {id: 3, role: "outer_arena_back",    world_x: 730.0, world_y: 545.0, world_z: 20.0}

@@ -1,10 +1,12 @@
 from sorting_arm.kinematics import (
     MAX_SAFE_TICKS,
     MIN_SAFE_TICKS,
+    KinematicParameters,
     get_compartment_target,
     load_kinematic_parameters,
     solve_fk,
     solve_ik,
+    world_to_arm_polar,
 )
 from sorting_arm.xarm_protocol import XArmDriver
 
@@ -124,3 +126,45 @@ def test_ik_with_claw_tip():
     assert sol_tip.success
     # With longer tool length (tip), shoulder/elbow angles must differ to reach same position
     assert sol_grip.ticks[5] != sol_tip.ticks[5]
+
+
+def test_world_to_arm_polar():
+    # xarm_1 is at (360, 420)
+    # A point at (560, 420, 32.5) is directly East: dx=200, dy=0 -> r=200, theta=0
+    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1")
+    assert abs(r - 200.0) < 0.1
+    assert abs(th - 0.0) < 0.1
+    assert abs(z - 32.5) < 0.1
+
+    # If arm heading is angled (e.g. +45 deg NE)
+    custom_params = KinematicParameters(base_heading_deg=45.0)
+    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1", params=custom_params)
+    assert abs(r - 200.0) < 0.1
+    # Global angle 0° minus heading 45° = -45° local
+    assert abs(th - (-45.0)) < 0.1
+
+
+def test_base_zero_and_heading_kinematics():
+    # Test that configured base_zero_deg offsets tick 6 properly
+    p_offset = KinematicParameters(base_zero_deg=30.0)
+    # Target theta = 30° should result in tick 500
+    sol = solve_ik(r=220.0, theta=30.0, z=80.0, params=p_offset)
+    assert sol.success
+    assert sol.ticks[6] == 500
+
+    # FK roundtrip with base_zero_deg
+    fk = solve_fk(sol.ticks[6], sol.ticks[5], sol.ticks[4], sol.ticks[3], params=p_offset)
+    assert abs(fk.theta - 30.0) < 0.5
+
+
+def test_compartment_target_fallback():
+    cfg = "config/dual_xarm_hardware.yaml"
+    target = get_compartment_target("red", arm_id="xarm_1", config_path=cfg)
+    assert target is not None
+    assert "drop_yaw_tick" in target
+    assert target["drop_yaw_tick"] == 835
+    assert "drop_pose_preset" in target
+    assert "theta_arm_deg" in target
+    assert "theta_world_deg" in target
+    assert "ik_success" in target
+

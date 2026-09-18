@@ -110,24 +110,24 @@ class XArmDriverNode(Node):
         )
         self.command_sub = self.create_subscription(
             JointState,
-            "/xarm/joint_commands",
+            "joint_commands",
             self.joint_command_callback,
             cmd_qos,
         )
 
         # Publishers
-        self.state_pub = self.create_publisher(JointState, "/xarm/joint_states", 10)
+        self.state_pub = self.create_publisher(JointState, "joint_states", 10)
         self.state_timer = self.create_timer(0.1, self.publish_joint_states)  # 10 Hz
 
         # Services
         self.estop_srv = self.create_service(
             Trigger,
-            "/xarm/emergency_stop",
+            "emergency_stop",
             self.estop_callback,
         )
         self.re_enable_srv = self.create_service(
             Trigger,
-            "/xarm/re_enable",
+            "re_enable",
             self.re_enable_callback,
         )
 

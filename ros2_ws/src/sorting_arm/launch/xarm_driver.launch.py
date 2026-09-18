@@ -20,11 +20,17 @@ def generate_launch_description():
         default_value="xarm_1",
         description="Manipulator instance identifier",
     )
+    namespace_arg = DeclareLaunchArgument(
+        "namespace",
+        default_value=LaunchConfiguration("arm_id"),
+        description="ROS 2 node namespace (defaults to arm_id)",
+    )
 
     driver_node = Node(
         package="sorting_arm",
         executable="driver_node",
         name="xarm_driver_node",
+        namespace=LaunchConfiguration("namespace"),
         output="screen",
         parameters=[
             {
@@ -39,5 +45,6 @@ def generate_launch_description():
         port_arg,
         baudrate_arg,
         arm_id_arg,
+        namespace_arg,
         driver_node,
     ])

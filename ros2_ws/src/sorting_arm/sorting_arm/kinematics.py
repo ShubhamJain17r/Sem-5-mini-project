@@ -12,7 +12,7 @@ Features:
 from dataclasses import dataclass
 import math
 import os
-from typing import Dict, NamedTuple, Optional
+from typing import Dict, NamedTuple, Optional, Tuple
 import yaml
 
 # Standard Ticks per degree (1000 ticks / 240 degrees)
@@ -34,6 +34,8 @@ class KinematicParameters:
     shoulder_zero_deg: float = 45.0  # Angle above horizontal at 500 ticks
     elbow_zero_deg: float = 90.0     # Interior angle between L1 and L2 at 500 ticks
     wrist_zero_deg: float = 0.0      # Relative angle with forearm at 500 ticks
+    base_zero_deg: float = 0.0       # Arm-relative angle at 500 ticks (default 0 deg)
+    base_heading_deg: float = 0.0    # Base mounting nominal heading in world frame (East = 0 deg)
 
     # Soft safety tick clamps
     min_safe_ticks: Optional[Dict[int, int]] = None
@@ -117,6 +119,8 @@ def load_kinematic_parameters(
         sh_zero = float(motors.get("motor_5", {}).get("zero_reference_angle_deg", 45.0))
         el_zero = float(motors.get("motor_4", {}).get("zero_reference_angle_deg", 90.0))
         wr_zero = float(motors.get("motor_3", {}).get("zero_reference_angle_deg", 0.0))
+        base_zero = float(motors.get("motor_6", {}).get("zero_reference_angle_deg", 0.0))
+        base_heading = float(arm_cfg.get("base_mount_mm", {}).get("nominal_heading_deg", 0.0))
 
         min_ticks = {
             1: int(motors.get("motor_1", {}).get("min_tick", 150)),
@@ -144,6 +148,8 @@ def load_kinematic_parameters(
             shoulder_zero_deg=sh_zero,
             elbow_zero_deg=el_zero,
             wrist_zero_deg=wr_zero,
+            base_zero_deg=base_zero,
+            base_heading_deg=base_heading,
             min_safe_ticks=min_ticks,
             max_safe_ticks=max_ticks,
         )
@@ -307,8 +313,8 @@ def _solve_ik_internal(
     theta_wrist_rel_deg = phi - theta_forearm_deg
 
     # Step 6: Convert angles to theoretical servo ticks using configured zero-references
-    # Motor 6: Base Yaw (500 = center = 0 deg)
-    tick_6 = int(round(500 + theta * TICKS_PER_DEG))
+    # Motor 6: Base Yaw (500 = center = configured base_zero_deg)
+    tick_6 = int(round(500 + (theta - params.base_zero_deg) * TICKS_PER_DEG))
 
     # Motor 5: Shoulder Pitch (configured zero angle, default 45° forward)
     tick_5 = int(round(500 + (theta_shoulder_deg - params.shoulder_zero_deg) * TICKS_PER_DEG))
@@ -387,7 +393,7 @@ def solve_fk(
     d1 = p.d1
 
     # Base Yaw
-    theta = (tick_6 - 500) * DEG_PER_TICK
+    theta = p.base_zero_deg + (tick_6 - 500) * DEG_PER_TICK
 
     # Shoulder
     theta_shoulder_deg = p.shoulder_zero_deg + (tick_5 - 500) * DEG_PER_TICK
@@ -419,6 +425,62 @@ def solve_fk(
     return ArmPose(r=r_tip, theta=theta, z=z_tip, phi=phi)
 
 
+def world_to_arm_polar(
+    x_w: float,
+    y_w: float,
+    z_w: float = 0.0,
+    arm_id: str = "xarm_1",
+    config_path: str = "config/dual_xarm_hardware.yaml",
+    params: Optional[KinematicParameters] = None,
+) -> Tuple[float, float, float]:
+    """
+    Transform world coordinates (X_w, Y_w, Z_w in mm) into arm-relative cylindrical coordinates (r, theta_arm, z).
+
+    :param x_w: Global workspace X in mm
+    :param y_w: Global workspace Y in mm
+    :param z_w: Global workspace Z in mm
+    :param arm_id: "xarm_1" or "xarm_2"
+    :param config_path: Path to hardware configuration YAML
+    :param params: Optional pre-loaded KinematicParameters instance
+    :return: Tuple of (r_mm, theta_arm_deg, z_mm) where theta_arm is normalized to [-180, +180] deg.
+    """
+    p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
+
+    base_x = 360.0
+    base_y = 420.0 if arm_id == "xarm_1" else 180.0
+    base_z = 0.0
+
+    candidates = [
+        config_path,
+        os.path.join(os.getcwd(), config_path),
+        os.path.join("/workspace", config_path),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            try:
+                with open(c, "r") as f:
+                    data = yaml.safe_load(f)
+                arm_cfg = data.get("manipulators", {}).get(arm_id, {})
+                mount = arm_cfg.get("base_mount_mm", {})
+                base_x = float(mount.get("x", base_x))
+                base_y = float(mount.get("y", base_y))
+                base_z = float(mount.get("z", base_z))
+            except Exception:
+                pass
+            break
+
+    rel_x = x_w - base_x
+    rel_y = y_w - base_y
+    rel_z = z_w - base_z
+
+    r = math.hypot(rel_x, rel_y)
+    theta_world = math.degrees(math.atan2(rel_y, rel_x))
+    theta_arm = theta_world - p.base_heading_deg
+    theta_arm = (theta_arm + 180.0) % 360.0 - 180.0
+
+    return r, theta_arm, rel_z
+
+
 def get_compartment_target(
     color: str,
     arm_id: str = "xarm_1",
@@ -427,7 +489,9 @@ def get_compartment_target(
     """
     Calculate world and arm-relative cylindrical coordinates for a color compartment.
 
-    Returns dict with keys: 'color', 'world_xyz', 'r', 'theta_deg', 'z', 'drop_yaw_tick'.
+    Returns dict with keys:
+      'color', 'world_xyz', 'rel_xyz', 'r', 'theta_deg', 'theta_world_deg', 'theta_arm_deg',
+      'z', 'drop_yaw_tick', 'ik_success', 'ik_ticks', 'ik_message', 'drop_pose_preset'.
     """
     candidates = [
         config_path,
@@ -475,16 +539,33 @@ def get_compartment_target(
         rel_z = wz - base_z
 
         r = math.hypot(rel_x, rel_y)
-        theta_deg = math.degrees(math.atan2(rel_y, rel_x))
+        theta_world = math.degrees(math.atan2(rel_y, rel_x))
+
+        params = load_kinematic_parameters(chosen, arm_id)
+        theta_arm = theta_world - params.base_heading_deg
+        theta_arm = (theta_arm + 180.0) % 360.0 - 180.0
+
+        # Attempt analytical IK solution for the compartment
+        ik_sol = solve_ik(r=r, theta=theta_arm, z=rel_z, params=params)
+
+        # Fallback preset values
+        drop_pose = arm_cfg.get("poses", {}).get("drop_container", {})
+        preset_yaw = matched.get("drop_yaw_tick", arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 820))
 
         return {
             "color": norm_color,
             "world_xyz": {"x": wx, "y": wy, "z": wz},
             "rel_xyz": {"x": rel_x, "y": rel_y, "z": rel_z},
             "r": r,
-            "theta_deg": theta_deg,
+            "theta_deg": theta_arm,
+            "theta_world_deg": theta_world,
+            "theta_arm_deg": theta_arm,
             "z": rel_z,
-            "drop_yaw_tick": matched.get("drop_yaw_tick", 820),
+            "drop_yaw_tick": preset_yaw,
+            "ik_success": ik_sol.success,
+            "ik_ticks": ik_sol.ticks if ik_sol.success else None,
+            "ik_message": ik_sol.message,
+            "drop_pose_preset": drop_pose.get("ticks", None),
         }
     except Exception:
         return None
