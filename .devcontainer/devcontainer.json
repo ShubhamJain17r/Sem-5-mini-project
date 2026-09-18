@@ -1,0 +1,32 @@
+{
+  "name": "ROS 2 Humble - Dual xArm Sorting",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": "..",
+    "args": {
+      "USERNAME": "developer",
+      "USER_UID": "1000",
+      "USER_GID": "1000"
+    }
+  },
+  "runArgs": [
+    "--net=host",
+    "--ipc=host",
+    "--privileged",
+    "--device=/dev/dri:/dev/dri",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+    "-e", "DISPLAY=${env:DISPLAY}"
+  ],
+  "containerUser": "developer",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-iot.vscode-ros",
+        "ms-vscode.cpptools"
+      ]
+    }
+  }
+}

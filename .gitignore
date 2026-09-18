@@ -46,6 +46,7 @@ dist/
 build/
 *.egg-info/
 *.egg
+.eggs/
 MANIFEST
 
 # MyPy / type checkers
@@ -72,18 +73,26 @@ htmlcov/
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+build/
+install/
+log/
+.colcon/
+test_results/
 
 # colcon generated files
 COLCON_IGNORE
 AMENT_IGNORE
 
-# ROS bag recordings (can be very large)
+# ROS bag recordings & network packet captures
 *.bag
 *.db3
 *.mcap
+*.pcap
+*.pcapng
 
-# ROS log files
-~/.ros/log/
+# ROS runtime logs and cache
+~/.ros/
+.ros/
 log/
 
 
@@ -167,6 +176,16 @@ Session.vim
 
 
 # ------------------------------------------------------------
+# 🐳 DOCKER / CONTAINER ARTIFACTS
+# ------------------------------------------------------------
+.docker/
+docker-compose.override.yml
+*.tar
+*.tar.gz
+.env.docker
+
+
+# ------------------------------------------------------------
 # 📦 MISCELLANEOUS
 # ------------------------------------------------------------
 # Compiled C extensions (from any Python packages built locally)
@@ -184,3 +203,8 @@ Session.vim
 *.pt
 *.pth
 *.onnx
+
+# Linux process crash core dumps
+core
+core.*
+vgcore.*
