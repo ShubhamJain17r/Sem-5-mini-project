@@ -30,6 +30,7 @@ setup(
             'direct_test = sorting_arm.direct_test:main',
             'driver_node = sorting_arm.driver_node:main',
             'polar_teleop = sorting_arm.polar_teleop_node:main',
+            'pick_and_place = sorting_arm.pick_and_place_test:main',
         ],
     },
 )
