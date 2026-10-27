@@ -193,25 +193,26 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ## 📋 Phase 4: Dual-Arm Mutex Coordination & Load Balancing (Final Scaled System)
 
-**Primary Focus**: Integrating the second arm (`arm1_node`); wiring Central Electronics Bay; establishing spatial crossover mutex for the shared central zone ($Y \in [250, 350\text{ mm}]$); testing pipelined concurrency.  
-**Hardware Required**: 2× xArm 1s, Dual 7.4V/10A power hub, Jetson Orin Nano / RPi 5, Full $800 \times 600\text{ mm}$ baseboard, 2× Collection Boxes (NW & SW), 16–20 cubes.  
+**Primary Focus**: Integrating the second arm (`arm1_node`); wiring Central Rear Wedge Bay; establishing spatial crossover mutex for the shared central zone; testing pipelined concurrency.  
+**Hardware Required**: 2× xArm 1s, Dual 7.4V/10A power hub, Jetson Orin Nano / RPi 5, 4-Tile Modular 3D-Printed Base ($560 \times 520\text{ mm}$), 2× Flank Collection Wells, 16–20 cubes.  
 **Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) & [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md).
 
 ### Lab Action Checklist
 
 - [ ] **Dual-Arm Mechanical & Electrical Workcell Assembly**:
-  - [ ] Mount Arm 1 (Back @ $Y = 420\text{ mm}$) and Arm 2 (Front @ $Y = 180\text{ mm}$) collinear along $X = 360\text{ mm}$.
-  - [ ] Mount Central Electronics Bay: connect dual buck converters with common ground star point.
+  - [ ] Assemble 4-tile modular base using dovetails and under-deck M4 bolts with brass heat-set inserts.
+  - [ ] Mount Arm 1 (Left @ $X = 170\text{ mm}, Y = 360\text{ mm}$, $+35^\circ$ heading) and Arm 2 (Right @ $X = 390\text{ mm}, Y = 360\text{ mm}$, $-35^\circ$ heading).
+  - [ ] Mount Central Rear Wedge Bay: connect dual buck converters with common ground star point and route cables via under-deck conduits.
   - [ ] Configure Linux udev rules to assign persistent symlinks: `/dev/xarm_arm1` and `/dev/xarm_arm2`.
 - [ ] **Spatial Crossover Mutex Testing in Simulation**:
-  - [ ] Inject synthetic target cubes at $Y = 290\text{ mm}$ and $Y = 310\text{ mm}$ simultaneously.
+  - [ ] Inject synthetic target cubes in the central cooperative overlap zone.
   - [ ] Confirm `scheduler_node` grants `acquire_zone` service to one arm while cleanly queueing the other.
   - [ ] Verify 5.0-second watchdog releases the zone if an arm fails.
 - [ ] **Zero-Contention Drop Verification**:
-  - [ ] Command Arm 1 to drop into Box 1 (NW @ $+125^\circ$) while Arm 2 simultaneously drops into Box 2 (SW @ $-125^\circ$).
+  - [ ] Command Arm 1 to drop into Left Flank Box 1 (~65° outward swing) while Arm 2 simultaneously drops into Right Flank Box 2 (~65° outward swing).
   - [ ] Confirm both drop trajectories execute simultaneously with zero physical collision and zero software blocking.
 - [ ] **Full Dual-Arm Continuous Sorting Benchmark**:
-  - [ ] Scatter 16–20 colored cubes across the continuous stadium arena.
+  - [ ] Scatter 16–20 colored cubes across the chamfered hexagonal arena.
   - [ ] Launch full system: `ros2 launch sorting_scheduler system.launch.py`.
   - [ ] Benchmark throughput: compare dual-arm sort time vs. single-arm baseline (target: $\ge 1.7\times$ speedup).
   - [ ] Run 3 back-to-back sorting cycles without servo thermal cutoff or communication reset.

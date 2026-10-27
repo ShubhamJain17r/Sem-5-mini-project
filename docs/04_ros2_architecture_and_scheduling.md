@@ -94,9 +94,9 @@ Represents an individual physical cube identified on the elevated picking arena.
 
 uint32 object_id                  # Unique sequential detection ID
 string color                      # Color classification: "RED", "GREEN", "BLUE", "YELLOW"
-float64 x_mm                      # Absolute world X coordinate in arena frame [360.0, 730.0 mm]
-float64 y_mm                      # Absolute world Y coordinate in arena frame [55.0, 545.0 mm]
-float64 z_mm                      # Elevation coordinate (nominally +32.5 mm for cube centroid)
+float64 x_mm                      # Absolute world X coordinate in arena frame [80.0, 480.0 mm]
+float64 y_mm                      # Absolute world Y coordinate in arena frame [40.0, 420.0 mm]
+float64 z_mm                      # Elevation coordinate (nominally +37.5 mm for cube centroid on +25mm deck)
 float64 yaw_deg                   # Planar orientation angle psi in range [-45.0, +45.0 degrees]
 float64 confidence                # Optical classification confidence score [0.0, 1.0]
 builtin_interfaces/Time stamp     # Timestamp of perception capture
@@ -200,11 +200,11 @@ bool success                      # True if lock successfully cleared
 
 ### 3.1 Spatial Geometry & Coordinate Frames
 
-The arena plane measures $370\text{ mm} \times 490\text{ mm}$ with world coordinates $X \in [360, 730\text{ mm}]$ and $Y \in [55, 545\text{ mm}]$.
+The chamfered arena workspace measures $400\text{ mm} \times 380\text{ mm}$ with world coordinates $X \in [80, 480\text{ mm}]$ and $Y \in [40, 420\text{ mm}]$.
 
-- **Arm 1 (North / Back)**: Base center located at $(X_1 = 360.0\text{ mm}, Y_1 = 420.0\text{ mm})$.
-- **Arm 2 (South / Front)**: Base center located at $(X_2 = 360.0\text{ mm}, Y_2 = 180.0\text{ mm})$.
-- **Midline Boundary**: $Y_{\text{mid}} = 300.0\text{ mm}$ (equidistant between both arms, $S = 240\text{ mm}$ apart).
+- **Arm 1 (Left Arm)**: Base center located at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, heading $+35.0^\circ$ inward.
+- **Arm 2 (Right Arm)**: Base center located at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, heading $-35.0^\circ$ inward.
+- **Midline Boundary**: $X_{\text{mid}} = 280.0\text{ mm}$ (axis of symmetry between both arms, $S = 220\text{ mm}$ apart).
 
 ```text
   Y (mm)
@@ -346,9 +346,9 @@ class SchedulerNode(Node):
     def __init__(self):
         super().__init__('scheduler_node')
 
-        # Kinematic base origins (in arena mm frame)
-        self.arm1_base = (360.0, 420.0)  # North Arm
-        self.arm2_base = (360.0, 180.0)  # South Arm
+        # Kinematic base origins (in arena mm frame) - V-Configuration
+        self.arm1_base = (170.0, 360.0)  # Left Arm (+35° Inward)
+        self.arm2_base = (390.0, 360.0)  # Right Arm (-35° Inward)
 
         # Territorial Boundaries
         self.y_midline = 300.0
@@ -886,11 +886,11 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'pixels_per_mm': 2.0,
-                'arena_x_min': 360.0,
-                'arena_x_max': 730.0,
-                'arena_y_min': 55.0,
-                'arena_y_max': 545.0,
-                'elevation_z': 20.0
+                'arena_x_min': 80.0,
+                'arena_x_max': 480.0,
+                'arena_y_min': 40.0,
+                'arena_y_max': 420.0,
+                'elevation_z': 25.0
             }]
         ),
 

@@ -68,12 +68,12 @@ planar_homography:
       0.0, 0.0, 1.0
     ]
 
-# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on elevated arena Z = 20mm)
+# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on elevated curb Z = 37mm)
 aruco_reference_markers:
   dictionary: "DICT_4X4_50"
   marker_size_mm: 40.0
   markers:
-    marker_0: {id: 0, role: "collinear_arm2_front", world_x: 360.0, world_y: 55.0,  world_z: 20.0}
-    marker_1: {id: 1, role: "outer_arena_front",   world_x: 730.0, world_y: 55.0,  world_z: 20.0}
-    marker_2: {id: 2, role: "collinear_arm1_back",  world_x: 360.0, world_y: 545.0, world_z: 20.0}
-    marker_3: {id: 3, role: "outer_arena_back",    world_x: 730.0, world_y: 545.0, world_z: 20.0}
+    marker_0: {id: 0, role: "rear_left_curb",  world_x: 80.0,  world_y: 420.0, world_z: 37.0}
+    marker_1: {id: 1, role: "rear_right_curb", world_x: 480.0, world_y: 420.0, world_z: 37.0}
+    marker_2: {id: 2, role: "front_left_curb", world_x: 105.0, world_y: 40.0,  world_z: 37.0}
+    marker_3: {id: 3, role: "front_right_curb",world_x: 455.0, world_y: 40.0,  world_z: 37.0}
