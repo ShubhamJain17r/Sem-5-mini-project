@@ -14,24 +14,23 @@ An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **Ope
 
 This project automates color-based object sorting using computer vision, inverse kinematics, and multi-robot coordination under real-world physical and mechanical constraints:
 
-1. **Central Collinear Alignment ($X = 360\text{ mm}$)**:
-   - **ArUco #0**, **xArm 2 (Front)**, **xArm 1 (Back)**, and **ArUco #2** share a single physical line of symmetry.
-   - The overhead camera focuses **100% of its sensor resolution exclusively on the picking arena**, completely excluding the collection boxes to eliminate false-positive color detections.
-2. **Elevated Two-Center Stadium Arena (Right Side)**:
-   - Spans a continuous $180^\circ\text{--}220^\circ$ elliptical pick envelope across the right flank of both arms.
-   - Elevated by **$+20\text{ mm}$** and lined with a high-friction matte silicone mat. This aligns the $25\text{ mm}$ cubes with the natural **$65\text{ mm}$ shoulder height of Motor 2**, allowing horizontal picks in the maximum motor torque band without claw drag on the table.
-3. **Safe Reach Boundaries ($d_{\text{edge}} = 5\text{--}25\text{ cm} \iff R = 120\text{--}320\text{ mm}$)**:
-   - Operating reach $5\text{--}25\text{ cm}$ from baseplate edge ($12\text{--}32\text{ cm}$ from center, backing off $2.4\text{ cm}$ from straight-arm limit) maintains a healthy $\approx 122^\circ$ elbow angle, eliminating motor stalls, servo jitter, and joint singularities.
-4. **Angled Drop Boxes (North-West & South-West) Resolving $240^\circ$ Base Servo ROM**:
-   - The xArm 1s base bus servos (LX-15D) have a $240^\circ$ travel limit, creating an unreachable deadzone directly behind the arm ($180^\circ$ due West).
-   - Placing **Box 1 in the North-West ($\approx +125^\circ$)** and **Box 2 in the South-West ($\approx -125^\circ$)** constrains total travel to $\approx 205^\circ \le 240^\circ$, eliminating servo stall.
-   - Drops occur by gravity with **zero contention** (**no `box_mutex` required**), allowing both arms to drop simultaneously.
-5. **Central Electronics & Power Bay**:
-   - The left-center flank between the boxes ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) houses the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and dual 7.4V / 10A power hub.
-   - Shortens USB and power cable runs to $< 25\text{ cm}$, eliminates wire snagging during $205^\circ$ swings, and provides clean power distribution.
-6. **Pipelined Scheduling with Single `arena_mutex`**:
-   - While Arm 2 picks on the right, Arm 1 drops in Box 1 (NW).
-   - When Arm 2 swings left to drop in Box 2 (SW), Arm 1 immediately acquires the `arena_mutex` to pick on the right, maximizing dual-arm throughput.
+1. **Inward-Angled V-Configuration Manipulator Mounting**:
+   - Two xArm 1s arms spaced at $220\text{ mm}$ center-to-center, angled **$\pm 35.0^\circ$ inward** toward the arena.
+   - Eliminates blind spots and creates a central shared overlap zone ($\approx 200\text{ mm} \times 160\text{ mm}$) for cooperative picking and dynamic hand-offs.
+2. **Chamfered Hexagonal / Tapered Arena (+25 mm)**:
+   - Replaces the narrow rectangular strip with a tapered geometry ($450\text{ mm}$ wide at rear tapering to $350\text{ mm}$ at front, $380\text{ mm}$ depth).
+   - Elevated platform ($+25\text{ mm}$) with a high-friction silicone mat and a $12\text{ mm}$ perimeter retaining curb to prevent cubes from rolling off.
+3. **Immediate Flank Drop Pockets (Short ~65°-75° Swing)**:
+   - Nested drop wells located immediately beside each arm's outer flank.
+   - Drastically cuts drop motion swing from $125^\circ$ to $\approx 65^\circ\text{--}75^\circ$, halving drop cycle time and eliminating servo stall at the $240^\circ$ ROM limit.
+4. **Central Rear Wedge Electronics & Under-Deck Trunking**:
+   - The triangular wedge behind the arm bases houses the NVIDIA Jetson / Raspberry Pi 5 and dual 7.4V / 10A power hub.
+   - Shortens USB and power runs to $< 18\text{ cm}$ with molded under-deck cable conduits.
+5. **Raised ArUco Perimeter Pads (Hybrid Pocket Method)**:
+   - 4 fiducial pads molded directly into the elevated curb vertices with $0.8\text{ mm}$ recessed pockets.
+   - Matte vinyl stickers press-fit into pockets eliminate specular glare while providing CAD-ground-truth coordinates.
+6. **4-Tile Modular 3D-Printable Base**:
+   - Sized for standard consumer 3D printers ($\le 250\text{ mm} \times 250\text{ mm}$ bed size), joined with precision dovetails, M4 under-deck clamping, and brass heat-set inserts.
 
 ---
 
@@ -40,34 +39,35 @@ This project automates color-based object sorting using computer vision, inverse
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
-│                              ◄─── BACK OF WORKSPACE ───►                               │
+│                              ◄─── REAR OF WORKSPACE ───►                               │
 │                                                                                        │
-│   ┌─────────────────┐                     ┌────────┐             /───────────────────\ │
-│   │  Box 1 (2×2)    │ ◄── 205° NW Drop ── │ xArm 1 │ ──────────►│  Arm 1 Arc Zone    │ │
-│   │  (Arm 1 - NW)   │                     │ (Back) │    Pick    │  (Right Arena)     │ │
-│   └─────────────────┘                     └────────┘             \                   / │
-│                                                │  ◤ ArUco #2      │  CONTINUOUS       ││
-│   ┌─────────────────┐             ═════════════╪══════════════════│- TWO-CENTER       ││
-│   │  CENTRAL        │               Midline Partition (Y=300mm)   │  STADIUM ARENA    ││
-│   │  ELECTRONICS    │                          │                  │  (ELEVATED 20mm)  ││
-│   │  BAY: Hub & RPi │                          │                  /                   │ │
-│   └─────────────────┘                     ┌────────┐             /                     │
-│                                           │ xArm 2 │ ──────────►│  Arm 2 Arc Zone    │ │
-│   ┌─────────────────┐ ◄── 205° SW Drop ── │(Front) │    Pick    │  (Right Arena)     │ │
-│   │  Box 2 (2×2)    │                     └────────┘             \───────────────────/ │
-│   │  (Arm 2 - SW)   │                            ◣ ArUco #0                  ArUco #1 ◢│
-│   └─────────────────┘                                                                  │
-│                              ◄─── FRONT OF WORKSPACE ───►                              │
-│                                           ▲                                            │
-│                                  (Operator Position)                                   │
+│                           [Overhead Camera Boom Mast Anchor]                           │
+│                     ┌────────────────────────────────────────────┐                     │
+│                     │         CENTRAL ELECTRONICS WEDGE          │                     │
+│                     │      (Jetson Orin / RPi 5 + Buck Hub)      │                     │
+│                     └─────────────┬────────────────┬─────────────┘                     │
+│                                   │                │                                   │
+│   ┌─────────────────┐             ▼                ▼             ┌─────────────────┐   │
+│   │  Box 1 Nest     │          xArm 1            xArm 2          │  Box 2 Nest     │   │
+│   │  (Left Flank)   │       (Angled +35°)     (Angled -35°)      │  (Right Flank)  │   │
+│   └─────────────────┘      \                      /              └─────────────────┘   │
+│       ◤ ArUco #0            \                    /                     ArUco #1 ◥      │
+│                              \    CHAMFERED     /                                      │
+│                               │   HEXAGONAL    │                                       │
+│                               │     ARENA      │ (Elevated +25 mm)                     │
+│                               │   (Overlap)    │                                       │
+│                               /                \                                       │
+│                              /                  \                                      │
+│       ◣ ArUco #2 ───────────┴────────────────────┴─────────── ArUco #3 ◢               │
 │                                                                                        │
-│   ◄─── LEFT (Drop Zone & Electronics) ───►  │  ◄─── RIGHT (Calibrated Arena) ───►      │
-│   (Boxes @ Z = 0 mm, Bay @ Z = 0 mm)        │  (4 ArUco markers on Z = 20 mm)       │
+│                             ◄─── FRONT OF WORKSPACE ───►                               │
+│                                          ▲                                             │
+│                                 (Operator Position)                                    │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
-  Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm
-  Vision Focus:    100% of camera pixels warped onto the picking arena
-  Zero Occlusion:  Drop boxes and Central Electronics Bay are completely excluded from vision
+  Base Topology:   4-Tile modular 3D-printed interlocking base (<= 250x250 mm tiles)
+  Vision Focus:    100% of camera pixels warped onto the chamfered picking arena
+  Drop Travel:     Quick ~65°-75° outward swing to lateral nested collection wells
 ```
 
 ---
@@ -76,15 +76,16 @@ This project automates color-based object sorting using computer vision, inverse
 
 | Component           | Specification                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 5 shoulder axis @ $65\text{ mm}$)                                     |
+| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 5 shoulder axis @ $65\text{ mm}$) in V-Configuration ($\pm 35^\circ$)  |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
-| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, mounted in Central Electronics Bay)    |
-| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on boom stand @ $65\text{--}75\text{ cm}$                            |
-| **Main Baseboard**  | Flat rigid mounting board ($800\text{ mm} \times 600\text{ mm}$)                                                |
-| **Picking Arena**   | Raised platform ($+20\text{ mm}$) with matte silicone friction mat ($\mu \approx 0.8$)                          |
-| **Collection Bins** | 2× dedicated $2\times 2$ boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, $Z = 0\text{ mm}$)      |
-| **Electronics Bay** | Central Flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$), short runs ($< 25\text{ cm}$)          |
+| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, Central Rear Wedge Bay)                |
+| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on rear boom stand @ $65\text{--}75\text{ cm}$                       |
+| **Modular Base**    | 4-tile interlocking 3D-printed base ($560\text{ mm} \times 520\text{ mm}$, fits $\le 250\text{ mm}$ print beds) |
+| **Picking Arena**   | Elevated tapered hexagonal deck ($+25\text{ mm}$) with $12\text{ mm}$ curb & matte silicone mat ($\mu \approx 0.8$) |
+| **Collection Bins** | 2× dedicated flank drop pockets (Box 1 West @ $-70^\circ$, Box 2 East @ $+70^\circ$, $Z = 0\text{ mm}$)         |
+| **Electronics Bay** | Central Rear Wedge ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$), short runs ($< 18\text{ cm}$)   |
+| **Fiducials**       | 4× raised ArUco pads molded into curb with $0.8\text{ mm}$ recessed pockets for matte stickers                  |
 | **Objects**         | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors                                       |
 | **Power Supply**    | Dedicated 7.4V / 5A power supply per arm with common ground                                                     |
 | **Communication**   | Direct USB HID / USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 / 9600 baud                     |

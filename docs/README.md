@@ -51,7 +51,7 @@ docs/
 | Document | Key Topics Covered | Status |
 | :--- | :--- | :---: |
 | [**`00_docker_and_ros2_development_guide.md`**](00_docker_and_ros2_development_guide.md) | Docker workflow, hybrid VS Code editing, package creation, `colcon` build lifecycle, hardware mapping | ✅ Complete |
-| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | $800\times600\text{ mm}$ baseboard, $+20\text{ mm}$ elevated stadium arena, NW/SW drop boxes resolving $240^\circ$ ROM | ✅ Complete |
+| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | V-configuration dual xArm, chamfered hexagonal arena (+25 mm), flank drop wells, 4-tile modular 3D-printed base | ✅ Complete |
 | [**`02_kinematics_and_grasp_planning.md`**](02_kinematics_and_grasp_planning.md) | Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime wrist roll, radial approach, 5-phase trajectory | ✅ Complete |
 | [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$), exposure lock, HSV color segmentation, cube centroid extraction | ✅ Complete |
 | [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, single `arena_mutex` crossover arbitration, pipelined pick-and-place | ✅ Complete |

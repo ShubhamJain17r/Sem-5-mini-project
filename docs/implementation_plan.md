@@ -2,26 +2,26 @@
 
 ## System Overview
 
-Two xArm 1s robotic arms pick randomly scattered colored wooden cubes from a continuous, **two-center stadium / elliptical arena** on their right flank and sort them into **two dedicated 2×2 Collection Boxes** mounted on their left flank in the **North-West (NW)** and **South-West (SW)** positions.
+Two xArm 1s robotic arms pick randomly scattered colored wooden cubes from a **chamfered hexagonal / tapered arena** and sort them into **two dedicated Collection Boxes** mounted in nested wells on their immediate lateral flanks.
 
-The operator views the setup from the **FRONT**. The two arms are aligned along a central front-to-back axis (xArm 2 in front @ $Y = 180\text{ mm}$, xArm 1 in back @ $Y = 420\text{ mm}$), spaced $240\text{ mm}$ apart along the collinear axis at $X = 360\text{ mm}$.
+The operator views the setup from the **FRONT**. The entire workcell is constructed on a **4-tile modular 3D-printed interlocking base** ($560\text{ mm} \text{ wide} \times 520\text{ mm} \text{ deep}$, compatible with standard $\le 250\times 250\text{ mm}$ 3D print beds). The two arms are mounted in an **inward-angled V-configuration** spaced $220\text{ mm}$ apart center-to-center, angled at **$\pm 35.0^\circ$ inward** toward the arena midline ($X = 280\text{ mm}$).
 
-- **Right Side (Picking Arena)**: A continuous, two-centered elliptical/stadium workspace spanning $180^\circ\text{--}220^\circ$ around the right flank of each arm, merging seamlessly at the central partition line ($Y = 300\text{ mm}$). The arena platform is **elevated by 20 mm** and lined with a high-friction matte silicone mat ($\mu \approx 0.8$).
-- **Left Side (Drop Zone — Resolving $240^\circ$ Servo ROM)**:
-  - **Box 1 (North-West)**: Dedicated to Arm 1, centered at $(115\text{ mm}, 500\text{ mm})$, oriented at an azimuth of $\approx +125^\circ$.
-  - **Box 2 (South-West)**: Dedicated to Arm 2, centered at $(115\text{ mm}, 100\text{ mm})$, oriented at an azimuth of $\approx -125^\circ$.
-  - **$240^\circ$ ROM Compliance**: Because the LewanSoul / Hiwonder LX-15D bus servos have a mechanical limit of $240^\circ$, directly behind the arm ($180^\circ$ due West) is a physical deadzone. Angling the boxes to NW and SW limits total rotation to $\approx 205^\circ \le 240^\circ$, completely preventing servo stall.
-- **Central Electronics & Power Bay**: The unutilized zone on the left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$) hosts the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and 7.4V / 10A dual power distribution hub. This reduces USB-serial cable runs to $< 25\text{ cm}$, eliminates RF interference near the vision plane, and provides clean power distribution.
-- **Kinematic Sweet Spot**: Arms are mounted flat on the baseboard ($Z = 0\text{ mm}$), utilizing the built-in $65\text{ mm}$ height to Motor 2. Pick radius is bounded between $R_{\min} = 120\text{ mm} (d_{\text{edge}} = 5\text{ cm})$ and $R_{\max} = 320\text{ mm} (d_{\text{edge}} = 25\text{ cm})$ to eliminate joint singularities and motor stall at mechanical limits.
-- **Dedicated Arena Vision Framing**: The 4 ArUco markers are placed exclusively around the **elevated picking arena** on the right (Marker 0 and Marker 2 are collinear with the central arm axis at $X = 360\text{ mm}$; Marker 1 and Marker 3 are on the outer right boundary at $X = 730\text{ mm}$). All 4 markers sit on the elevated platform ($Z = +20\text{ mm}$) to ensure strict coplanarity. The drop boxes and electronics bay on the left are completely outside the camera's warped perspective frame.
+- **Picking Arena (Chamfered Hexagonal Geometry)**: Replaces the narrow rectangular strip with a tapered polygon ($450\text{ mm}$ wide at rear tapering to $350\text{ mm}$ at front, $380\text{ mm}$ depth). Elevated by **$+25\text{ mm}$** and lined with a high-friction silicone mat ($\mu \approx 0.8$) and a **$12\text{ mm}$ perimeter retaining curb** to prevent cubes from rolling off. The intersecting radial arcs of both inward-angled arms create an active **central cooperative overlap zone** ($\approx 200\text{ mm} \times 160\text{ mm}$) with zero unreachable blind spots.
+- **Drop Zone (Immediate Flank Nested Pockets)**:
+  - **Box 1 (Left Flank)**: Dedicated to Arm 1, located in a $5\text{ mm}$ recessed well with $45^\circ$ lead-in chamfer immediately to the outer side of Arm 1.
+  - **Box 2 (Right Flank)**: Dedicated to Arm 2, located in a matching recessed well to the outer side of Arm 2.
+  - **Drop Cycle Optimization**: Relocating drop boxes from the old NW/SW positions to the immediate flanks slashes the drop swing from $125^\circ$ down to a fast **$\approx 65^\circ\text{--}75^\circ$ outward swing**, reducing cycle time by $>50\%$ and eliminating LX-15D base servo stall.
+- **Central Rear Wedge Electronics & Power Bay**: The triangular wedge behind the arm bases ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$) hosts the NVIDIA Jetson Orin Nano / Raspberry Pi 5 and dual 7.4V / 10A power hub. Molded under-deck cable channels route USB serial and 7.4V power cleanly to each arm ($< 18\text{ cm}$) and to the rear camera mast.
+- **Kinematic Sweet Spot**: Arms are mounted at $Z = 0\text{ mm}$, utilizing the built-in $65\text{ mm}$ height to Motor 2. Pick radius is bounded between $R_{\min} = 120\text{ mm}$ and $R_{\max} = 320\text{ mm}$, maintaining healthy elbow pitch angles ($\approx 120^\circ$) to eliminate joint singularities and motor stall.
+- **Raised ArUco Perimeter Pads (Hybrid Pocket Method)**: 4 fiducial pads are molded directly into the corner vertices of the elevated retaining curb with $0.8\text{ mm}$ recessed pockets. High-contrast matte vinyl sticker markers press-fitted into these pockets eliminate specular glare while defining CAD ground-truth coordinates.
 
-An overhead USB camera mounted on a boom stand at 65–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5).
+An overhead USB camera mounted on a rear boom stand at 65–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Raspberry Pi 5.
 
 > [!NOTE]
 > For in-depth mechanical, kinematic, optical, and diagnostic specifications, consult the dedicated stepping stone documents:
 >
 > - **Stepping Stone 0**: [`docs/00_docker_and_ros2_development_guide.md`](00_docker_and_ros2_development_guide.md) — Docker containerization, hybrid host/container workflow, and ROS 2 Humble package development standards.
-> - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — Baseboard construction, spatial dimensions, component placements, barrier profiles, lighting, and wiring bay.
+> - **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) — 4-tile modular 3D-printable base, V-configuration mounting, chamfered hexagonal arena, flank drop wells, and wiring conduits.
 > - **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) — Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque/friction mechanics, and 5-phase pick trajectory.
 > - **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography, hardware exposure lock, HSV color segmentation, and spatial centroid extraction.
 > - **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interfaces, dynamic load balancing with hysteresis, spatial crossover mutex, and production Python nodes.
@@ -34,19 +34,18 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 
 | Component        | Spec                                                                                                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arms             | 2× xArm 1s (5-DOF/6-DOF bus servo arms, Motor 2 axis at $65\text{ mm}$)                                                                             |
-| Mounting         | Mounted flat on main baseboard ($Z = 0\text{ mm}$) along collinear axis ($X = 360\text{ mm}$)                                                       |
-| Compute          | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (located in Central Electronics Bay)                                                          |
-| Camera           | Logitech C270 or C920 (USB) mounted on overhead boom at 65–75 cm                                                                                    |
-| Baseboard        | $800\text{ mm} \times 600\text{ mm}$ flat rigid board                                                                                               |
-| Picking Arena    | 20 mm elevated board on RIGHT side with matte silicone friction mat                                                                                 |
-| ArUco Setup      | 4 markers framing the elevated arena: Markers 0 & 2 collinear with arms, Markers 1 & 3 on outer boundary (all at $Z = +20\text{ mm}$)               |
-| Arena Limits     | $R_{\min} = 120\text{ mm} (d_{\text{edge}} = 5\text{ cm})$ inner barrier, $R_{\max} = 320\text{ mm} (d_{\text{edge}} = 25\text{ cm})$ outer barrier |
-| Collection Boxes | 2× dedicated 2×2 boxes (Box 1 in NW @ $+125^\circ$, Box 2 in SW @ $-125^\circ$, table level $Z = 0\text{ mm}$)                                      |
-| Electronics Bay  | Dedicated Central Bay on left flank ($X \in [55, 175\text{ mm}], Y \in [215, 385\text{ mm}]$)                                                       |
-| Objects          | Wooden cubes (25 mm), spray-painted in 4 colors                                                                                                     |
+| Arms             | 2× xArm 1s in V-Configuration ($\pm 35.0^\circ$ inward heading, $S = 220\text{ mm}$ spacing)                                                       |
+| Modular Base     | 4-tile interlocking 3D-printed base ($560\text{ mm} \times 520\text{ mm}$, fits $\le 250\text{ mm}$ print beds)                                    |
+| Compute          | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Central Rear Wedge Bay, M2.5 heat-set standoffs)                                              |
+| Camera           | Logitech C270 or C920 (USB) mounted on rear boom stand at 65–75 cm                                                                                   |
+| Picking Arena    | Elevated tapered hexagonal deck ($+25\text{ mm}$) with $12\text{ mm}$ curb & matte silicone friction mat ($\mu \approx 0.8$)                         |
+| ArUco Setup      | 4 raised pads molded into curb vertices with $0.8\text{ mm}$ recessed pockets for matte stickers ($Z = +37\text{ mm}$)                             |
+| Arena Limits     | $R_{\min} = 120\text{ mm}$ inner barrier, $R_{\max} = 320\text{ mm}$ outer reach envelope                                                           |
+| Collection Boxes | 2× dedicated flank drop pockets (Box 1 West @ $-70^\circ$, Box 2 East @ $+70^\circ$, $Z = 0\text{ mm}$)                                            |
+| Electronics Bay  | Central Rear Wedge ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$), molded under-deck cable trunking                                      |
+| Objects          | Wooden cubes (25 mm), spray-painted in 4 high-contrast matte colors                                                                                 |
 | Colors           | Red, Green, Blue, Yellow (HSV-separated)                                                                                                            |
-| Connectivity     | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers                                                                                        |
+| Connectivity     | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers via direct short conduits ($< 18\text{ cm}$)                                          |
 
 ---
 
@@ -55,34 +54,35 @@ An overhead USB camera mounted on a boom stand at 65–75 cm captures the pickin
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                        │
-│                              ◄─── BACK OF WORKSPACE ───►                               │
+│                              ◄─── REAR OF WORKSPACE ───►                               │
 │                                                                                        │
-│   ┌─────────────────┐                     ┌────────┐             /───────────────────\ │
-│   │  Box 1 (2×2)    │ ◄── 205° NW Drop ── │ xArm 1 │ ──────────►│  Arm 1 Arc Zone    │ │
-│   │  (Arm 1 - NW)   │                     │ (Back) │    Pick    │  (Right Arena)     │ │
-│   └─────────────────┘                     └────────┘             \                   / │
-│                                                │  ◤ ArUco #2      │  CONTINUOUS       ││
-│   ┌─────────────────┐             ═════════════╪══════════════════│- TWO-CENTER       ││
-│   │  CENTRAL        │               Midline Partition (Y=300mm)   │  STADIUM ARENA    ││
-│   │  ELECTRONICS    │                          │                  │  (ELEVATED 20mm)  ││
-│   │  BAY: Hub & RPi │                          │                  /                   │ │
-│   └─────────────────┘                     ┌────────┐             /                     │
-│                                           │ xArm 2 │ ──────────►│  Arm 2 Arc Zone    │ │
-│   ┌─────────────────┐ ◄── 205° SW Drop ── │(Front) │    Pick    │  (Right Arena)     │ │
-│   │  Box 2 (2×2)    │                     └────────┘             \───────────────────/ │
-│   │  (Arm 2 - SW)   │                            ◣ ArUco #0                  ArUco #1 ◢│
-│   └─────────────────┘                                                                  │
-│                              ◄─── FRONT OF WORKSPACE ───►                              │
-│                                           ▲                                            │
-│                                  (Operator Position)                                   │
+│                           [Overhead Camera Boom Mast Anchor]                           │
+│                     ┌────────────────────────────────────────────┐                     │
+│                     │         CENTRAL ELECTRONICS WEDGE          │                     │
+│                     │      (Jetson Orin / RPi 5 + Buck Hub)      │                     │
+│                     └─────────────┬────────────────┬─────────────┘                     │
+│                                   │                │                                   │
+│   ┌─────────────────┐             ▼                ▼             ┌─────────────────┐   │
+│   │  Box 1 Nest     │          xArm 1            xArm 2          │  Box 2 Nest     │   │
+│   │  (Left Flank)   │       (Angled +35°)     (Angled -35°)      │  (Right Flank)  │   │
+│   └─────────────────┘      \                      /              └─────────────────┘   │
+│       ◤ ArUco #0            \                    /                     ArUco #1 ◥      │
+│                              \    CHAMFERED     /                                      │
+│                               │   HEXAGONAL    │                                       │
+│                               │     ARENA      │ (Elevated +25 mm)                     │
+│                               │   (Overlap)    │                                       │
+│                               /                \                                       │
+│                              /                  \                                      │
+│       ◣ ArUco #2 ───────────┴────────────────────┴─────────── ArUco #3 ◢               │
 │                                                                                        │
-│   ◄─── LEFT (Drop Zone & Electronics) ───►  │  ◄─── RIGHT (Calibrated Arena) ───►      │
-│   (Boxes @ Z = 0 mm, Bay @ Z = 0 mm)        │  (4 ArUco markers on Z = 20 mm)       │
+│                             ◄─── FRONT OF WORKSPACE ───►                               │
+│                                          ▲                                             │
+│                                 (Operator Position)                                    │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
-  Collinear Axis:  ArUco #0, xArm 2, xArm 1, and ArUco #2 lie along X = 360 mm
-  Vision Focus:    100% of camera pixels warped onto the picking arena
-  Zero Occlusion:  Drop boxes and Central Electronics Bay are completely excluded from vision
+  Base Topology:   4-Tile modular 3D-printed interlocking base (<= 250x250 mm tiles)
+  Vision Focus:    100% of camera pixels warped onto the chamfered picking arena
+  Drop Travel:     Quick ~65°-75° outward swing to lateral nested collection wells
 ```
 
 ---
