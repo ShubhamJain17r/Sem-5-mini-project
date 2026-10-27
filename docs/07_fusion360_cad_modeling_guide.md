@@ -1,59 +1,45 @@
-# Stepping Stone 7: Zero-Carpentry Hybrid Workcell Fabrication Guide (Store-Cut Board + Modular 3D Prints)
+# Stepping Stone 7: The Ultra-Simplified Workcell Fabrication Handbook (Zero-Carpentry & Minimal 3D Printing)
 
-This document is the definitive, practical fabrication guide for the **Dual xArm 1s Color-Sorting Robotic Workcell**.
+This document is the official, practical build guide for the **Dual xArm 1s Color-Sorting Robotic Workcell**.
 
-It eliminates complex carpentry (no saws, no routers, zero wood-shaping tools at home) and avoids risky, 70-hour mega-prints. Instead, it pairs **ONE store-cut flat wooden board** with **small, fast 3D-printed modular components** that print safely on any standard consumer 3D printer ($\ge 220 \times 220\text{ mm}$ bed).
+Following an end-to-end design review, all complex carpentry (saws, routers, multi-layer wood laminating) and risky 70-hour 3D printing jobs have been eliminated. This simplified design can be built in **under 2 hours** using **ONE flat store-cut wooden board**, **two small 3D-printed sorting trays** (under 1.5 hours total print time), and simple off-the-shelf components.
 
-All spatial coordinates and dimensions directly fulfill the kinematic, optical, and operational standards established in:
-- [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Workcell topology, V-configuration, coordinates)
-- [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Arm reach envelopes and grasp heights)
-- [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Camera framing and ArUco fiducials)
-
----
-
-## 1. Visual Architecture Overview
-
-### 1.1 Complete 3D CAD Render
-Below is the full 3D CAD visualization of the assembled robotic workcell:
-
-![Dual xArm 1s Workcell 3D CAD Render](workcell_3d_render.png)
-
-### 1.2 Modular Exploded Architecture
-The base uses a flat wooden board as the foundation, onto which small, modular 3D-printed parts screw directly:
-
-![Exploded Layer Construction Diagram](workcell_exploded_diagram.png)
+All coordinates, reach envelopes, and optical configurations remain 100% mathematically aligned with:
+- [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Workcell topology, coordinates, reach zones)
+- [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Analytical IK, grasp angles, reach envelopes)
+- [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Planar homography, exposure lock, HSV color segmentation)
 
 ---
 
-## 2. Global Spatial Layout & Coordinates
-
-The global origin $(0, 0)$ is located at the **Front-Left corner** of the flat wooden baseboard.
+## 1. Visual Architecture Schematic
 
 ```text
   Y (Depth: 520 mm)
    ^
    │  ┌────────────────────────────────────────────────────────────┐
    │  │ REAR OF WORKSPACE (Y = 520 mm)                             │
-   │  │             [Overhead Camera Mount / Desk Clamp]           │
+   │  │             [Clamp-On Overhead Webcam Boom Arm]            │
    │  │                    (X = 280, Y = 510)                      │
+   │  │                                                            │
    │  │          ┌──────────────────────────────────────┐          │
    │  │          │      CENTRAL ELECTRONICS WEDGE       │          │
-   │  │          │   (Jetson Orin / RPi 5 + Buck Hub)   │          │
+   │  │          │   (RPi 5 / Jetson on Stick Standoffs)│          │
    │  │          └──────────────┬────────┬──────────────┘          │
    │  │                         │        │                         │
-   │  │   [Box 1 Nest]     xArm 1        xArm 2     [Box 2 Nest]   │
-   │  │   (Left Flank)  (Angled +35°) (Angled -35°) (Right Flank)  │
-   │  │   (50, 360)      (170, 360)    (390, 360)    (510, 360)    │
-   │  │   [ArUco #0]   \                /   [ArUco #1]             │
-   │  │   (80, 420)     \              /    (480, 420)             │
-   │  │                  \  CHAMFERED /                            │
-   │  │                   │ HEXAGONAL │                            │
-   │  │                   │   ARENA   │ (Elevated +25 mm)          │
-   │  │                   │ (Overlap) │                            │
-   │  │                   /           \                            │
-   │  │                  /             \                           │
-   │  │   [ArUco #2] ───┴───────────────┴─── [ArUco #3]            │
-   │  │   (105, 40)                          (455, 40)             │
+   │  │   ┌─────────────┐     xArm 1   xArm 2     ┌─────────────┐  │
+   │  │   │ 2x2 Tray L  │   (Base Z=0) (Base Z=0) │ 2x2 Tray R  │  │
+   │  │   │(R|G|B|Y Bins│   (+35° In)  (-35° In)  │(R|G|B|Y Bins│  │
+   │  │   │  (50, 360)  │   (170, 360) (390, 360) │ (510, 360)  │  │
+   │  │   └─────────────┘   \                /    └─────────────┘  │
+   │  │                      \              /                      │
+   │  │     [ArUco #0] ───────┼────────────┼─────── [ArUco #1]     │
+   │  │     (80, 350)         │            │        (480, 350)     │
+   │  │                       │ FLAT ARENA │                       │
+   │  │                       │   (Z = 0)  │                       │
+   │  │                       │ 400x300 mm │                       │
+   │  │                       │            │                       │
+   │  │     [ArUco #2] ───────┴────────────┴─────── [ArUco #3]     │
+   │  │     (80, 50)     (Foam Tape Border Barrier) (480, 50)      │
    │  │                                                            │
    │  │ FRONT OF WORKSPACE (Operator Position @ Y = 0 mm)          │
    │  └────────────────────────────────────────────────────────────┘
@@ -64,173 +50,180 @@ The global origin $(0, 0)$ is located at the **Front-Left corner** of the flat w
 ```text
  Elevation (Z)
    │
- 720 mm ─── [Logitech Webcam & Cantilever Boom Center]
+ 700 mm ─── [Logitech Webcam on Desktop Clamp-On Boom Arm]
    │
-   │        (650 mm Vertical Steel/Aluminum Mast or Clamp Arm)
+   │        (Adjustable Scissor Boom clamped to rear edge of board)
    │
-  60 mm ─── [Top Rim of Removable Drop Boxes]
-  37 mm ─── [Top of Retaining Curb & ArUco Pockets] (Z = 25 mm deck + 12 mm curb)
-  25 mm ─── [Elevated Picking Arena Floor + Silicone Mat]
-  10 mm ─── [xArm 1s Angled Mounting Wedges]
-   0 mm ─── [Main Wood Baseboard Surface (Top Face)]
- -18 mm ─── [Table Surface / Baseboard Bottom] (18 mm MDF Sheet)
+  65 mm ─── [xArm 1s Shoulder Axis (Motor 2) @ d1 = 65 mm]
+  35 mm ─── [Top Rim of 2x2 Color Sorting Trays]
+  25 mm ─── [Top of 25 mm Target Sorting Cubes]
+  12.5 mm ── [Grasp Target Center of Cube]
+  10 mm ─── [Top of Adhesive Foam Tape Retaining Curb]
+   0 mm ─── [Flat Arena Surface & Wooden Baseboard Top Face (Z = 0)]
+ -18 mm ─── [Table Surface / Baseboard Underside] (18 mm MDF Board)
 ```
 
 ---
 
-## 3. The "Zero-Carpentry" Strategy
+## 2. Key Design Decisions & Why This Works
 
-### 3.1 The Wood Component (One Simple Store-Cut Board)
-* **What you need**: A single rectangular board of **$18\text{ mm}$ (or $12\text{ mm}$) MDF**.
-* **How to get it**: Most hardware/lumber stores (e.g., Home Depot, local timber merchant) make straight cuts for free or nominal cost.
-* **Exact Dimensions to Request**: **$560\text{ mm} \times 520\text{ mm}$** (or $600\text{ mm} \times 500\text{ mm}$).
-* **What you do at home**: **Zero cutting, zero sawing, zero sanding.** It sits on your table as a heavy, rigid, flat foundation that naturally dampens servo vibrations.
+| Component | Design Implementation | Engineering Rationale |
+| :--- | :--- | :--- |
+| **Main Baseboard** | Single store-cut MDF board ($560\times 520\text{ mm}$, $18\text{ mm}$) | Zero cutting at home. High mass (~4 kg) eliminates table slipping and absorbs servo vibrations. |
+| **Arena Surface** | Completely flat on the board ($Z = 0$) | Eliminates 3D-printing massive puzzle tiles or jigsawing wood platforms. |
+| **Arena Retaining Curb** | Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ high) | Peels and sticks in 2 minutes. Soft barrier stops cubes from rolling away and won't jam the claw. |
+| **Arm Mounting** | Bolted flat to board ($Z = 0$), pre-rotated at $\pm 35.0^\circ$ | Eliminates 3D-printed wedges. Flat mounting maximizes horizontal reach ($320\text{ mm}$) and rigidity. |
+| **Color Sorting Trays**| Two 3D-printed $2\times 2$ quadrant bins ($80\times 80\times 35\text{ mm}$) on flanks | Dedicated 4-slot sorting (Red, Green, Blue, Yellow) for each arm. Sits at $r = 120\text{ mm}$ ($70^\circ$ swing). |
+| **Overhead Camera Stand**| Standard clamp-on desktop webcam boom arm ($12 on Amazon) | Clamps directly to the rear edge. Zero 3D printing, zero drilling, instant height adjustment to $700\text{ mm}$. |
+| **ArUco Calibration** | 4 matte vinyl stickers applied flat on the board corners ($Z = 0$) | Coplanar with the arena floor and cube bottoms—mathematically ideal for OpenCV planar homography. |
+| **Electronics & Wiring**| SBC & buck regulators mounted on board with adhesive PCB standoffs | Accessible USB/HDMI ports, flat wire routing with stick-on wire clips. Zero under-deck routing. |
+| **Sorting Cubes** | 1-inch ($25.4\text{ mm}$) unfinished wooden craft blocks | Natural $15\text{ g}$ mass prevents claw skidding. Spray-painted with ultra-matte Red, Green, Blue, Yellow. |
 
-### 3.2 The 3D-Printed Components (All Small & Bed-Friendly)
-Instead of printing a massive 3 kg base that takes 70+ hours and risks warping, the 3D printer only makes **small, lightweight modules**:
+---
+
+## 3. Minimal 3D Printing: Only the 2× Color Trays
+
+In this ultra-simplified design, your 3D printer only needs to print **two small $2\times 2$ sorting trays**:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│               SMALL MODULAR 3D-PRINTED PARTS BREAKDOWN                 │
-├──────────────────────────┬─────┬────────────┬─────────────┬────────────┤
-│ Part Name                │ Qty │ Dimensions │ Print Time  │ Filament   │
-├──────────────────────────┼─────┼────────────┼─────────────┼────────────┤
-│ 1. Angled Arm Wedges     │  2  │ 140×154×10 │ 1h 15m each │  ~85 g ea  │
-│ 2. Arena Snap-Tiles      │  4  │ 180×160×37 │ 1h 45m each │ ~110 g ea  │
-│ 3. Drop Boxes (Bins)     │  2  │ 90×110×60  │ 45 min each │  ~70 g ea  │
-│ 4. Camera Mast Socket    │  1  │ 70×70×50   │   40 min    │   ~65 g    │
-├──────────────────────────┴─────┴────────────┴─────────────┴────────────┤
-│ TOTAL 3D PRINTING: ~7.5 Hours Total | ~595 g Filament (< 1 Spool!)     │
-└────────────────────────────────────────────────────────────────────────┘
+             TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
+ 
+           ◄───────────────── 80 mm ─────────────────►
+         ┌─────────────────────────┬─────────────────────────┐ ▲
+         │                         │                         │ │
+         │       SLOT 1: RED       │      SLOT 2: GREEN      │ │
+         │       (36 x 36 mm)      │       (36 x 36 mm)      │ │
+         │                         │                         │ 80 mm
+         ├─────────────────────────┼─────────────────────────┤ │
+         │                         │                         │ │
+         │      SLOT 3: BLUE       │      SLOT 4: YELLOW     │ │
+         │       (36 x 36 mm)      │       (36 x 36 mm)      │ │
+         │                         │                         │ │
+         └─────────────────────────┴─────────────────────────┘ ▼
+                                   Height: 35 mm, Wall: 2.0 mm
 ```
+
+### 3D Printing Specifications
+* **Tray Dimensions**: $80.0\text{ mm (Width)} \times 80.0\text{ mm (Depth)} \times 35.0\text{ mm (Height)}$.
+* **Compartment Size**: 4 equal quadrant pockets of $36.0\text{ mm} \times 36.0\text{ mm} \times 33.0\text{ mm}$ deep (holds 2 cubes stacked per slot).
+* **Wall Thickness**: $2.0\text{ mm}$ with $3.0\text{ mm}$ bottom floor.
+* **Internal Corner Fillets**: $R = 3.0\text{ mm}$ for easy cube retrieval.
+* **Slicer Profile**: $0.20\text{ mm}$ layer height, 3 walls, 15% infill.
+* **Print Time**: $\approx \mathbf{45\text{ minutes}}$ per tray ($\approx 1.5\text{ hours}$ total for both).
+* **Filament Used**: **$< 85\text{ g}$ total** (a fraction of a standard spool).
 
 ---
 
-## 4. Component Details & Slicing Specifications
-
-### 4.1 Part 1: Angled Arm Mounting Wedges (2×)
-* **Dimensions**: $140.0\text{ mm} \times 154.0\text{ mm} \times 10.0\text{ mm}$.
-* **Function**: Pre-angles the xArm 1s manipulators at $\pm 35.0^\circ$ inward toward the arena midline ($X = 280\text{ mm}$).
-* **Mounting Holes**:
-  - 4× corner countersunk holes to screw the wedge down into the wooden board with #8 $\times$ 3/4" wood screws.
-  - 4× holes ($118\text{ mm} \times 120\text{ mm}$ pattern) with captive M4 nut slots on the bottom to bolt down the metal xArm 1s base.
-* **Print Settings**: 4 perimeters, 25% Gyroid infill (Matte PLA+ or PETG).
-
-### 4.2 Part 2: 4-Tile Modular Interlocking Arena (4×)
-To make the elevated arena easy to print on any $220\times 220\text{ mm}$ bed (Ender 3, Bambu A1/P1, Prusa MK3/MK4), the tapered hexagon is segmented into **4 interlocking quadrant tiles**:
-
-```text
- 0 mm                     280 mm (Midline)                 560 mm
- 420 mm ┌───────────────────────┬───────────────────────┐ 420 mm
-        │     ARENA TILE 1      │     ARENA TILE 2      │
-        │ • Rear-Left Quadrant  │ • Rear-Right Quadrant │
-        │ • ArUco #0 Pad (+37mm)│ • ArUco #1 Pad (+37mm)│
-        │ • Built-in 12mm Curb  │ • Built-in 12mm Curb  │
- 230 mm ├───────────────────────┼───────────────────────┤ 230 mm
-        │     ARENA TILE 3      │     ARENA TILE 4      │
-        │ • Front-Left Quadrant │ • Front-Right Quadrant│
-        │ • ArUco #2 Pad (+37mm)│ • ArUco #3 Pad (+37mm)│
-        │ • Tapered Front Curb  │ • Tapered Front Curb  │
-  40 mm └───────────────────────┴───────────────────────┘ 40 mm
-```
-
-* **Integrated Features in each Tile**:
-  1. **$+25\text{ mm}$ Elevated Deck**: Hollow lightweight core with 15% infill.
-  2. **$12\text{ mm}$ Retaining Curb**: Surrounds outer edges to prevent cubes from falling off.
-  3. **ArUco Sticker Pockets**: Corner tiles include the **$42\text{ mm} \times 42\text{ mm} \times 0.8\text{ mm}$ recessed pocket** at $Z = +37\text{ mm}$ for flush press-fitting of $40\times 40\text{ mm}$ matte vinyl fiducial stickers.
-  4. **Snap-Pins / Alignment Tabs**: Edge puzzle tabs ensure the 4 tiles lock together with sub-millimeter precision.
-* **Fastening**: Each tile has two screw-down holes to secure directly into the wooden board using standard 1-inch wood screws.
-
-### 4.3 Part 3: Removable Collection Bins (2×)
-* **Dimensions**: $90.0\text{ mm} \text{ (W)} \times 110.0\text{ mm} \text{ (D)} \times 60.0\text{ mm} \text{ (H)}$.
-* **Placement**: Nested on the lateral flanks at $(X = 50, Y = 360)$ and $(X = 510, Y = 360)$.
-* **Features**: Rounded internal bottom corners ($R = 5\text{ mm}$) to make removing cubes easy. Dual finger cutouts on the rim for fast operator removal.
-* *(Zero-Print Alternative)*: You can use two standard plastic food/snack containers of similar size from a supermarket!
-
-### 4.4 Part 4: Overhead Camera Stand
-Two simple options:
-* **Option A (3D-Printed Socket + Conduit Pipe)**:
-  - Print a small circular collar ($60\times 60\text{ mm}$) with an inner bore of $\varnothing 25.6\text{ mm}$.
-  - Screw it to the rear apex of the wood board at $(X = 280, Y = 510)$.
-  - Insert a $650\text{ mm}$ length of standard 1-inch ($\varnothing 25.4\text{ mm}$) aluminum or PVC pipe.
-* **Option B (Zero-Print Desk Clamp Arm — Recommended)**:
-  - Buy a standard **$12 clamp-on adjustable webcam boom arm** from Amazon.
-  - Clamp it directly to the rear edge of the $18\text{ mm}$ MDF board at $(X = 280, Y = 510)$ and center the camera over $(X = 280, Y = 230)$ at $H = 700\text{ mm}$.
-  - Instant setup, zero printing, fully adjustable.
-
----
-
-## 5. Step-by-Step Assembly Walkthrough
+## 4. Step-by-Step Build & Setup Guide (Under 2 Hours)
 
 ```mermaid
 graph TD
-    A["1. Place Store-Cut Board on Desk (560x520 mm)"] --> B["2. Mark Key Coordinates with Pencil & Ruler"]
-    B --> C["3. Screw Down the 2x Angled Arm Wedges (±35°)"]
-    C --> D["4. Snap & Screw Down the 4x Arena Tiles (+25mm)"]
-    D --> E["5. Mount Camera Mast or Clamp Arm at Rear"]
-    E --> F["6. Press-Fit ArUco Stickers into Recessed Pockets"]
-    F --> G["7. Bolt xArm Manipulators onto Wedges & Wire Up"]
+    A["1. Place Pre-Cut Board on Desk (560x520 mm)"] --> B["2. Mark Coordinates with Pencil & Ruler"]
+    B --> C["3. Bolt xArm Manipulators Flat to Board (±35°)"]
+    C --> D["4. Stick Foam Tape Perimeter Border (400x300 mm)"]
+    D --> E["5. Press-Fit 4x ArUco Stickers at Arena Corners"]
+    E --> F["6. Place 2x2 Color Sorting Trays on Flanks"]
+    F --> G["7. Clamp Overhead Webcam Boom Arm to Rear Edge"]
+    G --> H["8. Mount SBC with Adhesive PCB Standoffs"]
 ```
 
-### Step 1: Layout Marking
-1. Place the clean, flat $560\times 520\text{ mm}$ MDF board on your desk.
-2. With a pencil and ruler, draw a centerline along $Y$ at $X = 280\text{ mm}$.
-3. Mark the two arm mounting centers:
-   - Left Arm: $(X = 170\text{ mm}, Y = 360\text{ mm})$
-   - Right Arm: $(X = 390\text{ mm}, Y = 360\text{ mm})$
-4. Draw lines from each center angled at $+35.0^\circ$ (Arm 1) and $-35.0^\circ$ (Arm 2).
+### Step 1: Baseboard Preparation (Zero Tools)
+1. Acquire a single flat rectangular panel of **$18\text{ mm}$ (or $12\text{ mm}$) MDF or shelving board** pre-cut at the hardware store to **$560\text{ mm} \times 520\text{ mm}$** (or $600\text{ mm} \times 500\text{ mm}$).
+2. Place it on your desk or workstation. You do zero sawing or cutting.
 
-### Step 2: Mount Arm Wedges
-1. Insert four M4 captive hex nuts into the bottom pockets of each 3D-printed wedge.
-2. Place the wedges along your pencil lines.
-3. Fasten each wedge securely to the MDF board with four 3/4-inch wood screws.
+### Step 2: Pencil Coordinate Marking
+1. With a pencil and ruler, draw a centerline along $Y$ at $X = 280\text{ mm}$.
+2. Mark the two arm base centers:
+   - **Left Arm (xArm 1)**: $(X = 170\text{ mm}, Y = 360\text{ mm})$
+   - **Right Arm (xArm 2)**: $(X = 390\text{ mm}, Y = 360\text{ mm})$
+3. Draw reference lines through each center angled at **$+35.0^\circ$** (Arm 1, pointing South-East) and **$-35.0^\circ$** (Arm 2, pointing South-West).
+4. Outline the rectangular picking arena:
+   - Left edge: $X = 80\text{ mm}$, Right edge: $X = 480\text{ mm}$ (Width: $400\text{ mm}$, centered at $X = 280\text{ mm}$)
+   - Front edge: $Y = 50\text{ mm}$, Rear edge: $Y = 350\text{ mm}$ (Depth: $300\text{ mm}$)
 
-### Step 3: Install the 4-Tile Arena
-1. Snap the 4 printed arena tiles together using their interlocking alignment pins.
-2. Center the assembled hexagonal arena on the board between $Y = 40\text{ mm}$ (front) and $Y = 420\text{ mm}$ (rear).
-3. Drive four 1-inch wood screws through the tile mounting holes into the MDF board.
-4. Drop your $1.0\text{ mm}$ silicone friction mat onto the arena floor.
+### Step 3: Fasten the Robotic Arms
+1. Align the metal baseplate of xArm 1 over $(170, 360)$ oriented along the $+35^\circ$ heading.
+2. Mark the 4 mounting holes with your pencil.
+3. Fasten the baseplate directly to the wooden board using four #8 $\times$ 3/4" (or M4) wood screws with washers.
+4. Repeat for xArm 2 at $(390, 360)$ oriented along the $-35^\circ$ heading.
+5. The arms are now rigidly grounded at $Z = 0$ with zero flex and zero wobble.
 
-### Step 4: Fiducials & Camera
-1. Peel and press-fit the 4 matte vinyl ArUco stickers (DICT_4X4_50, IDs 0–3) into the molded corner pockets ($Z = +37\text{ mm}$).
-2. Attach your camera mast (or clamp your boom arm) to the rear edge at $(280, 510)$.
-3. Center the webcam lens at $(X = 280\text{ mm}, Y = 230\text{ mm})$ at a height of $H = 700\text{ mm}$.
+### Step 4: Apply the Foam Tape Arena Border
+1. Take a roll of standard **self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall $\times 10\text{--}12\text{ mm}$ wide)**.
+2. Peel the backing and stick it down along the four penciled arena boundary lines ($X \in [80, 480], Y \in [50, 350]$).
+3. This creates a soft, clean retaining bumper that stops wooden cubes from rolling outside the camera's view.
+4. *(Optional)* Lay a $1.0\text{ mm}$ high-friction matte silicone mat ($\mu \approx 0.8$) inside the rectangular arena boundary to ensure cubes don't slide during gripper contact.
+
+### Step 5: Apply the 4 ArUco Calibration Stickers
+1. Print the 4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) at $40\text{ mm} \times 40\text{ mm}$ on matte vinyl sticker paper.
+2. Peel and stick them directly flat onto the wooden board just inside the four corners of the arena:
+   - **ArUco #0 (Rear-Left)**: $(X = 85.0\text{ mm}, Y = 345.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #1 (Rear-Right)**: $(X = 475.0\text{ mm}, Y = 345.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #2 (Front-Left)**: $(X = 85.0\text{ mm}, Y = 55.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #3 (Front-Right)**: $(X = 475.0\text{ mm}, Y = 55.0\text{ mm}, Z = 0.0\text{ mm})$
+3. Because the stickers are coplanar with the table surface ($Z = 0$), OpenCV calculates a mathematically perfect planar homography warp ($H$) with zero perspective skew!
+
+### Step 6: Position the 2×2 Color Sorting Trays
+1. Place the 3D-printed Left Tray at $(X = 50\text{ mm}, Y = 360\text{ mm})$ directly beside Arm 1.
+2. Place the Right Tray at $(X = 510\text{ mm}, Y = 360\text{ mm})$ directly beside Arm 2.
+3. Fasten them with double-sided foam mounting tape or one small wood screw.
+4. Color Slot Mapping:
+   - Rear-Outer: **Red**
+   - Rear-Inner: **Green**
+   - Front-Outer: **Blue**
+   - Front-Inner: **Yellow**
+
+### Step 7: Clamp the Overhead Camera
+1. Clamp your **desktop webcam scissor boom arm** to the rear edge of the baseboard at $(X = 280\text{ mm}, Y = 510\text{ mm})$.
+2. Position the Logitech C270 / C920 webcam centered over $(X = 280\text{ mm}, Y = 200\text{ mm})$ at a height of **$H = 650\text{--}700\text{ mm}$** pointing straight down (nadir angle).
+3. Lock the boom arm tension knobs.
+
+### Step 8: Mount Electronics & Route Cables
+1. Stick 4× adhesive nylon PCB standoffs on the rear section of the board ($Y \approx 440\text{ mm}$).
+2. Mount the Raspberry Pi 5 / NVIDIA Jetson Orin Nano onto the standoffs.
+3. Mount the dual 7.4V / 5A buck converter modules beside the SBC.
+4. Use adhesive wire clips to route the short USB serial cables ($< 18\text{ cm}$) and 7.4V servo power leads neatly to each arm base.
 
 ---
 
-## 6. Sorting Cubes: 1-Inch Wood Craft Blocks
+## 5. Sorting Cubes Preparation
 
-Do **not** waste time 3D-printing hollow plastic cubes that are too light and slide away from the gripper:
-* Buy a 20-pack of **1-inch ($25.4\text{ mm}$) unfinished wooden craft cubes** from Amazon or a local craft store (~$4).
-* **Mass**: They naturally weigh **$14\text{--}16\text{ g}$**, providing the exact weight needed for the silicone mat friction ($\mu \approx 0.8$) and xArm claw stability.
-* **Painting**: Spray paint them in 4 high-contrast matte colors: **Red, Green, Blue, Yellow** using Ultra-Matte acrylic spray paint (never use gloss or enamel).
+* **Sourcing**: Buy a 20-pack of **1-inch ($25.4\text{ mm}$) unfinished hardwood craft cubes** from Amazon or a craft store (~$4).
+* **Mass**: They naturally weigh **$14\text{--}16\text{ g}$**, perfectly matching the physics model in [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md).
+* **Finishing**:
+  1. Sand faces lightly with 220-grit sandpaper.
+  2. Spray with **Matte Gray Primer**.
+  3. Spray 4 high-contrast matte topcoats: **Red, Green, Blue, Yellow** (e.g., Rust-Oleum Chalked or Montana Gold Matte).
+  4. Never use gloss or semi-gloss paint.
 
 ---
 
-## 7. Complete Shopping & Materials List
+## 6. Complete Hardware & Cost Breakdown
 
 | Item Description | Source | Estimated Cost |
 | :--- | :---: | :---: |
-| 1× $18\text{ mm}$ MDF Board ($560\text{ mm} \times 520\text{ mm}$, store cut) | Hardware Store / Timber Merchant | $12.00 |
-| 1× Spool Matte Dark Slate Gray PLA+ ($1\text{ kg}$) | Amazon / 3D Print Shop | $18.00 |
-| 1× Pack of 1-inch Wooden Craft Blocks (20 pcs) | Amazon / Craft Store | $4.00 |
-| 1× Pack of M4 $\times$ 25 mm bolts & nuts (for arms) | Hardware Store | $3.00 |
-| 1× Small box of 3/4" & 1" wood screws | Hardware Store | $3.00 |
-| 1× Desktop Clamp-On Webcam Boom Arm (Optional) | Amazon | $12.00 |
-| 1× Sheet of Matte Silicone Mat ($1\text{ mm}$) | Amazon / Craft Store | $6.00 |
-| **TOTAL ESTIMATED BUILD COST** | — | **$\approx \$46.00\text{--}\$58.00$** |
+| 1× $18\text{ mm}$ (or $12\text{ mm}$) MDF Board ($560\times 520\text{ mm}$, store cut) | Hardware Store / Timber Merchant | $12.00 |
+| 1× Desktop Clamp-On Webcam Scissor Boom Arm | Amazon | $12.00 |
+| 1× Roll of Self-Adhesive Foam Weatherstripping Tape ($8\text{--}10\text{ mm}$) | Hardware Store / Amazon | $4.00 |
+| 1× Pack of 1-inch Wooden Craft Cubes (20 pcs) | Amazon / Craft Store | $4.00 |
+| 1× Sheet of Matte Vinyl Sticker Paper (for ArUco) | Office Supplies / Amazon | $3.00 |
+| 1× Small spool of PLA+ filament (need only ~85 g for 2 trays) | 3D Printer Stock | ~$3.00 |
+| 1× Pack of adhesive PCB standoffs & cable clips | Amazon | $4.00 |
+| 1× Set of small wood screws (#8 $\times$ 3/4") & M4 washers | Hardware Store | $2.00 |
+| **TOTAL COST OF WORKCELL** | — | **$\approx \$44.00$** |
 
 ---
 
-## 8. Summary Checklist
+## 7. Pre-Flight Verification Checklist
 
-| Phase | Action Item | Verified |
+| Subsystem | Milestone / Verification Check | Status |
 | :--- | :--- | :---: |
-| **Board** | Single $560\times 520\text{ mm}$ flat MDF board acquired (pre-cut at store) | [ ] |
-| **Printing** | 2× Arm wedges printed ($\pm 35^\circ$ with M4 nut slots) | [ ] |
-| **Printing** | 4× Arena quadrant tiles printed (with $+25\text{ mm}$ deck and ArUco pockets) | [ ] |
-| **Printing** | 2× Drop boxes printed (or dollar store tubs acquired) | [ ] |
-| **Assembly** | Wedges & Arena snapped and screwed into wooden baseboard with hand screwdriver | [ ] |
-| **Vision** | 4× Matte ArUco stickers press-fitted into corner pockets ($Z = +37\text{ mm}$) | [ ] |
-| **Camera** | Overhead webcam mounted at $(280, 230)$ at $H = 700\text{ mm}$ | [ ] |
-| **Cubes** | 1-inch wooden cubes painted in matte Red, Green, Blue, Yellow | [ ] |
+| **Baseboard** | Single flat board ($560\times 520\text{ mm}$) sits dead-flat on desk with zero rocking | [ ] |
+| **Arms** | Both xArms screwed flat at $(170, 360)$ and $(390, 360)$ rotated $\pm 35.0^\circ$ inward | [ ] |
+| **Arena** | Foam tape border pressed in a clean $400\times 300\text{ mm}$ rectangle ($Y \in [50, 350]$) | [ ] |
+| **ArUco** | 4 matte stickers applied flat at corners ($Z = 0$ coplanar with floor) | [ ] |
+| **Camera** | Overhead boom arm clamped to rear edge; camera centered at $(280, 200)$ @ $H = 700\text{ mm}$ | [ ] |
+| **Trays** | 2× 2x2 grid sorting trays placed on flanks at $(50, 360)$ and $(510, 360)$ | [ ] |
+| **Electronics** | SBC and buck hubs secured with adhesive standoffs; USB runs $< 18\text{ cm}$ | [ ] |
+| **Cubes** | 1-inch craft cubes painted in ultra-matte Red, Green, Blue, Yellow (~15 g mass) | [ ] |
+| **Kinematics** | Test swing executed: Arm swings $70^\circ$ to flank tray at $r = 120\text{ mm}$ with zero stall | [ ] |
