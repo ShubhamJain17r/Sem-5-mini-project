@@ -1,41 +1,40 @@
-# Stepping Stone 7: Physical Workcell Fabrication & Assembly Guide (Wood & Hybrid Build)
+# Stepping Stone 7: Zero-Carpentry Hybrid Workcell Fabrication Guide (Store-Cut Board + Modular 3D Prints)
 
-This handbook is the practical, step-by-step construction guide for building the **Dual xArm 1s Color-Sorting Robotic Workcell**. 
+This document is the definitive, practical fabrication guide for the **Dual xArm 1s Color-Sorting Robotic Workcell**.
 
-Instead of spending 70+ hours 3D-printing a massive plastic base, this guide uses a **Wood (MDF) Layered Build** paired with small 3D-printed precision clips. It can be built in a single afternoon using basic hand tools for less than $30 in materials.
+It eliminates complex carpentry (no saws, no routers, zero wood-shaping tools at home) and avoids risky, 70-hour mega-prints. Instead, it pairs **ONE store-cut flat wooden board** with **small, fast 3D-printed modular components** that print safely on any standard consumer 3D printer ($\ge 220 \times 220\text{ mm}$ bed).
 
-All dimensions directly match the kinematic, arena, and optical specifications established in:
+All spatial coordinates and dimensions directly fulfill the kinematic, optical, and operational standards established in:
 - [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Workcell topology, V-configuration, coordinates)
 - [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Arm reach envelopes and grasp heights)
 - [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Camera framing and ArUco fiducials)
 
 ---
 
-## 1. Visual System Architecture
+## 1. Visual Architecture Overview
 
-### 1.1 Complete 3D Isometric View
-Below is the full 3D CAD render of the assembled robotic workcell:
+### 1.1 Complete 3D CAD Render
+Below is the full 3D CAD visualization of the assembled robotic workcell:
 
 ![Dual xArm 1s Workcell 3D CAD Render](workcell_3d_render.png)
 
-### 1.2 Exploded Layer Diagram
-The base is built by stacking and gluing flat cut panels rather than carving deep pockets:
+### 1.2 Modular Exploded Architecture
+The base uses a flat wooden board as the foundation, onto which small, modular 3D-printed parts screw directly:
 
 ![Exploded Layer Construction Diagram](workcell_exploded_diagram.png)
 
 ---
 
-## 2. Global Dimensions & Spatial Layout
+## 2. Global Spatial Layout & Coordinates
 
-### 2.1 Top-Down Layout & Coordinate Map
-The origin $(0, 0)$ is at the **Front-Left** corner of the baseboard.
+The global origin $(0, 0)$ is located at the **Front-Left corner** of the flat wooden baseboard.
 
 ```text
   Y (Depth: 520 mm)
    ^
    │  ┌────────────────────────────────────────────────────────────┐
    │  │ REAR OF WORKSPACE (Y = 520 mm)                             │
-   │  │             [Overhead Camera Pipe Flange Anchor]           │
+   │  │             [Overhead Camera Mount / Desk Clamp]           │
    │  │                    (X = 280, Y = 510)                      │
    │  │          ┌──────────────────────────────────────┐          │
    │  │          │      CENTRAL ELECTRONICS WEDGE       │          │
@@ -61,200 +60,177 @@ The origin $(0, 0)$ is at the **Front-Left** corner of the baseboard.
    └───────────────────────────────────────────────────────────────────> X (Width: 560 mm)
 ```
 
-### 2.2 Side Elevation Profile (Z-Heights)
-
+### Elevation Levels (Z-Axis)
 ```text
  Elevation (Z)
    │
- 720 mm ─── [Logitech Webcam & Cantilever Boom]
+ 720 mm ─── [Logitech Webcam & Cantilever Boom Center]
    │
-   │        (650 mm Vertical Steel / Aluminum Mast Pipe)
+   │        (650 mm Vertical Steel/Aluminum Mast or Clamp Arm)
    │
   60 mm ─── [Top Rim of Removable Drop Boxes]
-  37 mm ─── [Retaining Curb & ArUco Marker Pads] (Z = 25 + 12 mm)
+  37 mm ─── [Top of Retaining Curb & ArUco Pockets] (Z = 25 mm deck + 12 mm curb)
   25 mm ─── [Elevated Picking Arena Floor + Silicone Mat]
-  10 mm ─── [xArm 1s Angled Mounting Pads]
-   0 mm ─── [Main Baseboard Surface (Top Face)]
+  10 mm ─── [xArm 1s Angled Mounting Wedges]
+   0 mm ─── [Main Wood Baseboard Surface (Top Face)]
  -18 mm ─── [Table Surface / Baseboard Bottom] (18 mm MDF Sheet)
 ```
 
 ---
 
-## 3. Wood Materials & Cut List (Zero-Waste Plan)
+## 3. The "Zero-Carpentry" Strategy
 
-Buy a single standard sheet of **MDF ($1200\text{ mm} \times 600\text{ mm}$ or $4\text{ ft} \times 2\text{ ft}$)**. MDF is strongly recommended over plywood because it has **zero wood grain** (grain patterns can fool OpenCV color detection).
+### 3.1 The Wood Component (One Simple Store-Cut Board)
+* **What you need**: A single rectangular board of **$18\text{ mm}$ (or $12\text{ mm}$) MDF**.
+* **How to get it**: Most hardware/lumber stores (e.g., Home Depot, local timber merchant) make straight cuts for free or nominal cost.
+* **Exact Dimensions to Request**: **$560\text{ mm} \times 520\text{ mm}$** (or $600\text{ mm} \times 500\text{ mm}$).
+* **What you do at home**: **Zero cutting, zero sawing, zero sanding.** It sits on your table as a heavy, rigid, flat foundation that naturally dampens servo vibrations.
 
-```text
- ┌─────────────────────────────────────────────────────────────────────────────────────────┐
- │                   MDF CUTTING SHEET LAYOUT (1200 mm x 600 mm)                           │
- ├────────────────────────────────────────┬────────────────────────────────────────────────┤
- │                                        │                                                │
- │                                        │    [Part B1: Arena Layer 1]                    │
- │                                        │    (Tapered Hexagon: 450 to 350 mm x 380 mm)   │
- │                                        │                                                │
- │    [Part A: Main Baseboard]            ├────────────────────────────────────────────────┤
- │    560 mm x 520 mm                     │                                                │
- │    (12 mm or 18 mm MDF)                │    [Part B2: Arena Layer 2]                    │
- │                                        │    (Identical Tapered Hexagon)                 │
- │                                        │                                                │
- │                                        ├──────────────────────┬─────────────────────────┤
- │                                        │ [Part D1: Arm Pad 1] │  [Part D2: Arm Pad 2]   │
- │                                        │ 140 mm x 154 mm      │  140 mm x 154 mm        │
- └────────────────────────────────────────┴──────────────────────┴─────────────────────────┘
-```
-
-### Exact Cut Dimensions Table
-
-| Part ID | Component Name | Qty | Dimensions ($W \times D \times H$) | Material | Notes |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| **A** | **Main Baseboard** | 1 | $560\text{ mm} \times 520\text{ mm} \times 18\text{ mm}$ | 18 mm MDF | Single solid slab. Heavy & stable. |
-| **B1** | **Arena Platform (Lower)** | 1 | Tapered Hexagon ($380\text{ mm}$ deep) | 12 mm MDF | Rear: $450\text{ mm}$, Front: $350\text{ mm}$. |
-| **B2** | **Arena Platform (Upper)** | 1 | Tapered Hexagon ($380\text{ mm}$ deep) | 12 mm MDF | Glued on top of B1 to reach $+24\text{--}25\text{ mm}$. |
-| **C** | **Retaining Curb Strips** | 6 | $12\text{ mm} \times 12\text{ mm} \times \text{Lengths}$ | Pine Dowel / MDF | Miter-cut to frame the 6 arena edges. |
-| **D1, D2**| **Arm Mounting Pads** | 2 | $140\text{ mm} \times 154\text{ mm} \times 10\text{ mm}$ | 10 mm Plywood/MDF | Angled at $\pm 35.0^\circ$ on baseboard. |
-| **E** | **Drop Box Nesting Borders**| 8 | $5\text{ mm} \times 5\text{ mm} \times 100\text{ mm}$ | Wood strip / dowel | Glued around drop bins to stop sliding. |
-
----
-
-## 4. Step-by-Step Construction Guide
-
-```mermaid
-graph LR
-    A["1. Cut Wood Panels"] --> B["2. Glue Arena Layers (+25mm)"]
-    B --> C["3. Frame Retaining Curb (+12mm)"]
-    C --> D["4. Mount Angled Arm Pads (±35°)"]
-    D --> E["5. Bolt Camera Pipe Flange"]
-    E --> F["6. Prime & Ultra-Matte Paint"]
-```
-
-### Step 1: Cut the Panels
-1. Use a circular saw or hand jigsaw with a straightedge guide to cut the main baseboard (**Part A: $560 \times 520\text{ mm}$**).
-2. Cut the two matching hexagonal arena panels (**Parts B1 and B2**):
-   - Mark the rear width: $450\text{ mm}$.
-   - Mark the front width: $350\text{ mm}$ (centered).
-   - Set the depth: $380\text{ mm}$.
-   - Connect the corners with a ruler and cut along the lines.
-
-### Step 2: Laminate the Arena (+25 mm Elevation)
-1. Apply standard PVA wood glue (e.g., Titebond II) evenly across Part B1.
-2. Place Part B2 directly on top, align the edges, and clamp firmly for 45 minutes.
-3. Once cured, position the combined hexagonal platform onto the main baseboard:
-   - Centerline: $X = 280\text{ mm}$.
-   - Front boundary: $Y = 40\text{ mm}$.
-   - Rear boundary: $Y = 420\text{ mm}$.
-4. Secure it from the underside of the baseboard using four 1-inch countersunk wood screws.
-
-### Step 3: Frame the Perimeter Curb
-1. Cut $12\text{ mm} \times 12\text{ mm}$ wood dowels or MDF strips to fit the 6 perimeter edges of the arena.
-2. Glue and pin-nail them around the rim of the arena platform.
-3. This creates a continuous $12\text{ mm}$ wall ($Z = +37\text{ mm}$) that prevents cubes from rolling off.
-
-### Step 4: Mount the Angled Arm Platforms ($\pm 35.0^\circ$)
-1. Mark the arm center coordinates on the baseboard:
-   - **xArm 1 (Left)**: $(X = 170\text{ mm}, Y = 360\text{ mm})$, rotated **$+35.0^\circ$** (facing South-East).
-   - **xArm 2 (Right)**: $(X = 390\text{ mm}, Y = 360\text{ mm})$, rotated **$-35.0^\circ$** (facing South-West).
-2. Place the two rectangular wooden pads (Parts D1 & D2) at these angles and screw them down.
-3. **Mounting the Robots**:
-   - Drill four $\varnothing 5\text{ mm}$ holes in each pad matching the xArm 1s metal base bracket ($118\text{ mm} \times 120\text{ mm}$ pattern).
-   - Use **M4 Steel T-Nuts (Pronged Nuts)** inserted from the bottom of the wood, or standard M4 through-bolts with washers and locknuts. This is far stronger than 3D-printed plastic threads.
-
-```text
-          ARM MOUNTING WITH STEEL T-NUTS (CROSS-SECTION)
- 
-      [ xArm 1s Metal Base Plate ]
-         │                    │
-         ▼ (M4 Bolt)          ▼ (M4 Bolt)
-     ┌────────────────────────────┐  <── 10 mm Arm Pad (Wood)
-     │   ┌────────────────────┐   │
-     └───┴────────────────────┴───┘
-     ══════════════════════════════  <── 18 mm Main Baseboard
-         ▲                    ▲
-      [ M4 Steel Pronged T-Nuts ] (Pounded into wood underside)
-```
-
-### Step 5: Install the Camera Mast Pipe Flange
-1. Mark the rear apex position: $(X = 280\text{ mm}, Y = 510\text{ mm})$.
-2. Place a standard **1-inch ($\varnothing 25.4\text{ mm}$) cast-iron/steel floor flange**.
-3. Fasten it firmly with four 1-inch wood screws.
-4. Screw in a $650\text{ mm}$ long 1-inch threaded steel pipe or slip-fit aluminum conduit. It will remain rigid with zero wobble.
-
----
-
-## 5. What Still Needs 3D Printing? (Only Small Clips)
-
-You do **NOT** need to 3D print the base! You only need to print small accessory clips (total print time: **$\approx 2\text{ hours}$**, filament: **$< 200\text{ g}$**):
+### 3.2 The 3D-Printed Components (All Small & Bed-Friendly)
+Instead of printing a massive 3 kg base that takes 70+ hours and risks warping, the 3D printer only makes **small, lightweight modules**:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   3D-PRINTED ACCESSORY PARTS LIST                      │
-├──────────────────────────┬─────┬────────────┬──────────────────────────┤
-│ Part Name                │ Qty │ Print Time │ Purpose                  │
-├──────────────────────────┼─────┼────────────┼──────────────────────────┤
-│ 1. ArUco Corner Clips    │  4  │   30 min   │ Provides 0.8 mm sticker  │
-│                          │     │            │ recessed pocket          │
-│ 2. Camera Boom Clamp     │  1  │   40 min   │ Clamps camera to pole    │
-│ 3. Drop Bins (Boxes)     │  2  │   50 min   │ Smooth filleted cups     │
-└──────────────────────────┴─────┴────────────┴──────────────────────────┘
+│               SMALL MODULAR 3D-PRINTED PARTS BREAKDOWN                 │
+├──────────────────────────┬─────┬────────────┬─────────────┬────────────┤
+│ Part Name                │ Qty │ Dimensions │ Print Time  │ Filament   │
+├──────────────────────────┼─────┼────────────┼─────────────┼────────────┤
+│ 1. Angled Arm Wedges     │  2  │ 140×154×10 │ 1h 15m each │  ~85 g ea  │
+│ 2. Arena Snap-Tiles      │  4  │ 180×160×37 │ 1h 45m each │ ~110 g ea  │
+│ 3. Drop Boxes (Bins)     │  2  │ 90×110×60  │ 45 min each │  ~70 g ea  │
+│ 4. Camera Mast Socket    │  1  │ 70×70×50   │   40 min    │   ~65 g    │
+├──────────────────────────┴─────┴────────────┴─────────────┴────────────┤
+│ TOTAL 3D PRINTING: ~7.5 Hours Total | ~595 g Filament (< 1 Spool!)     │
+└────────────────────────────────────────────────────────────────────────┘
 ```
-
-### The 4 ArUco Corner Clips
-Print 4 small $46\text{ mm} \times 46\text{ mm}$ L-brackets with a molded **$42\text{ mm} \times 42\text{ mm} \times 0.8\text{ mm}$ recessed pocket**. 
-- Screw or glue these clips onto the 4 corners of the wooden curb at $(80, 420)$, $(480, 420)$, $(105, 40)$, and $(455, 40)$.
-- Press-fit your $40\times 40\text{ mm}$ matte vinyl ArUco stickers (DICT_4X4_50, IDs 0–3) into the pockets.
 
 ---
 
-## 6. Surface Finishing & Painting (Critical for OpenCV)
+## 4. Component Details & Slicing Specifications
 
-> [!CAUTION]
-> **No Glossy Paint or Visible Wood Grain!**
-> Wood grain stripes and shiny reflections from room lights will confuse the OpenCV color-tracking algorithm.
+### 4.1 Part 1: Angled Arm Mounting Wedges (2×)
+* **Dimensions**: $140.0\text{ mm} \times 154.0\text{ mm} \times 10.0\text{ mm}$.
+* **Function**: Pre-angles the xArm 1s manipulators at $\pm 35.0^\circ$ inward toward the arena midline ($X = 280\text{ mm}$).
+* **Mounting Holes**:
+  - 4× corner countersunk holes to screw the wedge down into the wooden board with #8 $\times$ 3/4" wood screws.
+  - 4× holes ($118\text{ mm} \times 120\text{ mm}$ pattern) with captive M4 nut slots on the bottom to bolt down the metal xArm 1s base.
+* **Print Settings**: 4 perimeters, 25% Gyroid infill (Matte PLA+ or PETG).
 
-Follow this 3-step painting process:
+### 4.2 Part 2: 4-Tile Modular Interlocking Arena (4×)
+To make the elevated arena easy to print on any $220\times 220\text{ mm}$ bed (Ender 3, Bambu A1/P1, Prusa MK3/MK4), the tapered hexagon is segmented into **4 interlocking quadrant tiles**:
 
 ```text
-  [ Bare MDF Wood ] 
-         │
-         ▼  Step 1: Edge Sealing (Diluted PVA wood glue or Sanding Sealer)
-  [ Sealed Edges ]
-         │
-         ▼  Step 2: Sand with 220-grit sandpaper & apply Gray Primer
-  [ Uniform Gray Primer Base ]
-         │
-         ▼  Step 3: Spray with Ultra-Matte Dark Slate Gray (RAL 7016)
-  [ Non-Reflective Computer Vision Background ]
+ 0 mm                     280 mm (Midline)                 560 mm
+ 420 mm ┌───────────────────────┬───────────────────────┐ 420 mm
+        │     ARENA TILE 1      │     ARENA TILE 2      │
+        │ • Rear-Left Quadrant  │ • Rear-Right Quadrant │
+        │ • ArUco #0 Pad (+37mm)│ • ArUco #1 Pad (+37mm)│
+        │ • Built-in 12mm Curb  │ • Built-in 12mm Curb  │
+ 230 mm ├───────────────────────┼───────────────────────┤ 230 mm
+        │     ARENA TILE 3      │     ARENA TILE 4      │
+        │ • Front-Left Quadrant │ • Front-Right Quadrant│
+        │ • ArUco #2 Pad (+37mm)│ • ArUco #3 Pad (+37mm)│
+        │ • Tapered Front Curb  │ • Tapered Front Curb  │
+  40 mm └───────────────────────┴───────────────────────┘ 40 mm
 ```
 
-1. **Seal MDF Edges**: Brush cut edges with a 50/50 mix of PVA glue and water to seal porosity. Let dry 20 minutes.
-2. **Primer**: Spray two coats of **Gray Sandable Filler Primer**.
-3. **Topcoat**: Spray two light coats of **Ultra-Matte Dark Slate Gray Spray Paint** (e.g., Rust-Oleum Chalked or Montana Gold Matte).
-4. **Arena Mat**: Lay a $1.0\text{ mm}$ light gray or muted beige high-friction silicone sheet ($\mu \approx 0.8$) inside the arena deck.
+* **Integrated Features in each Tile**:
+  1. **$+25\text{ mm}$ Elevated Deck**: Hollow lightweight core with 15% infill.
+  2. **$12\text{ mm}$ Retaining Curb**: Surrounds outer edges to prevent cubes from falling off.
+  3. **ArUco Sticker Pockets**: Corner tiles include the **$42\text{ mm} \times 42\text{ mm} \times 0.8\text{ mm}$ recessed pocket** at $Z = +37\text{ mm}$ for flush press-fitting of $40\times 40\text{ mm}$ matte vinyl fiducial stickers.
+  4. **Snap-Pins / Alignment Tabs**: Edge puzzle tabs ensure the 4 tiles lock together with sub-millimeter precision.
+* **Fastening**: Each tile has two screw-down holes to secure directly into the wooden board using standard 1-inch wood screws.
+
+### 4.3 Part 3: Removable Collection Bins (2×)
+* **Dimensions**: $90.0\text{ mm} \text{ (W)} \times 110.0\text{ mm} \text{ (D)} \times 60.0\text{ mm} \text{ (H)}$.
+* **Placement**: Nested on the lateral flanks at $(X = 50, Y = 360)$ and $(X = 510, Y = 360)$.
+* **Features**: Rounded internal bottom corners ($R = 5\text{ mm}$) to make removing cubes easy. Dual finger cutouts on the rim for fast operator removal.
+* *(Zero-Print Alternative)*: You can use two standard plastic food/snack containers of similar size from a supermarket!
+
+### 4.4 Part 4: Overhead Camera Stand
+Two simple options:
+* **Option A (3D-Printed Socket + Conduit Pipe)**:
+  - Print a small circular collar ($60\times 60\text{ mm}$) with an inner bore of $\varnothing 25.6\text{ mm}$.
+  - Screw it to the rear apex of the wood board at $(X = 280, Y = 510)$.
+  - Insert a $650\text{ mm}$ length of standard 1-inch ($\varnothing 25.4\text{ mm}$) aluminum or PVC pipe.
+* **Option B (Zero-Print Desk Clamp Arm — Recommended)**:
+  - Buy a standard **$12 clamp-on adjustable webcam boom arm** from Amazon.
+  - Clamp it directly to the rear edge of the $18\text{ mm}$ MDF board at $(X = 280, Y = 510)$ and center the camera over $(X = 280, Y = 230)$ at $H = 700\text{ mm}$.
+  - Instant setup, zero printing, fully adjustable.
 
 ---
 
-## 7. The $25\text{ mm}$ Cubes: Wood Craft Blocks vs. 3D Prints
+## 5. Step-by-Step Assembly Walkthrough
 
-* **Best Choice: Store-Bought 1-Inch Wooden Cubes**:
-  - Buy a pack of standard 1-inch ($25.4\text{ mm}$) unfinished hardwood craft blocks.
-  - They naturally weigh **$14\text{--}16\text{ g}$**, have crisp corners, and cost ~$3 for a pack of 20.
-* **If 3D Printing Cubes**:
-  - You must pause the print at $Z = 16\text{ mm}$ and insert two M8 steel hex nuts ($10.4\text{ g}$) into a hollow core so the cube reaches $\approx 16\text{ g}$. Otherwise, a hollow $7\text{ g}$ cube will skid when touched by the claw.
-* **Painting the Cubes**:
-  - Spray paint in 4 high-contrast matte colors: **Red, Green, Blue, Yellow** using ultra-matte spray paint. Never use glossy paint.
+```mermaid
+graph TD
+    A["1. Place Store-Cut Board on Desk (560x520 mm)"] --> B["2. Mark Key Coordinates with Pencil & Ruler"]
+    B --> C["3. Screw Down the 2x Angled Arm Wedges (±35°)"]
+    C --> D["4. Snap & Screw Down the 4x Arena Tiles (+25mm)"]
+    D --> E["5. Mount Camera Mast or Clamp Arm at Rear"]
+    E --> F["6. Press-Fit ArUco Stickers into Recessed Pockets"]
+    F --> G["7. Bolt xArm Manipulators onto Wedges & Wire Up"]
+```
+
+### Step 1: Layout Marking
+1. Place the clean, flat $560\times 520\text{ mm}$ MDF board on your desk.
+2. With a pencil and ruler, draw a centerline along $Y$ at $X = 280\text{ mm}$.
+3. Mark the two arm mounting centers:
+   - Left Arm: $(X = 170\text{ mm}, Y = 360\text{ mm})$
+   - Right Arm: $(X = 390\text{ mm}, Y = 360\text{ mm})$
+4. Draw lines from each center angled at $+35.0^\circ$ (Arm 1) and $-35.0^\circ$ (Arm 2).
+
+### Step 2: Mount Arm Wedges
+1. Insert four M4 captive hex nuts into the bottom pockets of each 3D-printed wedge.
+2. Place the wedges along your pencil lines.
+3. Fasten each wedge securely to the MDF board with four 3/4-inch wood screws.
+
+### Step 3: Install the 4-Tile Arena
+1. Snap the 4 printed arena tiles together using their interlocking alignment pins.
+2. Center the assembled hexagonal arena on the board between $Y = 40\text{ mm}$ (front) and $Y = 420\text{ mm}$ (rear).
+3. Drive four 1-inch wood screws through the tile mounting holes into the MDF board.
+4. Drop your $1.0\text{ mm}$ silicone friction mat onto the arena floor.
+
+### Step 4: Fiducials & Camera
+1. Peel and press-fit the 4 matte vinyl ArUco stickers (DICT_4X4_50, IDs 0–3) into the molded corner pockets ($Z = +37\text{ mm}$).
+2. Attach your camera mast (or clamp your boom arm) to the rear edge at $(280, 510)$.
+3. Center the webcam lens at $(X = 280\text{ mm}, Y = 230\text{ mm})$ at a height of $H = 700\text{ mm}$.
 
 ---
 
-## 8. Complete Hardware Shopping Checklist
+## 6. Sorting Cubes: 1-Inch Wood Craft Blocks
 
-| Category | Item Description | Estimated Cost |
+Do **not** waste time 3D-printing hollow plastic cubes that are too light and slide away from the gripper:
+* Buy a 20-pack of **1-inch ($25.4\text{ mm}$) unfinished wooden craft cubes** from Amazon or a local craft store (~$4).
+* **Mass**: They naturally weigh **$14\text{--}16\text{ g}$**, providing the exact weight needed for the silicone mat friction ($\mu \approx 0.8$) and xArm claw stability.
+* **Painting**: Spray paint them in 4 high-contrast matte colors: **Red, Green, Blue, Yellow** using Ultra-Matte acrylic spray paint (never use gloss or enamel).
+
+---
+
+## 7. Complete Shopping & Materials List
+
+| Item Description | Source | Estimated Cost |
+| :--- | :---: | :---: |
+| 1× $18\text{ mm}$ MDF Board ($560\text{ mm} \times 520\text{ mm}$, store cut) | Hardware Store / Timber Merchant | $12.00 |
+| 1× Spool Matte Dark Slate Gray PLA+ ($1\text{ kg}$) | Amazon / 3D Print Shop | $18.00 |
+| 1× Pack of 1-inch Wooden Craft Blocks (20 pcs) | Amazon / Craft Store | $4.00 |
+| 1× Pack of M4 $\times$ 25 mm bolts & nuts (for arms) | Hardware Store | $3.00 |
+| 1× Small box of 3/4" & 1" wood screws | Hardware Store | $3.00 |
+| 1× Desktop Clamp-On Webcam Boom Arm (Optional) | Amazon | $12.00 |
+| 1× Sheet of Matte Silicone Mat ($1\text{ mm}$) | Amazon / Craft Store | $6.00 |
+| **TOTAL ESTIMATED BUILD COST** | — | **$\approx \$46.00\text{--}\$58.00$** |
+
+---
+
+## 8. Summary Checklist
+
+| Phase | Action Item | Verified |
 | :--- | :--- | :---: |
-| **Wood** | 1× Sheet of $12\text{ mm}$ or $18\text{ mm}$ MDF ($1200\text{ mm} \times 600\text{ mm}$) | $15.00 |
-| **Wood** | 1× Length of $12\times 12\text{ mm}$ Pine square dowel (for curb) | $3.00 |
-| **Hardware** | 1× 1-inch ($\varnothing 25.4\text{ mm}$) Cast-Iron Floor Pipe Flange | $5.00 |
-| **Hardware** | 1× 1-inch ($\varnothing 25.4\text{ mm}$) Steel or Aluminum Conduit Pipe ($650\text{ mm}$) | $6.00 |
-| **Fasteners** | 8× M4 Steel Pronged T-Nuts & M4 $\times$ 25 mm bolts (for robot arms) | $4.00 |
-| **Fasteners** | Box of 1-inch drywall/wood screws & PVA wood glue | $5.00 |
-| **Paint** | 1× Can Gray Primer + 1× Can Ultra-Matte Dark Slate Gray Spray Paint | $12.00 |
-| **Vision Mat** | 1× Sheet of High-Friction Silicone Mat ($1.0\text{ mm}$ thickness) | $8.00 |
-| **Cubes** | Pack of 1-inch ($25\text{ mm}$) wooden craft cubes (20 pcs) | $4.00 |
-| **TOTAL** | **Complete Workcell Physical Build** | **$\approx \$62.00$** |
+| **Board** | Single $560\times 520\text{ mm}$ flat MDF board acquired (pre-cut at store) | [ ] |
+| **Printing** | 2× Arm wedges printed ($\pm 35^\circ$ with M4 nut slots) | [ ] |
+| **Printing** | 4× Arena quadrant tiles printed (with $+25\text{ mm}$ deck and ArUco pockets) | [ ] |
+| **Printing** | 2× Drop boxes printed (or dollar store tubs acquired) | [ ] |
+| **Assembly** | Wedges & Arena snapped and screwed into wooden baseboard with hand screwdriver | [ ] |
+| **Vision** | 4× Matte ArUco stickers press-fitted into corner pockets ($Z = +37\text{ mm}$) | [ ] |
+| **Camera** | Overhead webcam mounted at $(280, 230)$ at $H = 700\text{ mm}$ | [ ] |
+| **Cubes** | 1-inch wooden cubes painted in matte Red, Green, Blue, Yellow | [ ] |
