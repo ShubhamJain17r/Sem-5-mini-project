@@ -78,6 +78,10 @@ Below is the technical dimensional blueprint for the single flat wooden baseboar
 
 ![Wooden Baseboard Dimensional Technical Blueprint](wood_platform_blueprint.png)
 
+![High-Precision 1:1 Chart Paper Drafting Layout](chartpaper_drafting_sheet.png)
+
+![Dual xArm Workcell Multi-View Engineering Blueprint](workcell_multiview_blueprint.jpg)
+
 | Component | Design Implementation | Engineering Rationale |
 | :--- | :--- | :--- |
 | **Main Baseboard** | Single store-cut MDF board ($560\times 520\text{ mm}$, $18\text{ mm}$) | Zero cutting at home. High mass (~4 kg) eliminates table slipping and absorbs servo vibrations. |

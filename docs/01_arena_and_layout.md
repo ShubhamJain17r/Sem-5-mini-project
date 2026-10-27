@@ -8,7 +8,11 @@ This document details the complete mechanical construction, spatial dimensions, 
 
 The entire workcell is organized on a single, continuous, store-cut **flat wooden baseboard** ($18\text{ mm}$ or $12\text{ mm}$ MDF / shelving board) with a compact footprint of **$560.0\text{ mm} \text{ (Width)} \times 520.0\text{ mm} \text{ (Depth)}$**:
 
-![Zero-Carpentry Flat Workcell 3D CAD Overview](workcell_flat_overview.png)
+![Realistic 3D Perspective Render of Dual xArm Workcell](workcell_perspective_render.jpg)
+
+![Dual xArm Workcell Multi-View Blueprint](workcell_multiview_blueprint.jpg)
+
+![High-Precision 1:1 Chart Paper Drafting Layout](chartpaper_drafting_sheet.png)
 
 ```text
   Y (Depth: 520 mm)

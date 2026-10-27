@@ -4,11 +4,15 @@ An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **Ope
 
 ---
 
-## 📸 System Architecture & Blueprint
+## 📸 System Architecture & Visual Renders
 
-![Zero-Carpentry Flat Workcell 3D CAD Overview](docs/workcell_flat_overview.png)
+![Realistic 3D Perspective Render of Dual xArm Workcell](docs/workcell_perspective_render.jpg)
 
-![Wooden Baseboard Dimensional Technical Blueprint](docs/wood_platform_blueprint.png)
+![Dual xArm Workcell Multi-View Engineering Blueprint](docs/workcell_multiview_blueprint.jpg)
+
+![High-Precision 1:1 Chart Paper Drafting Layout](docs/chartpaper_drafting_sheet.png)
+
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/tray_3d_print_cad.png)
 
 ---
 
@@ -196,6 +200,7 @@ Sem-5-mini-project/
 │   ├── 05_hardware_bringup_and_firmware_control.md # Stepping Stone 5: Low-Level Protocols & Bringup
 │   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
 │   ├── 07_fusion360_cad_modeling_guide.md # Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication
+│   ├── chartpaper_drafting_sheet.png # 1:1 Scale engineering drafting layout for chart paper
 │   ├── design.png                  # High-resolution architectural schematic
 │   ├── implementation_plan.md      # System architecture & integration blueprint
 │   ├── pcb module.webp             # Controller board pinout diagram
@@ -204,6 +209,8 @@ Sem-5-mini-project/
 │   ├── tray_3d_print_cad.png       # 3D printable 2x2 sorting tray CAD render
 │   ├── wood_platform_blueprint.png # Single flat-board fabrication blueprint (560x520 mm)
 │   ├── workcell_flat_overview.png  # Overhead 3D render of flat workcell layout
+│   ├── workcell_multiview_blueprint.jpg # Multi-view engineering drawing (top, front, isometric)
+│   ├── workcell_perspective_render.jpg # Photorealistic 3D perspective render
 │   └── xArm demensions.png         # Physical robot dimension schematic
 │
 ├── ros2_ws/                        # ROS 2 Humble Workspace
