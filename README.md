@@ -151,7 +151,7 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 - 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interface definitions, dynamic load balancing with hysteresis across $Y = 300\text{ mm}$ midline, spatial crossover mutex state machine, and production Python nodes.
 - 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), Arduino Uno R4 WiFi test bench, servo deviation zeroing, and tick-to-angle conversion.
 - 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 6 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
-- 📄 **Stepping Stone 7**: [`docs/07_fusion360_cad_modeling_guide.md`](docs/07_fusion360_cad_modeling_guide.md) — Autodesk Fusion 360 parametric CAD workflow, 4-tile modular dovetail base, alternative layered wood/MDF hybrid build, camera boom stand, cube ballasting, and non-glare painting.
+- 📄 **Stepping Stone 7**: [`docs/07_fusion360_cad_modeling_guide.md`](docs/07_fusion360_cad_modeling_guide.md) — Physical workcell fabrication guide, wood/MDF layered build, 3D renders, cut list, camera mast & non-glare painting.
 
 ### System Integration & Planning
 

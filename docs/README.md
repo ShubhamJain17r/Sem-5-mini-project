@@ -19,7 +19,7 @@ docs/
 │
 ├── 🏗️ Physical & Spatial Architecture
 │   ├── 01_arena_and_layout.md                         # Stepping Stone 1: Arena Construction, Layout & Dimensions
-│   ├── 07_fusion360_cad_modeling_guide.md             # Stepping Stone 7: Autodesk Fusion 360 Modeling & Fabrication
+│   ├── 07_fusion360_cad_modeling_guide.md             # Stepping Stone 7: Physical Workcell Fabrication & Assembly Guide
 │   ├── design.png                                     # High-Resolution Physical, Optical & Kinematic Schematic
 │   └── xArm demensions.png                            # xArm 1s Physical Link Dimensions & Kinematic Offsets
 │
@@ -57,7 +57,8 @@ docs/
 | [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$), exposure lock, HSV color segmentation, cube centroid extraction | ✅ Complete |
 | [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, single `arena_mutex` crossover arbitration, pipelined pick-and-place | ✅ Complete |
 | [**`05_hardware_bringup_and_firmware_control.md`**](05_hardware_bringup_and_firmware_control.md) | Hiwonder 115200 baud binary packet framing, Arduino Uno R4 test bench, servo deviation zeroing | ✅ Complete |
-| [**`07_fusion360_cad_modeling_guide.md`**](07_fusion360_cad_modeling_guide.md) | Autodesk Fusion 360 CAD workflow, 4-tile 3D printing vs. layered wood/MDF hybrid build, camera boom & painting | ✅ Complete |
+| [**`06_system_testing_diagnostics_and_verification.md`**](06_system_testing_diagnostics_and_verification.md) | Verification runbooks, empirical Z-sag compensation factor ($k_{\text{sag}} \approx 0.07$), claw grasp discrimination | ✅ Complete |
+| [**`07_fusion360_cad_modeling_guide.md`**](07_fusion360_cad_modeling_guide.md) | Physical workcell fabrication guide, wood/MDF layered build, 3D renders, cut list & camera mast | ✅ Complete |
 
 ---
 
