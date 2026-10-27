@@ -3,12 +3,12 @@
 Interactive Pick-and-Place Kinematic Calibration & Verification Script.
 
 Executes the official 5-phase trajectory sequence using analytical polar IK:
-  Phase 1: Transit to Radial Standoff (r - 30mm, Z = +55mm, Claw open)
-  Phase 2: Horizontal Advance into Grasp (r, Z = +32.5mm + z_sag)
+  Phase 1: Transit to Radial Standoff (r - 35mm, Z = +37.5mm, Claw open)
+  Phase 2: Horizontal Advance into Grasp (r, Z = +12.5mm + z_sag)
   Phase 3: Clamp Gripper (Motor 1 = grip_tick)
-  Phase 4: Ascend and Radial Retract (r - 40mm, Z = +65mm)
-  Phase 5: 205° CCW Slew to Drop Box (Box 1 NW @ drop_yaw_tick)
-  Phase 6: Release Gripper & Ascend
+  Phase 4: Ascend and Radial Retract (r - 40mm, Z = +47.5mm)
+  Phase 5: ~70° Slew to Flank 2x2 Sorting Tray (@ drop_yaw_tick)
+  Phase 6: Release Gripper in Sorting Compartment
   Phase 7: Return Home
 
 Can publish to ROS 2 topic (/xarm_1/joint_commands) or run standalone directly over USB.
@@ -61,11 +61,11 @@ class PickAndPlaceCommander(Node):
         self.claw_grip_tick = int(m1_cfg.get("claw_span_mm", {}).get("grip_cube_25mm", {}).get("tick", 250))
 
         # Drop box nominal yaw tick
-        self.drop_yaw_tick = int(box_cfg.get("base_yaw_drop_tick", 820))
+        self.drop_yaw_tick = int(box_cfg.get("base_yaw_drop_tick", 208 if self.arm_id == "xarm_1" else 792))
 
         # Arena picking elevations (mm)
         arena_cfg = self.hw_config.get("workspace", {}).get("picking_arena", {})
-        self.cube_pick_z = float(arena_cfg.get("cube_center_z_mm", 32.5))
+        self.cube_pick_z = float(arena_cfg.get("cube_center_z_mm", 12.5))
 
         self.get_logger().info(
             f"Initialized Pick-and-Place Calibrator for {self.arm_id}\n"
@@ -174,20 +174,31 @@ class PickAndPlaceCommander(Node):
         if not self.send_ik_target(retract_r, pick_theta, lift_z, self.claw_grip_tick, move_time_ms=1000):
             return False
 
-        # Phase 5: Slew 205° to Drop Box Compartment
-        print(f"[Phase 5] Swiveling 205° to NW Drop Box (Color: {color.upper()})...")
+        # Phase 5: Slew ~70° to Flank 2x2 Sorting Tray Compartment
+        print(f"[Phase 5] Swiveling ~70° to Flank 2x2 Tray (Color: {color.upper()})...")
         target_info = get_compartment_target(color, arm_id=self.arm_id, config_path=self.hardware_yaml)
         drop_yaw = target_info.get("drop_yaw_tick", self.drop_yaw_tick) if target_info else self.drop_yaw_tick
 
-        # High clearance drop pose over box
-        drop_pose = {
-            1: self.claw_grip_tick,
-            2: 500,
-            3: 460,
-            4: 460,
-            5: 560,
-            6: drop_yaw,
-        }
+        # High clearance drop pose over flank tray (from YAML preset or calculated tuck)
+        preset_ticks = target_info.get("drop_pose_preset") if target_info else None
+        if preset_ticks and len(preset_ticks) == 6:
+            drop_pose = {
+                1: self.claw_grip_tick,
+                2: preset_ticks[1],
+                3: preset_ticks[2],
+                4: preset_ticks[3],
+                5: preset_ticks[4],
+                6: drop_yaw,
+            }
+        else:
+            drop_pose = {
+                1: self.claw_grip_tick,
+                2: 500,
+                3: 790,
+                4: 415,
+                5: 835,
+                6: drop_yaw,
+            }
         self.send_pose_ticks(drop_pose, move_time_ms=1800)
 
         # Phase 6: Release Gripper in Box
@@ -209,7 +220,7 @@ def main():
     parser = argparse.ArgumentParser(description="xArm 1S Kinematic Pick-and-Place Test")
     parser.add_argument("--r", type=float, default=220.0, help="Pick radius (140-300mm, default: 220mm)")
     parser.add_argument("--theta", type=float, default=0.0, help="Pick azimuth (-45 to +45 deg, default: 0)")
-    parser.add_argument("--z", type=float, default=None, help="Pick height (default from YAML: 32.5mm)")
+    parser.add_argument("--z", type=float, default=None, help="Pick height (default from YAML: 12.5mm)")
     parser.add_argument("--color", default="red", choices=["red", "green", "blue", "yellow"], help="Target drop box color")
     parser.add_argument("--sag", type=float, default=0.0, help="Empirical Z-sag compensation in mm (e.g. +3.0 to lift)")
     parser.add_argument("--arm", default="xarm_1", help="Arm instance (xarm_1 or xarm_2)")

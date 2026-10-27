@@ -446,8 +446,8 @@ def world_to_arm_polar(
     """
     p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
 
-    base_x = 360.0
-    base_y = 420.0 if arm_id == "xarm_1" else 180.0
+    base_x = 170.0 if arm_id == "xarm_1" else 390.0
+    base_y = 360.0
     base_z = 0.0
 
     candidates = [
@@ -512,8 +512,8 @@ def get_compartment_target(
             data = yaml.safe_load(f)
 
         arm_cfg = data.get("manipulators", {}).get(arm_id, {})
-        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 360.0))
-        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 420.0))
+        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 170.0 if arm_id == "xarm_1" else 390.0))
+        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 360.0))
         base_z = float(arm_cfg.get("base_mount_mm", {}).get("z", 0.0))
 
         compartments = arm_cfg.get("collection_box", {}).get("compartments", {})
@@ -529,9 +529,9 @@ def get_compartment_target(
             return None
 
         target_w = matched.get("target_world_mm", {})
-        wx = float(target_w.get("x", 85.0))
-        wy = float(target_w.get("y", 530.0))
-        wz = float(target_w.get("z", 25.0))
+        wx = float(target_w.get("x", 30.0 if arm_id == "xarm_1" else 490.0))
+        wy = float(target_w.get("y", 380.0))
+        wz = float(target_w.get("z", 35.0))
 
         # Vector relative to arm base mount
         rel_x = wx - base_x

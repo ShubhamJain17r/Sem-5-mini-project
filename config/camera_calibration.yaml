@@ -68,12 +68,12 @@ planar_homography:
       0.0, 0.0, 1.0
     ]
 
-# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on elevated curb Z = 37mm)
+# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on flat baseboard Z = 0.0 mm)
 aruco_reference_markers:
   dictionary: "DICT_4X4_50"
   marker_size_mm: 40.0
   markers:
-    marker_0: {id: 0, role: "rear_left_curb",  world_x: 80.0,  world_y: 420.0, world_z: 37.0}
-    marker_1: {id: 1, role: "rear_right_curb", world_x: 480.0, world_y: 420.0, world_z: 37.0}
-    marker_2: {id: 2, role: "front_left_curb", world_x: 105.0, world_y: 40.0,  world_z: 37.0}
-    marker_3: {id: 3, role: "front_right_curb",world_x: 455.0, world_y: 40.0,  world_z: 37.0}
+    marker_0: {id: 0, role: "rear_left",  world_x: 85.0,  world_y: 345.0, world_z: 0.0}
+    marker_1: {id: 1, role: "rear_right", world_x: 475.0, world_y: 345.0, world_z: 0.0}
+    marker_2: {id: 2, role: "front_left", world_x: 85.0,  world_y: 55.0,  world_z: 0.0}
+    marker_3: {id: 3, role: "front_right",world_x: 475.0, world_y: 55.0,  world_z: 0.0}

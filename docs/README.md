@@ -52,13 +52,13 @@ docs/
 | Document | Key Topics Covered | Status |
 | :--- | :--- | :---: |
 | [**`00_docker_and_ros2_development_guide.md`**](00_docker_and_ros2_development_guide.md) | Docker workflow, hybrid VS Code editing, package creation, `colcon` build lifecycle, hardware mapping | ✅ Complete |
-| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | V-configuration dual xArm, chamfered hexagonal arena (+25 mm), flank drop wells, 4-tile modular 3D-printed base | ✅ Complete |
+| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | V-configuration dual xArm, Zero-Carpentry flat baseboard ($560\times 520\text{ mm}$), rectangular arena ($Z=0\text{ mm}$) with foam border, flank 2×2 sorting trays | ✅ Complete |
 | [**`02_kinematics_and_grasp_planning.md`**](02_kinematics_and_grasp_planning.md) | Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime wrist roll, radial approach, 5-phase trajectory | ✅ Complete |
 | [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$), exposure lock, HSV color segmentation, cube centroid extraction | ✅ Complete |
 | [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, single `arena_mutex` crossover arbitration, pipelined pick-and-place | ✅ Complete |
 | [**`05_hardware_bringup_and_firmware_control.md`**](05_hardware_bringup_and_firmware_control.md) | Hiwonder 115200 baud binary packet framing, Arduino Uno R4 test bench, servo deviation zeroing | ✅ Complete |
 | [**`06_system_testing_diagnostics_and_verification.md`**](06_system_testing_diagnostics_and_verification.md) | Verification runbooks, empirical Z-sag compensation factor ($k_{\text{sag}} \approx 0.07$), claw grasp discrimination | ✅ Complete |
-| [**`07_fusion360_cad_modeling_guide.md`**](07_fusion360_cad_modeling_guide.md) | Physical workcell fabrication guide, wood/MDF layered build, 3D renders, cut list & camera mast | ✅ Complete |
+| [**`07_fusion360_cad_modeling_guide.md`**](07_fusion360_cad_modeling_guide.md) | Zero-carpentry flat board build, 2×2 tray 3D print specs, technical blueprints & 2-hour assembly guide | ✅ Complete |
 
 ---
 

@@ -87,13 +87,18 @@ def test_get_compartment_target():
     cfg = "config/dual_xarm_hardware.yaml"
     colors = ["red", "green", "blue", "yellow"]
     for color in colors:
-        target = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
-        assert target is not None, f"Failed to get target for color {color}"
-        assert target["color"] == color
-        assert target["r"] > 0.0
-        assert "target_world_mm" in target or "world_xyz" in target
-        assert "drop_yaw_tick" in target
-        assert 700 <= target["drop_yaw_tick"] <= 900
+        target1 = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
+        assert target1 is not None, f"Failed to get target for color {color}"
+        assert target1["color"] == color
+        assert target1["r"] > 0.0
+        assert "target_world_mm" in target1 or "world_xyz" in target1
+        assert "drop_yaw_tick" in target1
+        assert 150 <= target1["drop_yaw_tick"] <= 300
+
+        target2 = get_compartment_target(color, arm_id="xarm_2", config_path=cfg)
+        assert target2 is not None, f"Failed to get target for color {color} on arm_2"
+        assert target2["color"] == color
+        assert 700 <= target2["drop_yaw_tick"] <= 870
 
     # Invalid color returns None
     assert get_compartment_target("magenta", arm_id="xarm_1") is None
@@ -129,19 +134,20 @@ def test_ik_with_claw_tip():
 
 
 def test_world_to_arm_polar():
-    # xarm_1 is at (360, 420)
-    # A point at (560, 420, 32.5) is directly East: dx=200, dy=0 -> r=200, theta=0
-    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1")
+    # xarm_1 is at (170, 360, 0) with nominal heading -110.0 deg
+    # Point at (170, 160, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
+    # theta_arm = -90 - (-110) = +20 deg
+    r, th, z = world_to_arm_polar(170.0, 160.0, 12.5, arm_id="xarm_1")
     assert abs(r - 200.0) < 0.1
-    assert abs(th - 0.0) < 0.1
-    assert abs(z - 32.5) < 0.1
+    assert abs(th - 20.0) < 0.1
+    assert abs(z - 12.5) < 0.1
 
-    # If arm heading is angled (e.g. +45 deg NE)
-    custom_params = KinematicParameters(base_heading_deg=45.0)
-    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1", params=custom_params)
+    # If arm heading is custom (e.g. -90 deg South)
+    custom_params = KinematicParameters(base_heading_deg=-90.0)
+    r, th, z = world_to_arm_polar(170.0, 160.0, 12.5, arm_id="xarm_1", params=custom_params)
     assert abs(r - 200.0) < 0.1
-    # Global angle 0° minus heading 45° = -45° local
-    assert abs(th - (-45.0)) < 0.1
+    # Global angle -90° minus heading -90° = 0° local
+    assert abs(th - 0.0) < 0.1
 
 
 def test_base_zero_and_heading_kinematics():
@@ -162,7 +168,7 @@ def test_compartment_target_fallback():
     target = get_compartment_target("red", arm_id="xarm_1", config_path=cfg)
     assert target is not None
     assert "drop_yaw_tick" in target
-    assert target["drop_yaw_tick"] == 835
+    assert target["drop_yaw_tick"] == 175
     assert "drop_pose_preset" in target
     assert "theta_arm_deg" in target
     assert "theta_world_deg" in target

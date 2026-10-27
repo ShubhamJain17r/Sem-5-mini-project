@@ -135,13 +135,13 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Run `vision/calibrate_camera.py` to compute intrinsic matrix $K$ and distortion vector $D$.
   - [ ] Save parameters to `config/camera_calibration.yaml`. Verify straight lines remain straight after `cv2.undistort()`.
 - [ ] **4-Point Coplanar ArUco Homography**:
-  - [ ] Fix Markers 0, 1, 2, 3 on the elevated arena platform ($Z = +20\text{ mm}$).
+  - [ ] Fix Markers 0, 1, 2, 3 flat on the wooden baseboard at arena corners ($Z = 0.0\text{ mm}$).
   - [ ] Run `vision/test_aruco_warp.py`. Confirm all 4 markers are detected with zero false IDs.
-  - [ ] Rectify arena image to a metric grid ($2.0\text{ px/mm} \implies 740 \times 980\text{ pixels}$).
-  - [ ] Confirm left-side collection boxes and electronics bay are 100% excluded from warped image.
+  - [ ] Rectify arena image to a metric grid ($2.0\text{ px/mm} \implies 780 \times 580\text{ pixels}$).
+  - [ ] Confirm lateral flank trays and electronics area are cleanly segregated.
   - [ ] Lock homography matrix $H$ in memory to eliminate camera boom vibration noise.
 - [ ] **HSV Color Threshold Tuning**:
-  - [ ] Run `vision/tune_hsv.py` with test cubes on the silicone mat.
+  - [ ] Run `vision/tune_hsv.py` with test cubes on the arena surface.
   - [ ] Tune upper and lower bounds for Red (two masks across $0^\circ / 180^\circ$ boundary), Green, Blue, and Yellow.
   - [ ] Save calibrated ranges to `config/colors.yaml`.
 - [ ] **Centroid Extraction & Spatial Accuracy Verification**:
@@ -161,7 +161,7 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 ## 📋 Phase 3: Single-Arm Autonomous Sorting (Standalone MVP)
 
 **Primary Focus**: Closing the perception-action loop on one arm; verifying Nearest-First queue sorting and grip confirmation; achieving an independently gradable, fully functional autonomous sorting cell.  
-**Hardware Required**: Single calibrated xArm 1s, Camera setup, Elevated arena, Collection Box 2 (SW), 8–12 colored cubes.  
+**Hardware Required**: Single calibrated xArm 1s, Camera setup, Flat arena with foam border, 2×2 Flank Tray, 8–12 colored craft cubes.  
 **Reference Document**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 
 ### Lab Action Checklist
@@ -174,12 +174,12 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Trigger pick cycle. Confirm `scheduler_node` prioritizes Cube A first.
   - [ ] Verify arm picks Cube A, deposits in box, and then picks Cube B with zero forearm collision.
 - [ ] **Software Grip Confirmation Integration**:
-  - [ ] Verify Motor 6 position feedback executes after clamping.
-  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss ($P < 220\text{ ticks}$), aborts the $205^\circ$ drop swing, and alerts scheduler.
+  - [ ] Verify Motor 1 position feedback executes after clamping.
+  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss ($P < 220\text{ ticks}$), aborts the drop swing, and alerts scheduler.
 - [ ] **Multi-Color End-to-End Sorting Run**:
   - [ ] Scatter 8 cubes (2 Red, 2 Green, 2 Blue, 2 Yellow) across the arm's reach sector.
   - [ ] Run autonomous sorting sequence without human intervention.
-  - [ ] Verify all 8 cubes are dropped cleanly into their dedicated color-coded box compartments.
+  - [ ] Verify all 8 cubes are dropped cleanly into their dedicated color-coded tray compartments.
   - [ ] Record total cycle time and individual pick-to-drop duration.
 
 > [!IMPORTANT]
@@ -193,36 +193,37 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ## 📋 Phase 4: Dual-Arm Mutex Coordination & Load Balancing (Final Scaled System)
 
-**Primary Focus**: Integrating the second arm (`arm1_node`); wiring Central Rear Wedge Bay; establishing spatial crossover mutex for the shared central zone; testing pipelined concurrency.  
-**Hardware Required**: 2× xArm 1s, Dual 7.4V/10A power hub, Jetson Orin Nano / RPi 5, 4-Tile Modular 3D-Printed Base ($560 \times 520\text{ mm}$), 2× Flank Collection Wells, 16–20 cubes.  
-**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) & [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md).
+**Primary Focus**: Integrating the second arm (`xarm_1`); mounting rear electronics; establishing spatial crossover mutex for the shared central zone; testing pipelined concurrency.  
+**Hardware Required**: 2× xArm 1s, Dual 7.4V/10A power hub, Jetson Orin Nano / RPi 5, Single Store-Cut Baseboard ($560 \times 520\text{ mm}$), 2× 3D-Printed 2×2 Flank Trays, 16–20 wooden cubes.  
+**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md), [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md), and [`docs/07_fusion360_cad_modeling_guide.md`](07_fusion360_cad_modeling_guide.md).
 
 ### Lab Action Checklist
 
 - [ ] **Dual-Arm Mechanical & Electrical Workcell Assembly**:
-  - [ ] Assemble 4-tile modular base using dovetails and under-deck M4 bolts with brass heat-set inserts.
-  - [ ] Mount Arm 1 (Left @ $X = 170\text{ mm}, Y = 360\text{ mm}$, $+35^\circ$ heading) and Arm 2 (Right @ $X = 390\text{ mm}, Y = 360\text{ mm}$, $-35^\circ$ heading).
-  - [ ] Mount Central Rear Wedge Bay: connect dual buck converters with common ground star point and route cables via under-deck conduits.
+  - [ ] Place single pre-cut wooden baseboard ($560\times 520\text{ mm}$, $18\text{ mm}$ MDF) on workstation.
+  - [ ] Mount Arm 1 (Left @ $X = 170\text{ mm}, Y = 360\text{ mm}$) and Arm 2 (Right @ $X = 390\text{ mm}, Y = 360\text{ mm}$) flat to the board with wood screws.
+  - [ ] Apply self-adhesive foam weatherstripping tape to create $400\times 300\text{ mm}$ arena perimeter.
+  - [ ] Mount rear electronics: connect dual buck converters with common ground star point and route cables neatly with surface clips.
   - [ ] Configure Linux udev rules to assign persistent symlinks: `/dev/xarm_arm1` and `/dev/xarm_arm2`.
 - [ ] **Spatial Crossover Mutex Testing in Simulation**:
-  - [ ] Inject synthetic target cubes in the central cooperative overlap zone.
+  - [ ] Inject synthetic target cubes in the central cooperative overlap zone ($X \in [220, 340\text{ mm}]$).
   - [ ] Confirm `scheduler_node` grants `acquire_zone` service to one arm while cleanly queueing the other.
   - [ ] Verify 5.0-second watchdog releases the zone if an arm fails.
 - [ ] **Zero-Contention Drop Verification**:
-  - [ ] Command Arm 1 to drop into Left Flank Box 1 (~65° outward swing) while Arm 2 simultaneously drops into Right Flank Box 2 (~65° outward swing).
+  - [ ] Command Arm 1 to drop into Left Flank Tray 1 (~70° outward swing) while Arm 2 simultaneously drops into Right Flank Tray 2 (~70° outward swing).
   - [ ] Confirm both drop trajectories execute simultaneously with zero physical collision and zero software blocking.
 - [ ] **Full Dual-Arm Continuous Sorting Benchmark**:
-  - [ ] Scatter 16–20 colored cubes across the chamfered hexagonal arena.
+  - [ ] Scatter 16–20 colored craft blocks across the rectangular arena.
   - [ ] Launch full system: `ros2 launch sorting_scheduler system.launch.py`.
   - [ ] Benchmark throughput: compare dual-arm sort time vs. single-arm baseline (target: $\ge 1.7\times$ speedup).
   - [ ] Run 3 back-to-back sorting cycles without servo thermal cutoff or communication reset.
 - [ ] **Operator Dashboard & Final Polish**:
   - [ ] Launch Web Dashboard / Foxglove Studio displaying live camera feed, arm states, and queue telemetry.
-  - [ ] Cable loom all wiring in Central Electronics Bay.
+  - [ ] Route and clip all wiring neatly.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 4 Exit Criteria (Final Project Complete)
 > 1. Both arms operate concurrently with zero physical collisions across 3 consecutive 16-cube runs.
 > 2. Spatial crossover mutex prevents contention in the shared midline zone with $100\%$ determinism.
-> 3. Simultaneous NW/SW drop motions operate with zero mechanical or software interference.
+> 3. Simultaneous Left/Right flank drop motions operate with zero mechanical or software interference.
 > 4. High-resolution multi-angle demonstration video and final engineering project report prepared.

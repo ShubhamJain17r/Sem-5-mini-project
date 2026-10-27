@@ -300,24 +300,24 @@ Each sorting transaction consists of 5 distinct kinematic phases:
 
 |    Phase    | Description                          |          Altitude $Z$           |             Radial Span $r$              |       Speed / Duration       |        Mutex Needed?        |
 | :---------: | ------------------------------------ | :-----------------------------: | :--------------------------------------: | :--------------------------: | :-------------------------: |
-| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+55\text{ mm}$)     | Retracted $\rightarrow r - 30\text{ mm}$ |    Fast ($600\text{ ms}$)    |             No              |
-| **Phase 2** | **Claw Open & Horizontal Advance**   |   Descent ($+32.5\text{ mm}$)   |     $r - 30\text{ mm} \rightarrow r$     |   Smooth ($500\text{ ms}$)   | **YES** _(if in crossover)_ |
-| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+32.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($350\text{ ms}$) | **YES** _(if in crossover)_ |
-| **Phase 4** | **Ascend & Radial Retract**          |     Lift to $+65\text{ mm}$     |     $r \rightarrow r - 50\text{ mm}$     |   Smooth ($500\text{ ms}$)   |    **RELEASE LOCK HERE**    |
-| **Phase 5** | **Drop Slew & Release**              | Drop altitude ($+45\text{ mm}$) |     Swivel to Box ($\pm 125^\circ$)      |    Fast ($800\text{ ms}$)    |       No (Flank Zone)       |
+| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+37.5\text{ mm}$)   | Retracted $\rightarrow r - 35\text{ mm}$ |    Fast ($600\text{ ms}$)    |             No              |
+| **Phase 2** | **Claw Open & Horizontal Advance**   |   Descent ($+12.5\text{ mm}$)   |     $r - 35\text{ mm} \rightarrow r$     |   Smooth ($500\text{ ms}$)   | **YES** _(if in crossover)_ |
+| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+12.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($350\text{ ms}$) | **YES** _(if in crossover)_ |
+| **Phase 4** | **Ascend & Radial Retract**          |     Lift to $+47.5\text{ mm}$   |     $r \rightarrow r - 50\text{ mm}$     |   Smooth ($500\text{ ms}$)   |    **RELEASE LOCK HERE**    |
+| **Phase 5** | **Drop Slew & Release**              | Drop altitude ($+50\text{ mm}$) |     Swivel to Flank Tray ($\pm 70^\circ$)|    Fast ($800\text{ ms}$)    |       No (Flank Zone)       |
 
 ### 4.2 Pipelined Execution Timeline
 
 ```text
 Time (s):  0.0       0.6       1.1       1.4       1.9       2.7       3.3       3.8       4.1
            │─────────│─────────│─────────│─────────│─────────│─────────│─────────│─────────│
-ARM 1:     [Phase 1: Approach] [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift] [Phase 5: Transit & Drop (NW)] [Phase 1: Next Pick]
+ARM 1:     [Phase 1: Approach] [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift] [Phase 5: Transit & Drop (Left)] [Phase 1: Next Pick]
                                └──────── MUTEX HELD (0.8s) ──────┘
-ARM 2:     [Phase 5: Dropping SW] [Phase 1: Approach] ────────────> [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift]
+ARM 2:     [Phase 5: Dropping Right] [Phase 1: Approach] ─────────> [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift]
                                                                     └──────── MUTEX HELD (0.8s) ──────┘
 ```
 
-- **Zero Waiting**: While Arm 1 is executing Phase 5 (swiveling West to drop into NW Box 1 at $Z = 0\text{ mm}$), Arm 2 is actively executing Phases 1–3 in the South arena.
+- **Zero Waiting**: While Arm 1 is executing Phase 5 (swiveling West to drop into Left Flank Tray 1 at $Z = 50\text{ mm}$), Arm 2 is actively executing Phases 1–3 in the East arena quadrant ($X > 280\text{ mm}$).
 - **Effective Throughput**: An individual cycle requires $\approx 2.75\text{ seconds}$ per arm. Pipelined in parallel, the dual-arm system achieves an effective completion rate of **one cube sorted every $1.4\text{--}1.6\text{ seconds}$** ($\approx 38\text{--}42\text{ cubes/minute}$ total system throughput).
 
 ---
@@ -736,7 +736,7 @@ class ArmNode(Node):
 
         # Phase 2: Claw Open & Horizontal Advance
         self.state = "GRASPING"
-        ik_pick = self.ik.calculate_ik(r, 32.5, phi, cube_yaw, theta)
+        ik_pick = self.ik.calculate_ik(r, 12.5, phi, cube_yaw, theta)
         # Open claw (position 150 = 55mm aperture)
         self.send_servo_packet({6: 150}, 200)
         time.sleep(0.2)

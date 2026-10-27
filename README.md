@@ -1,12 +1,14 @@
 # 🤖 Dual xArm 1s Color-Sorting Robot
 
-An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, and two **xArm 1s** articulated bus-servo manipulators. The system detects randomly scattered colored wooden cubes on an elevated continuous stadium arena, coordinates multi-arm task scheduling with zero collision contention, and sorts objects into dedicated color-coded bins.
+An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, and two **xArm 1s** articulated bus-servo manipulators. The system detects randomly scattered colored wooden craft blocks on a flat rectangular arena, coordinates multi-arm task scheduling with zero collision contention, and sorts objects into dedicated color-coded flank sorting trays.
 
 ---
 
-## 📸 System Architecture Schematic
+## 📸 System Architecture & Blueprint
 
-![Dual xArm 1s Color-Sorting Robot — Complete Physical, Optical & Kinematic Architecture](docs/design.png)
+![Zero-Carpentry Flat Workcell 3D CAD Overview](docs/workcell_flat_overview.png)
+
+![Wooden Baseboard Dimensional Technical Blueprint](docs/wood_platform_blueprint.png)
 
 ---
 
@@ -15,22 +17,22 @@ An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **Ope
 This project automates color-based object sorting using computer vision, inverse kinematics, and multi-robot coordination under real-world physical and mechanical constraints:
 
 1. **Inward-Angled V-Configuration Manipulator Mounting**:
-   - Two xArm 1s arms spaced at $220\text{ mm}$ center-to-center, angled **$\pm 35.0^\circ$ inward** toward the arena.
-   - Eliminates blind spots and creates a central shared overlap zone ($\approx 200\text{ mm} \times 160\text{ mm}$) for cooperative picking and dynamic hand-offs.
-2. **Chamfered Hexagonal / Tapered Arena (+25 mm)**:
-   - Replaces the narrow rectangular strip with a tapered geometry ($450\text{ mm}$ wide at rear tapering to $350\text{ mm}$ at front, $380\text{ mm}$ depth).
-   - Elevated platform ($+25\text{ mm}$) with a high-friction silicone mat and a $12\text{ mm}$ perimeter retaining curb to prevent cubes from rolling off.
-3. **Immediate Flank Drop Pockets (Short ~65°-75° Swing)**:
-   - Nested drop wells located immediately beside each arm's outer flank.
-   - Drastically cuts drop motion swing from $125^\circ$ to $\approx 65^\circ\text{--}75^\circ$, halving drop cycle time and eliminating servo stall at the $240^\circ$ ROM limit.
-4. **Central Rear Wedge Electronics & Under-Deck Trunking**:
-   - The triangular wedge behind the arm bases houses the NVIDIA Jetson / Raspberry Pi 5 and dual 7.4V / 10A power hub.
-   - Shortens USB and power runs to $< 18\text{ cm}$ with molded under-deck cable conduits.
-5. **Raised ArUco Perimeter Pads (Hybrid Pocket Method)**:
-   - 4 fiducial pads molded directly into the elevated curb vertices with $0.8\text{ mm}$ recessed pockets.
-   - Matte vinyl stickers press-fit into pockets eliminate specular glare while providing CAD-ground-truth coordinates.
-6. **4-Tile Modular 3D-Printable Base**:
-   - Sized for standard consumer 3D printers ($\le 250\text{ mm} \times 250\text{ mm}$ bed size), joined with precision dovetails, M4 under-deck clamping, and brass heat-set inserts.
+   - Two xArm 1s arms spaced at $220.0\text{ mm}$ center-to-center, angled **$\pm 35.0^\circ$ inward** toward the arena.
+   - Eliminates blind spots and creates a central shared overlap zone ($X \in [220, 340\text{ mm}]$) for cooperative picking and dynamic hand-offs.
+2. **Zero-Carpentry Flat Baseboard ($560.0\text{ mm} \times 520.0\text{ mm} \times 18.0\text{ mm}$)**:
+   - Single store-cut MDF or shelving board with zero woodworking cuts required.
+   - High mass ($\approx 4\text{ kg}$) prevents table slipping, eliminates joint flex, and absorbs servo vibrations.
+3. **Flat Rectangular Arena ($Z = 0.0\text{ mm}$, $400\times 300\text{ mm}$)**:
+   - Sits directly flat on the baseboard at $Z = 0.0\text{ mm}$, eliminating 3D-printing massive puzzle tiles or jigsawing deck risers.
+   - Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) forms a compliant retaining perimeter that retains $25\text{ mm}$ cubes without jamming the claw.
+4. **Immediate Flank 2×2 Sorting Trays (Short ~70° Swing)**:
+   - Dedicated 3D-printed 2×2 quadrant sorting trays ($80\times 80\times 35\text{ mm}$) located on the immediate lateral flanks of each arm at $(50, 360)$ and $(510, 360)$.
+   - Drastically cuts drop motion swing from $125^\circ$ to $\approx 70.0^\circ$, halving drop cycle time and eliminating servo stall at the $240^\circ$ ROM limit.
+5. **Table-Coplanar ArUco Markers ($Z = 0.0\text{ mm}$)**:
+   - 4 matte vinyl ArUco stickers applied directly flat to the wooden board at the four corners of the arena.
+   - Because markers are strictly coplanar with the arena floor and cube bases, planar homography produces zero elevation perspective distortion.
+6. **Minimal 3D Printing (< 85 g Total Filament)**:
+   - Only two small $2\times 2$ quadrant sorting trays are 3D-printed; overhead camera uses a standard clamp-on desktop boom arm ($H \approx 700\text{ mm}$).
 
 ---
 
@@ -41,33 +43,34 @@ This project automates color-based object sorting using computer vision, inverse
 │                                                                                        │
 │                              ◄─── REAR OF WORKSPACE ───►                               │
 │                                                                                        │
-│                           [Overhead Camera Boom Mast Anchor]                           │
+│                           [Clamp-On Overhead Camera Boom Arm]                          │
 │                     ┌────────────────────────────────────────────┐                     │
-│                     │         CENTRAL ELECTRONICS WEDGE          │                     │
+│                     │        CENTRAL REAR ELECTRONICS AREA       │                     │
 │                     │      (Jetson Orin / RPi 5 + Buck Hub)      │                     │
 │                     └─────────────┬────────────────┬─────────────┘                     │
 │                                   │                │                                   │
 │   ┌─────────────────┐             ▼                ▼             ┌─────────────────┐   │
-│   │  Box 1 Nest     │          xArm 1            xArm 2          │  Box 2 Nest     │   │
-│   │  (Left Flank)   │       (Angled +35°)     (Angled -35°)      │  (Right Flank)  │   │
+│   │  Tray 1 (2x2)   │          xArm 1            xArm 2          │  Tray 2 (2x2)   │   │
+│   │  (Left Flank)   │      (X=170, Y=360)    (X=390, Y=360)      │  (Right Flank)  │   │
 │   └─────────────────┘      \                      /              └─────────────────┘   │
 │       ◤ ArUco #0            \                    /                     ArUco #1 ◥      │
-│                              \    CHAMFERED     /                                      │
-│                               │   HEXAGONAL    │                                       │
-│                               │     ARENA      │ (Elevated +25 mm)                     │
-│                               │   (Overlap)    │                                       │
+│       (85, 345)              \   RECTANGULAR    /                      (475, 345)      │
+│                               │  PICKING ARENA │                                       │
+│                               │  (400 x 300)   │ (Flat Z = 0.0 mm)                     │
+│                               │  (Foam Border) │                                       │
 │                               /                \                                       │
 │                              /                  \                                      │
 │       ◣ ArUco #2 ───────────┴────────────────────┴─────────── ArUco #3 ◢               │
+│       (85, 55)                                                         (475, 55)       │
 │                                                                                        │
 │                             ◄─── FRONT OF WORKSPACE ───►                               │
 │                                          ▲                                             │
 │                                 (Operator Position)                                    │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
-  Base Topology:   4-Tile modular 3D-printed interlocking base (<= 250x250 mm tiles)
-  Vision Focus:    100% of camera pixels warped onto the chamfered picking arena
-  Drop Travel:     Quick ~65°-75° outward swing to lateral nested collection wells
+  Base Topology:   Single store-cut flat wooden board (560 x 520 x 18 mm MDF)
+  Vision Focus:    100% of camera pixels warped onto the 400x300 mm picking arena
+  Drop Travel:     Quick ~70° outward swing to lateral 2x2 sorting trays (r = 120 mm)
 ```
 
 ---
@@ -79,15 +82,15 @@ This project automates color-based object sorting using computer vision, inverse
 | **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 5 shoulder axis @ $65\text{ mm}$) in V-Configuration ($\pm 35^\circ$)  |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
-| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, Central Rear Wedge Bay)                |
-| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on rear boom stand @ $65\text{--}75\text{ cm}$                       |
-| **Modular Base**    | 4-tile interlocking 3D-printed base ($560\text{ mm} \times 520\text{ mm}$, fits $\le 250\text{ mm}$ print beds) |
-| **Picking Arena**   | Elevated tapered hexagonal deck ($+25\text{ mm}$) with $12\text{ mm}$ curb & matte silicone mat ($\mu \approx 0.8$) |
-| **Collection Bins** | 2× dedicated flank drop pockets (Box 1 West @ $-70^\circ$, Box 2 East @ $+70^\circ$, $Z = 0\text{ mm}$)         |
-| **Electronics Bay** | Central Rear Wedge ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$), short runs ($< 18\text{ cm}$)   |
-| **Fiducials**       | 4× raised ArUco pads molded into curb with $0.8\text{ mm}$ recessed pockets for matte stickers                  |
-| **Objects**         | $25\text{ mm}$ wooden cubes spray-painted in 4 high-contrast matte colors                                       |
-| **Power Supply**    | Dedicated 7.4V / 5A power supply per arm with common ground                                                     |
+| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics area)                 |
+| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on clamp-on desktop scissor boom @ $65\text{--}70\text{ cm}$ nadir   |
+| **Baseboard**       | Single store-cut MDF board ($560\text{ mm} \times 520\text{ mm} \times 18\text{ mm}$, zero woodworking cuts)   |
+| **Picking Arena**   | Flat rectangular surface ($Z = 0.0\text{ mm}$, $400\times 300\text{ mm}$) with $8\text{--}10\text{ mm}$ foam tape border|
+| **Collection Bins** | 2× 3D-printed 2×2 sorting trays ($80\times 80\times 35\text{ mm}$) on flanks at $(50, 360)$ and $(510, 360)$   |
+| **Electronics Area**| Rear section of board ($Y \approx 440\text{ mm}$), short runs ($< 18\text{ cm}$) with surface wire clips         |
+| **Fiducials**       | 4× matte vinyl ArUco stickers (`DICT_4X4_50`) coplanar with arena floor at $Z = 0.0\text{ mm}$                  |
+| **Objects**         | 1-inch ($25.4\text{ mm}$) wooden craft cubes ($14\text{--}16\text{ g}$) in ultra-matte Red, Green, Blue, Yellow  |
+| **Power Supply**    | Dual independent 7.4V / 5A buck regulators with common star ground                                              |
 | **Communication**   | Direct USB HID / USB-UART serial buses (`/dev/ttyUSB0`, `/dev/ttyUSB1`) @ 115200 / 9600 baud                     |
 
 > [!NOTE]
@@ -179,6 +182,7 @@ Sem-5-mini-project/
 │       └── xarm_zero_calibration.ino
 │
 ├── config/                         # Configuration YAMLs
+│   ├── camera_calibration.yaml     # Overhead camera intrinsics & ArUco corner coordinates
 │   ├── dual_xarm_hardware.yaml     # Immutable link lengths, mounting origins, joint limits & 4 color compartments
 │   └── servo_calibration.yaml      # Measured zero-point deviation trims per joint
 │
@@ -191,12 +195,15 @@ Sem-5-mini-project/
 │   ├── 04_ros2_architecture_and_scheduling.md # Stepping Stone 4: ROS 2 & Mutex Scheduling
 │   ├── 05_hardware_bringup_and_firmware_control.md # Stepping Stone 5: Low-Level Protocols & Bringup
 │   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
-│   ├── 07_fusion360_cad_modeling_guide.md # Stepping Stone 7: Fusion 360 & Wood/3D Fabrication
+│   ├── 07_fusion360_cad_modeling_guide.md # Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication
 │   ├── design.png                  # High-resolution architectural schematic
 │   ├── implementation_plan.md      # System architecture & integration blueprint
 │   ├── pcb module.webp             # Controller board pinout diagram
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
 │   ├── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
+│   ├── tray_3d_print_cad.png       # 3D printable 2x2 sorting tray CAD render
+│   ├── wood_platform_blueprint.png # Single flat-board fabrication blueprint (560x520 mm)
+│   ├── workcell_flat_overview.png  # Overhead 3D render of flat workcell layout
 │   └── xArm demensions.png         # Physical robot dimension schematic
 │
 ├── ros2_ws/                        # ROS 2 Humble Workspace
@@ -338,7 +345,12 @@ ros2 run sorting_arm polar_teleop_node
 - [x] Stepping Stone 0: Docker & ROS 2 Development Environment (`docs/00_docker_and_ros2_development_guide.md`)
 - [x] Stepping Stone 1: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
 - [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
+- [x] Stepping Stone 3: Computer Vision & Calibration (`docs/03_computer_vision_and_calibration.md`)
+- [x] Stepping Stone 4: ROS 2 Architecture & Mutex Scheduling (`docs/04_ros2_architecture_and_scheduling.md`)
 - [x] Stepping Stone 5: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
+- [x] Stepping Stone 6: Testing, Diagnostics & Reach Verification (`docs/06_system_testing_diagnostics_and_verification.md`)
+- [x] Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication (`docs/07_fusion360_cad_modeling_guide.md`)
+- [x] Zero-Carpentry Flat Board + 2x2 Flank Tray Architecture (`docs/workcell_flat_overview.png`, `docs/wood_platform_blueprint.png`, `docs/tray_3d_print_cad.png`)
 - [x] Technical Schematic Design (`docs/design.png` & `docs/pcb module.webp`)
 - [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
 - [x] Phase 0: Arduino Hardware Bringup, Calibration & Reach Testing (`arduino/`)
@@ -350,3 +362,4 @@ ros2 run sorting_arm polar_teleop_node
 - [ ] Dual Arm Pipelined Integration _(Weeks 7–8)_
 - [ ] Live Web Dashboard & Robustness Polish _(Weeks 9–10)_
 - [ ] Final Presentation & Demo Video _(Week 11)_
+

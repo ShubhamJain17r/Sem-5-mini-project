@@ -89,15 +89,15 @@ An overhead USB camera mounted on a rear boom stand at 65–75 cm captures the p
 
 ## Kinematics & Elevation Optimization
 
-1. **Shoulder Height Leverage**: The arm's Motor 2 (shoulder pitch axis) is already **$65\text{ mm}$** off the ground.
-2. **Elevated Arena ($+20\text{ mm}$)**: Raising the picking arena floor by $20\text{ mm}$ places the cube center at $Z \approx 32.5\text{ mm}$. The vertical drop from Motor 2 is only $\approx 35\text{ mm}$ instead of $52.5\text{ mm}$. The arm reaches horizontally in its maximum mechanical torque band without scraping the table.
-3. **Radial Boundary ($R_{\max} = 320\text{ mm} \iff d_{\text{edge}} = 25\text{ cm}$)**: Bounding the maximum reach at $25\text{ cm}$ from the baseplate edge ($32\text{ cm}$ from center) backs off $2.4\text{ cm}$ before mechanical lockup ($27.4\text{ cm}$), maintaining a healthy $\approx 122^\circ$ elbow angle to prevent motor stalling.
-4. **Coplanar Marker Alignment**: Mounting all 4 ArUco markers directly on the raised arena ($Z = +20\text{ mm}$) guarantees zero perspective tilt error during homography calculation.
-5. **$240^\circ$ Base Servo ROM Optimization**: Placing Box 1 in the North-West ($\approx +125^\circ$) and Box 2 in the South-West ($\approx -125^\circ$) keeps total base yaw swing to $\approx 205^\circ \le 240^\circ$, avoiding the $180^\circ$ physical deadzone directly behind the arm.
+1. **Shoulder Height Leverage**: The arm's Motor 2 (shoulder pitch axis) is **$65.0\text{ mm}$** above the baseboard surface.
+2. **Flat Baseboard Arena ($Z = 0.0\text{ mm}$)**: The picking arena floor sits flat on the wooden baseboard, placing the cube center at **$Z \approx 12.5\text{ mm}$**. The vertical drop from Motor 2 is $\approx 52.5\text{ mm}$. The arm approaches horizontally or at shallow pitch in its strong mechanical torque band.
+3. **Radial Boundary ($R_{\max} = 320\text{ mm} \iff d_{\text{edge}} = 25\text{ cm}$)**: Bounding the maximum reach at $25\text{ cm}$ from the baseplate edge ($32\text{ cm}$ from center) backs off $2.4\text{ cm}$ before mechanical lockup ($34.4\text{ cm}$), maintaining a healthy $\approx 122^\circ$ elbow angle to prevent motor stalling.
+4. **Strict Coplanar Marker Alignment**: Mounting all 4 ArUco markers flat on the baseboard ($Z = 0.0\text{ mm}$) guarantees zero elevation perspective distortion during planar homography calculation.
+5. **Immediate Flank Drop Swings ($\approx 70.0^\circ$)**: Placing 2×2 grid sorting trays on the lateral flanks of each arm (Left Tray at $(50, 360)$ for Arm 1, Right Tray at $(510, 360)$ for Arm 2) slashes base yaw travel from the old $125^\circ$ swing to only $\approx 70^\circ$, doubling throughput and reducing motor wear.
 6. **Full Analytical Inverse Kinematics (IK) & Grasp Planning**: See the dedicated mathematical and mechanical architecture document [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for closed-form joint angle equations ($\theta_1\text{--}\theta_5$), dual-regime roll control, torque models, and 5-phase trajectory waypoint generation.
 7. **Nearest-First Pick Policy (Corridor Collision Avoidance)**: To prevent horizontal claw approaches from plowing through foreground cubes, the queue is strictly sorted by ascending radial distance $r$. See [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 8. **Empirical Z-Sag Compensation**: To counteract mechanical gear backlash and linkage flex at extreme reach ($r > 180\text{ mm}$), commanded elevation incorporates a linear sag offset $Z_{\text{cmd}} = Z_{\text{target}} + k_{\text{sag}} \cdot (r - 180)$.
-9. **Software Grip Confirmation via Motor 1 (Claw / $\theta_6$) Readback**: Post-clamping position readback ($< 220\text{ ticks} = \text{miss}$, $380\text{--}520\text{ ticks} = \text{cube grasped}$) prevents empty $205^\circ$ drop swings.
+9. **Software Grip Confirmation via Motor 1 (Claw / $\theta_6$) Readback**: Post-clamping position readback ($< 220\text{ ticks} = \text{miss}$, $380\text{--}520\text{ ticks} = \text{cube grasped}$) prevents empty drop swings.
 
 > [!NOTE]
 > **Kinematic Joint Indices vs. Physical Hardware Motor IDs**:
@@ -111,13 +111,13 @@ An overhead USB camera mounted on a rear boom stand at 65–75 cm captures the p
 **Technology**: Pure OpenCV — no machine learning, no training.
 
 ```text
-Frame from camera (Overhead @ 65–75 cm above arena)
+Frame from camera (Overhead @ 65–70 cm above arena, nadir @ X=280, Y=200)
   → Intrinsic Lens Undistortion: cv2.undistort() with camera matrix K and distortion vector D
-  → Detect 4 ArUco markers framing the elevated arena:
-      - ArUco #0: Front-Center (X = 360 mm, Y = 55 mm, collinear with arms)
-      - ArUco #1: Front-Right  (X = 730 mm, Y = 55 mm)
-      - ArUco #2: Back-Center  (X = 360 mm, Y = 545 mm, collinear with arms)
-      - ArUco #3: Back-Right   (X = 730 mm, Y = 545 mm)
+  → Detect 4 ArUco markers framing the flat arena (Z = 0.0 mm):
+      - ArUco #0: Rear-Left   (X = 85.0 mm, Y = 345.0 mm)
+      - ArUco #1: Rear-Right  (X = 475.0 mm, Y = 345.0 mm)
+      - ArUco #2: Front-Left  (X = 85.0 mm, Y = 55.0 mm)
+      - ArUco #3: Front-Right (X = 475.0 mm, Y = 55.0 mm)
   → Compute & freeze perspective transform → rectified top-down view (dedicated arena mm plane)
   → Convert rectified image to HSV
   → Threshold for 4 colors (Red, Green, Blue, Yellow) → binary masks
@@ -126,8 +126,8 @@ Frame from camera (Overhead @ 65–75 cm above arena)
   → Map to arena mm: (X_arena, Y_arena)
   → Convert to Arm Polar Frame relative to respective arm base:
       ΔX = X_arena - X_base,  ΔY = Y_arena - Y_base
-      r = sqrt(ΔX² + ΔY²),    θ = atan2(ΔY, ΔX)
-  → Boundary check: Verify 120 mm ≤ r ≤ 320 mm (5 cm ≤ d_edge ≤ 25 cm) within right-flank arc
+      r = sqrt(ΔX² + ΔY²),    θ = atan2(ΔY, ΔX) - θ_heading
+  → Boundary check: Verify 130 mm ≤ r ≤ 320 mm within arm operating sector
   → Nearest-First Sort: Order queue by ascending r
   → Output: [{color, x_mm, y_mm, r_mm, theta_deg, target_arm}, ...]
 ```
@@ -180,14 +180,14 @@ _(Full closed-form equations and empirical calibration detailed in [`docs/02_kin
 3. set_roll(0°)                  → lock wrist roll level with table
 4. move_standoff(r - 30mm, z)    → position gripper backed off radially along approach vector
 5. open_gripper(55mm)            → fully open 2-finger claw
-6. advance_radially(r, pick_z)   → slide forward onto raised arena surface (Z ≈ 32.5 mm)
+6. advance_radially(r, pick_z)   → slide forward onto flat arena surface (Z ≈ 12.5 mm)
 7. close_gripper()               → grip cube (mechanical self-centering against friction mat)
 8. check_grip()                  → read servo position feedback; retry if failed
 9. ascend_and_retract()          → lift slightly and retract radially
 10. retract_to_compact()         → tuck arm into compact travel pose
-11. rotate_to_drop_box()         → swing 205° CCW (Arm 1 → Box 1 NW) or CW (Arm 2 → Box 2 SW)
+11. rotate_to_drop_box()         → swing ~70° (Arm 1 → Left Flank Tray 1 @ X=50, Arm 2 → Right Flank Tray 2 @ X=510)
 12. extend_to_bin(bin_x, bin_y)  → position over target color cell
-13. descend(bin_z)               → lower into cell
+13. descend(bin_z)               → lower into cell (Z ≈ 50 mm)
 14. open_gripper()               → release cube
 15. ascend()                     → clear box rim
 16. return_home()                → ready pose
@@ -197,42 +197,43 @@ _(Full closed-form equations and empirical calibration detailed in [`docs/02_kin
 
 ## Scheduler: Mutex & Pipelined Execution
 
-- **`arena_mutex`**: Only one arm picks in the right-side arena at any moment.
-- **Independent Drop Zones**: Arm 1 and Arm 2 drop into separate NW/SW boxes on their respective flanks, completely eliminating drop collisions (**no `box_mutex` required**).
+- **`arena_mutex`**: Only one arm enters the central cooperative crossover zone ($X \in [220, 340\text{ mm}]$) at any moment. Outer quadrant picks ($X < 220\text{ mm}$ for Arm 1, $X > 340\text{ mm}$ for Arm 2) execute fully concurrently with zero mutex blocking.
+- **Independent Flank Drop Trays**: Arm 1 and Arm 2 drop into separate 2×2 grid sorting trays on their respective lateral flanks (Left Flank $(50, 360)$ and Right Flank $(510, 360)$), completely eliminating drop collisions (**no `box_mutex` required**).
 
 **Pipeline Sequence**:
 
 ```text
-xArm 2 (Front) picks in arena (holds arena_mutex)
-  → xArm 2 finishes pick, releases arena_mutex → starts 205° CW swing to Box 2 (SW)
-  → simultaneously, xArm 1 (Back) acquires arena_mutex → picks in arena
-  → simultaneously, xArm 2 drops in private Box 2 (no waiting!)
-  → xArm 1 finishes pick, releases arena_mutex → starts 205° CCW swing to Box 1 (NW)
-  → xArm 2 re-acquires arena_mutex for next pick
+xArm 2 (Right) picks in arena (holds crossover mutex if crossing X=340 mm)
+  → xArm 2 finishes pick, releases mutex → starts ~70° outward swing to Tray 2 (Right Flank)
+  → simultaneously, xArm 1 (Left) acquires mutex → picks in crossover zone
+  → simultaneously, xArm 2 drops in private Tray 2 (no waiting!)
+  → xArm 1 finishes pick, releases mutex → starts ~70° outward swing to Tray 1 (Left Flank)
+  → xArm 2 re-acquires mutex for next pick
 ```
 
 ---
 
-## Collection Box Coordinates (`config/bin_coordinates.yaml`)
+## Collection Box Coordinates (`config/dual_xarm_hardware.yaml`)
 
-Two separate 2×2 boxes located on the left flank of each arm at $Z = 0\text{ mm}$:
+Two separate 3D-printed 2×2 sorting trays ($80\times 80\times 35\text{ mm}$) located on the lateral flanks of each arm:
 
 ```text
-     Box 1 (North-West: Arm 1)             Box 2 (South-West: Arm 2)
-┌───────────┬───────────┐             ┌───────────┬───────────┐
-│ Red (R)   │ Green (G) │             │ Red (R)   │ Green (G) │
-├───────────┼───────────┤             ├───────────┼───────────┤
-│ Blue (B)  │ Yellow (Y)│             │ Blue (B)  │ Yellow (Y)│
-└───────────┴───────────┘             └───────────┴───────────┘
+     Tray 1 (Left Flank: Arm 1 @ 170, 360)       Tray 2 (Right Flank: Arm 2 @ 390, 360)
+         Center @ (X=50, Y=360)                      Center @ (X=510, Y=360)
+      ┌───────────┬───────────┐                   ┌───────────┬───────────┐
+ +Y   │ Red (R)   │ Green (G) │              +Y   │ Red (R)   │ Green (G) │
+  ▲   ├───────────┼───────────┤               ▲   ├───────────┼───────────┤
+  │   │ Blue (B)  │ Yellow (Y)│               │   │ Blue (B)  │ Yellow (Y)│
+      └───────────┴───────────┘                   └───────────┴───────────┘
 ```
 
-| Box / Cell         |         World Coordinates $(X, Y, Z)$         | Target Color | Drop Method           |
+| Tray / Compartment |         World Coordinates $(X, Y, Z)$         | Target Color | Drop Method           |
 | ------------------ | :-------------------------------------------: | :----------: | --------------------- |
-| **Box 1 — Cell 1** | $(85\text{ mm}, 530\text{ mm}, 0\text{ mm})$  |     Red      | Top-down gravity drop |
-| **Box 1 — Cell 2** | $(145\text{ mm}, 530\text{ mm}, 0\text{ mm})$ |    Green     | Top-down gravity drop |
-| **Box 1 — Cell 3** | $(85\text{ mm}, 470\text{ mm}, 0\text{ mm})$  |     Blue     | Top-down gravity drop |
-| **Box 1 — Cell 4** | $(145\text{ mm}, 470\text{ mm}, 0\text{ mm})$ |    Yellow    | Top-down gravity drop |
-| **Box 2 — Cell 1** | $(85\text{ mm}, 130\text{ mm}, 0\text{ mm})$  |     Red      | Top-down gravity drop |
-| **Box 2 — Cell 2** | $(145\text{ mm}, 130\text{ mm}, 0\text{ mm})$ |    Green     | Top-down gravity drop |
-| **Box 2 — Cell 3** |  $(85\text{ mm}, 70\text{ mm}, 0\text{ mm})$  |     Blue     | Top-down gravity drop |
-| **Box 2 — Cell 4** | $(145\text{ mm}, 70\text{ mm}, 0\text{ mm})$  |    Yellow    | Top-down gravity drop |
+| **Tray 1 — Red**   | $(30.0\text{ mm}, 380.0\text{ mm}, 35.0\text{ mm})$ |     Red      | Top-down gravity drop |
+| **Tray 1 — Green** | $(70.0\text{ mm}, 380.0\text{ mm}, 35.0\text{ mm})$ |    Green     | Top-down gravity drop |
+| **Tray 1 — Blue**  | $(30.0\text{ mm}, 340.0\text{ mm}, 35.0\text{ mm})$ |     Blue     | Top-down gravity drop |
+| **Tray 1 — Yellow**| $(70.0\text{ mm}, 340.0\text{ mm}, 35.0\text{ mm})$ |    Yellow    | Top-down gravity drop |
+| **Tray 2 — Red**   | $(490.0\text{ mm}, 380.0\text{ mm}, 35.0\text{ mm})$|     Red      | Top-down gravity drop |
+| **Tray 2 — Green** | $(530.0\text{ mm}, 380.0\text{ mm}, 35.0\text{ mm})$|    Green     | Top-down gravity drop |
+| **Tray 2 — Blue**  | $(490.0\text{ mm}, 340.0\text{ mm}, 35.0\text{ mm})$|     Blue     | Top-down gravity drop |
+| **Tray 2 — Yellow**| $(530.0\text{ mm}, 340.0\text{ mm}, 35.0\text{ mm})$|    Yellow    | Top-down gravity drop |
