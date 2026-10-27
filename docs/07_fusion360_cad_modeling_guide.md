@@ -11,7 +11,14 @@ All coordinates, reach envelopes, and optical configurations remain 100% mathema
 
 ---
 
-## 1. Visual Architecture Schematic
+## 1. Visual Architecture Overview
+
+### 1.1 Complete Workcell 3D CAD Prototype
+Below is the realistic 3D CAD render of the ultra-simplified robotic workcell:
+
+![Complete 3D CAD Render of Simplified Workcell](workcell_flat_overview.png)
+
+### 1.2 Layout Schematic
 
 ```text
   Y (Depth: 520 mm)
@@ -65,7 +72,11 @@ All coordinates, reach envelopes, and optical configurations remain 100% mathema
 
 ---
 
-## 2. Key Design Decisions & Why This Works
+## 2. Key Design Decisions & Wooden Platform Blueprint
+
+Below is the technical dimensional blueprint for the single flat wooden baseboard ($560.0\text{ mm} \times 520.0\text{ mm} \times 18.0\text{ mm}$), showing pencil layout lines, arm positions, arena boundaries, and drop tray locations:
+
+![Wooden Baseboard Dimensional Technical Blueprint](wood_platform_blueprint.png)
 
 | Component | Design Implementation | Engineering Rationale |
 | :--- | :--- | :--- |
@@ -84,6 +95,8 @@ All coordinates, reach envelopes, and optical configurations remain 100% mathema
 ## 3. Minimal 3D Printing: Only the 2× Color Trays
 
 In this ultra-simplified design, your 3D printer only needs to print **two small $2\times 2$ sorting trays**:
+
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](tray_3d_print_cad.png)
 
 ```text
              TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
