@@ -54,16 +54,16 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [x] Connect Arduino `Pin 0 (RX)` to xArm `TX`, and `Pin 1 (TX)` to xArm `RX`.
   - [x] Open Serial Monitor at `115200 baud`. Observe arm moving to nominal midpoint ($500\text{ ticks}$).
   - [x] Align joints collinearly / upright (Motor 6 Base, Motor 5 Shoulder, Motor 4 Elbow, Motor 3 Wrist Pitch, Motor 2 Wrist Roll, Motor 1 Claw).
-  - [x] Trim deviations using `+`, `-`, `>`, `<` keys. Type `p` and export deviation array to `config/servo_calibration.yaml` (xarm_1: M1: 1, M2: 3, M3: -3, M4: -13, M5: 0, M6: 0).
+  - [x] Trim deviations using `+`, `-`, `>`, `<` keys or xArm PC Calibration App. Export deviation array to `config/servo_calibration.yaml` (xarm_1: M1: 1, M2: -2, M3: -3, M4: -5, M5: -2, M6: -5 | xarm_2: M1: -2, M2: -4, M3: 2, M4: 3, M5: -3, M6: 2).
 - [x] **Breadboard-Free Interactive Teleoperation & Reach Test (`xarm_direct_test.ino`)**:
   - [x] Flash `arduino/xarm_direct_test/xarm_direct_test.ino` (9600 baud `Serial1` to xArm, 115200 baud USB `Serial`).
   - [x] Motor mapping verified: Motor 1 (Claw), Motor 2 (Roll), Motor 3 (Wrist Pitch), Motor 4 (Elbow), Motor 5 (Shoulder), Motor 6 (Base).
   - [x] Multi-step Pick-and-Place reach test (`action` and `loop` commands) successfully validated across 120° base yaw swing.
-- [ ] **Claw Grip Characterization (Software Grasp Discrimination)**:
-  - [ ] Type `GRIP` in Serial Monitor.
-  - [ ] Measure position ticks with claw empty (fully closed): record baseline ticks ($P_{\text{empty}} \approx 150\text{--}180$).
-  - [ ] Place a test object (pen, marker, or $25\text{ mm}$ object) between fingers; re-run grip test: record clamped ticks ($P_{\text{clamped}} \approx 420\text{--}480$).
-  - [ ] Confirm a clear separation gap ($> 200\text{ ticks}$) exists between empty and clamped states.
+- [x] **Claw Grip Characterization (Software Grasp Discrimination)**:
+  - [x] Measure position ticks across physical claw travel:
+    - xArm 1: Open ($60\text{ mm}$) @ $228\text{ ticks}$, Half-Open ($40\text{ mm}$) @ $501\text{ ticks}$, $25\text{ mm}$ Cube Grasp @ $610\text{ ticks}$, Closed Empty ($0\text{ mm}$) @ $791\text{ ticks}$.
+    - xArm 2: Open ($60\text{ mm}$) @ $234\text{ ticks}$, Half-Open ($40\text{ mm}$) @ $498\text{ ticks}$, $25\text{ mm}$ Cube Grasp @ $602\text{ ticks}$, Closed Empty ($0\text{ mm}$) @ $776\text{ ticks}$.
+  - [x] Confirm clear discrimination separation gap ($> 170\text{ ticks}$) between $25\text{ mm}$ cube grasp and empty closed state.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 0 Exit Criteria (Prerequisites to Enter Phase 1)

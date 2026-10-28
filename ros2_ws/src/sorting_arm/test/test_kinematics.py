@@ -50,21 +50,45 @@ def test_fk_ik_roundtrip():
 
 
 def test_protocol_calibration_and_limits():
-    # Tested with arm_1 calibrated deviations: M1: 1, M2: 3, M3: -3, M4: -13, M5: 0, M6: 0
-    devs = {1: 1, 2: 3, 3: -3, 4: -13, 5: 0, 6: 0}
-    driver = XArmDriver(port="/dev/null", deviations=devs)
+    # Tested with arm_1 empirical deviations: M1: 1, M2: -2, M3: -3, M4: -5, M5: -2, M6: -5
+    devs1 = {1: 1, 2: -2, 3: -3, 4: -5, 5: -2, 6: -5}
+    driver1 = XArmDriver(port="/dev/null", deviations=devs1)
 
-    # Motor 4 deviation: tick 500 should become 500 - 13 = 487
-    assert driver.apply_deviations_and_limits(4, 500) == 487
+    # Motor 4 deviation: tick 500 should become 500 - 5 = 495
+    assert driver1.apply_deviations_and_limits(4, 500) == 495
 
     # Motor 3 deviation: tick 500 should become 500 - 3 = 497
-    assert driver.apply_deviations_and_limits(3, 500) == 497
+    assert driver1.apply_deviations_and_limits(3, 500) == 497
 
-    # Limit clamping: tick 900 on Motor 6 should be clamped to 850
-    assert driver.apply_deviations_and_limits(6, 900) == 850
+    # Motor 1 deviation: tick 500 should become 500 + 1 = 501
+    assert driver1.apply_deviations_and_limits(1, 500) == 501
 
-    # Limit clamping: tick 50 on Motor 1 should be clamped to 150
-    assert driver.apply_deviations_and_limits(1, 50) == 150
+    # Tested with arm_2 empirical deviations: M1: -2, M2: -4, M3: 2, M4: 3, M5: -3, M6: 2
+    devs2 = {1: -2, 2: -4, 3: 2, 4: 3, 5: -3, 6: 2}
+    driver2 = XArmDriver(port="/dev/null", deviations=devs2)
+
+    # Motor 4 deviation: tick 500 should become 500 + 3 = 503
+    assert driver2.apply_deviations_and_limits(4, 500) == 503
+
+    # Motor 3 deviation: tick 500 should become 500 + 2 = 502
+    assert driver2.apply_deviations_and_limits(3, 500) == 502
+
+    # Limit clamping: tick 950 on Motor 6 should be clamped to default 850
+    assert driver1.apply_deviations_and_limits(6, 950) == 850
+
+    # Limit clamping with custom limits: min 220, max 880
+    custom_limits_min = {1: 220, 2: 200, 3: 110, 4: 135, 5: 120, 6: 100}
+    custom_limits_max = {1: 800, 2: 800, 3: 865, 4: 870, 5: 870, 6: 880}
+    driver_custom = XArmDriver(
+        port="/dev/null",
+        deviations=devs1,
+        min_ticks=custom_limits_min,
+        max_ticks=custom_limits_max,
+    )
+    # Motor 1 tick 200 should clamp to 220
+    assert driver_custom.apply_deviations_and_limits(1, 200) == 220
+    # Motor 6 tick 950 should clamp to 880
+    assert driver_custom.apply_deviations_and_limits(6, 950) == 880
 
 
 def test_load_kinematic_parameters():
@@ -75,12 +99,14 @@ def test_load_kinematic_parameters():
     assert params1.L2 == 95.0
     assert params1.L3_grip == 150.0
     assert params1.L3_tip == 168.0
-    assert params1.min_safe_ticks[1] == 150
-    assert params1.max_safe_ticks[6] == 850
+    assert params1.min_safe_ticks[1] == 220
+    assert params1.max_safe_ticks[6] == 880
 
     params2 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_2")
     assert params2.L1 == 101.0
     assert params2.L2 == 95.0
+    assert params2.min_safe_ticks[1] == 225
+    assert params2.max_safe_ticks[6] == 890
 
 
 def test_get_compartment_target():

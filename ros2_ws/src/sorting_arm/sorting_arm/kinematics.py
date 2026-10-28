@@ -191,7 +191,7 @@ def solve_ik(
     theta: float,
     z: float,
     phi: Optional[float] = None,
-    claw_tick: int = 700,
+    claw_tick: int = 500,
     roll_tick: int = 500,
     auto_pitch_fallback: bool = True,
     params: Optional[KinematicParameters] = None,
@@ -205,7 +205,7 @@ def solve_ik(
     :param z: Gripper height above table floor (mm)
     :param phi: Gripper pitch angle (degrees relative to table, 0 = level horizontal).
                 If None, automatically selected via compute_natural_pitch(r, z).
-    :param claw_tick: Desired claw position tick (150 closed, 750 open)
+    :param claw_tick: Desired claw position tick (~230 open, ~605 grip 25mm cube, ~780 closed)
     :param roll_tick: Desired wrist roll tick (500 = level)
     :param auto_pitch_fallback: If True and requested phi violates Motor 3 limits,
                                  attempts natural pitch as fallback.

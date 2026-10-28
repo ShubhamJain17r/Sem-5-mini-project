@@ -57,8 +57,8 @@ class PickAndPlaceCommander(Node):
 
         # Grip / Claw calibration ticks
         m1_cfg = motors_cfg.get("motor_1", {})
-        self.claw_open_tick = int(m1_cfg.get("claw_span_mm", {}).get("fully_open", {}).get("tick", 700))
-        self.claw_grip_tick = int(m1_cfg.get("claw_span_mm", {}).get("grip_cube_25mm", {}).get("tick", 250))
+        self.claw_open_tick = int(m1_cfg.get("claw_span_mm", {}).get("fully_open", {}).get("tick", 230))
+        self.claw_grip_tick = int(m1_cfg.get("claw_span_mm", {}).get("grip_cube_25mm", {}).get("tick", 605))
 
         # Drop box nominal yaw tick
         self.drop_yaw_tick = int(box_cfg.get("base_yaw_drop_tick", 208 if self.arm_id == "xarm_1" else 792))

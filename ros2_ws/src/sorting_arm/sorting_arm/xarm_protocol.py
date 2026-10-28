@@ -33,7 +33,7 @@ DEFAULT_MAX_TICKS = {1: 800, 2: 800, 3: 850, 4: 850, 5: 850, 6: 850}
 
 # Standard Safe Home Pose (M1=Claw, M2=Roll, M3=WPitch, M4=Elbow, M5=Shoulder, M6=Base)
 POSE_HOME_TICKS = {
-    1: 700,  # Claw open
+    1: 230,  # Claw open (~60mm span)
     2: 500,  # Roll center
     3: 500,  # Wrist Pitch center
     4: 280,  # Elbow tucked
