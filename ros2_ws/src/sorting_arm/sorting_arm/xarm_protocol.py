@@ -80,6 +80,35 @@ def find_xarm_device() -> Tuple[Optional[str], str]:
     return None, "unknown"
 
 
+def find_all_xarm_devices() -> List[Tuple[str, str]]:
+    """
+    Find all connected xArm 1S devices across USB HID and Serial UART interfaces.
+
+    :return: List of tuples (device_path, interface_type).
+    """
+    found = []
+    # 1. Probe for native USB HID xArm (Vendor ID 0483, Product ID 5750)
+    for uevent in sorted(glob.glob("/sys/class/hidraw/hidraw*/device/uevent")):
+        try:
+            with open(uevent, "r") as f:
+                content = f.read()
+                if "00000483:00005750" in content or "Hiwonder xArm" in content:
+                    dev_name = os.path.basename(os.path.dirname(os.path.dirname(uevent)))
+                    dev_path = f"/dev/{dev_name}"
+                    if os.path.exists(dev_path):
+                        found.append((dev_path, "hidraw"))
+        except Exception:
+            pass
+
+    # 2. Probe for standard Serial UART converters (FTDI, CH340, CP2102)
+    for pattern in ["/dev/ttyUSB*", "/dev/ttyACM*", "/dev/xarm_*"]:
+        for match in sorted(glob.glob(pattern)):
+            if match not in [p for p, _ in found]:
+                found.append((match, "serial"))
+
+    return found
+
+
 class XArmDriver:
     """Hardware communication driver for Hiwonder xArm 1S."""
 
