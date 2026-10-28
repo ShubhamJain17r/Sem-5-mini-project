@@ -214,7 +214,8 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         if pick_z is None:
             pick_z = self.cube_pick_z
 
-        effective_pick_z = pick_z + z_sag_mm
+        # Clamp pick height so arm never dips below ground level (table surface Z=0)
+        effective_pick_z = max(10.0, pick_z + z_sag_mm)
         standoff_r = max(130.0, pick_r - 35.0)
         hover_z = effective_pick_z + 25.0
         lift_z = effective_pick_z + 35.0
@@ -225,13 +226,13 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         print(f"  Target: R={pick_r:.1f} mm | θ={pick_theta:.1f}° | Z={effective_pick_z:.1f} mm (sag: {z_sag_mm:+.1f}mm)")
         print("=" * 65)
 
-        # Phase 0: Home Pose
-        print("[Phase 0] Moving to Safe Home Pose...")
-        home_ticks = {1: self.claw_open_tick, 2: 500, 3: 500, 4: 280, 5: 720, 6: 500}
+        # Phase 0: Upright Physical Reset Pose
+        print("[Phase 0] Moving to Upright Physical Reset Pose (all servos @ 500 ticks)...")
+        home_ticks = {1: 500, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
         self.send_pose_ticks(home_ticks, move_time_ms=1500)
 
-        # Phase 1: Azimuth Slew & Radial Standoff Hover (r - 35mm, hover_z)
-        print(f"[Phase 1] Radial Standoff Hover @ (R={standoff_r:.1f}mm, Z={hover_z:.1f}mm)...")
+        # Phase 1: Azimuth Slew & Radial Standoff Hover (r - 35mm, hover_z, claw open)
+        print(f"[Phase 1] Opening Claw & Standoff Hover @ (R={standoff_r:.1f}mm, Z={hover_z:.1f}mm)...")
         if not self.send_ik_target(standoff_r, pick_theta, hover_z, self.claw_open_tick, move_time_ms=1400):
             return False
 
@@ -256,7 +257,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         target_info = get_compartment_target(color, arm_id=self.arm_id, config_path=self.hardware_yaml)
         drop_yaw = target_info.get("drop_yaw_tick", self.drop_yaw_tick) if target_info else self.drop_yaw_tick
 
-        # High clearance drop pose over flank tray (from YAML preset or calculated tuck)
+        # High clearance drop pose over flank tray (safe elevation Z ≈ 56mm above tray rim Z=35mm)
         preset_ticks = target_info.get("drop_pose_preset") if target_info else None
         if preset_ticks and len(preset_ticks) == 6:
             drop_pose = {
@@ -271,9 +272,9 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             drop_pose = {
                 1: self.claw_grip_tick,
                 2: 500,
-                3: 790,
-                4: 415,
-                5: 835,
+                3: 830,
+                4: 160,
+                5: 470,
                 6: drop_yaw,
             }
         self.send_pose_ticks(drop_pose, move_time_ms=1800)

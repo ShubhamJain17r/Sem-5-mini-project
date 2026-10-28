@@ -178,7 +178,7 @@ manipulators:
         max_tick: 870
         nominal_center_tick: 495
         direction_multiplier: 1
-        zero_reference_angle_deg: 90.0  # 495 = 90 deg interior right-angle with upper arm
+        zero_reference_angle_deg: 180.0 # 495 = 180 deg straight collinear extension with upper arm
         motion_description: "0° (folded forward) at 143 ticks; 180° (folded backward) at 864 ticks; increasing ticks folds backward"
         test_500_to_450_direction: "Folds forearm forward toward upper arm"
 
@@ -189,7 +189,7 @@ manipulators:
         max_tick: 870
         nominal_center_tick: 498
         direction_multiplier: 1        # Note: Inverted in URDF pitch, positive in servo ticks
-        zero_reference_angle_deg: 45.0  # Theoretical: 498 = 45° forward above horizontal
+        zero_reference_angle_deg: 90.0  # 498 = 90° upright vertical relative to table
         motion_description: "0° (forward horizontal) at 865 ticks; 180° (backward horizontal) at 125 ticks; decreasing ticks tilts upright/backward"
         test_500_to_450_direction: "Tilts upper arm BACKWARD/upright toward table surface"
 
@@ -207,16 +207,16 @@ manipulators:
     # Predefined Multi-State Poses (Theoretical Ticks: [M1, M2, M3, M4, M5, M6])
     poses:
       home_tucked:
-        ticks: [228, 498, 497, 280, 720, 495]
-        description: "Compact low-inertia transit pose; claw open, elbow tucked high"
+        ticks: [500, 500, 500, 500, 500, 500]
+        description: "Straight upright vertical reset pose; all servos at center (nominal 500 ticks)"
         transit_time_ms: 1500
       ready_standoff:
-        ticks: [228, 498, 466, 324, 750, 495]
-        description: "Hovering 70mm above left arena picking zone awaiting mutex"
+        ticks: [228, 500, 746, 155, 529, 495]
+        description: "Hovering safely above left arena picking zone awaiting mutex (Zw ≈ 165mm)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [610, 498, 790, 415, 835, 208]
-        description: "Lowered over Left Flank 2x2 tray ready to release object"
+        ticks: [610, 500, 830, 160, 470, 208]
+        description: "Hovering safely over Left Flank 2x2 tray (Z ≈ 56mm) ready to release object"
         transit_time_ms: 1800
 
 
@@ -348,7 +348,7 @@ manipulators:
         max_tick: 865
         nominal_center_tick: 503
         direction_multiplier: -1       # Inverted horn orientation relative to xArm 1
-        zero_reference_angle_deg: 90.0
+        zero_reference_angle_deg: 180.0
         motion_description: "0° (folded forward) at 856 ticks; 180° (folded backward) at 126 ticks; decreasing ticks folds backward (inverted horn)"
         test_500_to_450_direction: "Folds forearm backward toward 180°"
 
@@ -359,7 +359,7 @@ manipulators:
         max_tick: 865
         nominal_center_tick: 497
         direction_multiplier: 1
-        zero_reference_angle_deg: 45.0
+        zero_reference_angle_deg: 90.0
         motion_description: "0° (forward horizontal) at 858 ticks; 180° (backward horizontal) at 141 ticks; decreasing ticks tilts upright/backward"
         test_500_to_450_direction: "Tilts upper arm BACKWARD/upright toward 180°"
 
@@ -377,14 +377,14 @@ manipulators:
     # Predefined Multi-State Poses (Theoretical Ticks: [M1, M2, M3, M4, M5, M6])
     poses:
       home_tucked:
-        ticks: [234, 496, 502, 720, 720, 502]
-        description: "Compact low-inertia transit pose; claw open, elbow tucked high (inverted M4: 720)"
+        ticks: [500, 500, 500, 500, 500, 500]
+        description: "Straight upright vertical reset pose; all servos at center (nominal 500 ticks)"
         transit_time_ms: 1500
       ready_standoff:
-        ticks: [234, 496, 534, 676, 750, 502]
-        description: "Hovering 70mm above right arena picking zone awaiting mutex (inverted M3/M4)"
+        ticks: [234, 500, 254, 845, 529, 502]
+        description: "Hovering safely above right arena picking zone awaiting mutex (Zw ≈ 165mm, inverted M3/M4)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [602, 496, 210, 585, 835, 792]
-        description: "Lowered over Right Flank 2x2 tray ready to release object (inverted M3/M4)"
+        ticks: [602, 500, 170, 840, 470, 792]
+        description: "Hovering safely over Right Flank 2x2 tray (Z ≈ 56mm) ready to release object (inverted M3/M4)"
         transit_time_ms: 1800
