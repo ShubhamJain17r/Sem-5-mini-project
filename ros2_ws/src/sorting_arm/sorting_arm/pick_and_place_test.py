@@ -21,10 +21,23 @@ import sys
 import time
 from typing import Dict, Optional
 
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import JointState
+# Ensure package root is in sys.path for direct execution
+script_dir = os.path.dirname(os.path.abspath(__file__))
+pkg_dir = os.path.abspath(os.path.join(script_dir, ".."))
+if pkg_dir not in sys.path:
+    sys.path.insert(0, pkg_dir)
+
 import yaml
+
+# Optional ROS 2 import
+try:
+    import rclpy
+    from rclpy.node import Node
+    from sensor_msgs.msg import JointState
+    HAS_ROS2 = True
+except ImportError:
+    HAS_ROS2 = False
+    Node = object
 
 from sorting_arm.kinematics import (
     DEFAULT_PARAMS,
@@ -33,21 +46,28 @@ from sorting_arm.kinematics import (
     load_kinematic_parameters,
     solve_ik,
 )
+from sorting_arm.xarm_protocol import XArmDriver
 
 
-class PickAndPlaceCommander(Node):
-    """ROS 2 Node commanding 5-phase pick-and-place trajectories via analytical IK."""
+class PickAndPlaceCommander(Node if HAS_ROS2 else object):
+    """Commands 5-phase pick-and-place trajectories via analytical IK in Direct or ROS 2 mode."""
 
-    def __init__(self, arm_id: str = "xarm_1", config_dir: str = "config"):
-        super().__init__("pick_and_place_calibrator")
+    def __init__(
+        self,
+        arm_id: str = "xarm_1",
+        config_dir: str = "config",
+        direct_mode: bool = True,
+        port: str = "auto",
+    ):
         self.arm_id = arm_id
         self.config_dir = config_dir
+        self.direct_mode = direct_mode
+        self.port = port
+        self.driver = None
 
         self.hardware_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
+        self.calib_yaml = os.path.join(config_dir, "servo_calibration.yaml")
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
-
-        # Publisher to driver_node
-        self.cmd_pub = self.create_publisher(JointState, "joint_commands", 10)
 
         # Load hardware specs
         self.hw_config = self._load_yaml(self.hardware_yaml)
@@ -67,11 +87,37 @@ class PickAndPlaceCommander(Node):
         arena_cfg = self.hw_config.get("workspace", {}).get("picking_arena", {})
         self.cube_pick_z = float(arena_cfg.get("cube_center_z_mm", 12.5))
 
-        self.get_logger().info(
+        # Load deviations for direct driver
+        self.deviations = self._load_deviations(self.calib_yaml, self.arm_id)
+
+        if not self.direct_mode and HAS_ROS2:
+            super().__init__("pick_and_place_calibrator")
+            self.cmd_pub = self.create_publisher(JointState, "joint_commands", 10)
+            self.log("Operating in ROS 2 Topic Mode (publishing to 'joint_commands')")
+        else:
+            self.direct_mode = True
+            self.log(f"Operating in Direct Hardware USB Mode (port: {self.port})")
+            self.driver = XArmDriver(
+                port=self.port,
+                deviations=self.deviations,
+                min_ticks=self.params.min_safe_ticks,
+                max_ticks=self.params.max_safe_ticks,
+            )
+            connected = self.driver.connect()
+            if connected:
+                self.log(f"Successfully connected to xArm on {self.driver.port} ({self.driver.interface_type})")
+            else:
+                self.log("[WARN] No physical xArm found on USB; running in offline simulation mode.")
+
+        self.log(
             f"Initialized Pick-and-Place Calibrator for {self.arm_id}\n"
             f"  Claw Open Tick: {self.claw_open_tick} | Grip Tick: {self.claw_grip_tick}\n"
             f"  Drop Yaw Tick: {self.drop_yaw_tick} | Cube Pick Z: {self.cube_pick_z} mm"
         )
+
+    def log(self, text: str):
+        """Unified logging output."""
+        print(f"[{self.arm_id.upper()}] {text}")
 
     def _load_yaml(self, path: str) -> dict:
         candidates = [
@@ -88,15 +134,46 @@ class PickAndPlaceCommander(Node):
                     pass
         return {}
 
+    def _load_deviations(self, path: str, arm_name: str) -> Dict[int, int]:
+        candidates = [
+            path,
+            os.path.join(self.config_dir, "servo_calibration.yaml"),
+            os.path.join(os.getcwd(), "config/servo_calibration.yaml"),
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                try:
+                    with open(c, "r") as f:
+                        data = yaml.safe_load(f) or {}
+                        devs = data.get(arm_name, {}).get("servo_deviations", {})
+                        return {
+                            1: int(devs.get("motor_1_claw", 0)),
+                            2: int(devs.get("motor_2_wrist_roll", 0)),
+                            3: int(devs.get("motor_3_wrist_pitch", 0)),
+                            4: int(devs.get("motor_4_elbow", 0)),
+                            5: int(devs.get("motor_5_shoulder", 0)),
+                            6: int(devs.get("motor_6_base_yaw", 0)),
+                        }
+                except Exception:
+                    pass
+        return {i: 0 for i in range(1, 7)}
+
     def send_pose_ticks(self, ticks: Dict[int, int], move_time_ms: int = 1200):
-        """Publish joint ticks via ROS 2 JointState message."""
-        msg = JointState()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        # Publish tick values directly (values > 2*pi are treated as ticks by driver_node)
-        msg.name = [f"motor_{i}" for i in range(1, 7)]
-        msg.position = [float(ticks.get(i, 500)) for i in range(1, 7)]
-        self.cmd_pub.publish(msg)
-        time.sleep((move_time_ms + 150) / 1000.0)
+        """Dispatch joint ticks to physical hardware or publish via ROS 2."""
+        if self.direct_mode:
+            if self.driver and self.driver.is_connected:
+                self.driver.send_multi_servo_move(ticks, time_ms=move_time_ms)
+            else:
+                tick_str = ", ".join(f"M{k}:{v}" for k, v in sorted(ticks.items()))
+                print(f"    -> [SIM] Pose Ticks: {tick_str} (time: {move_time_ms}ms)")
+            time.sleep((move_time_ms + 150) / 1000.0)
+        else:
+            msg = JointState()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.name = [f"motor_{i}" for i in range(1, 7)]
+            msg.position = [float(ticks.get(i, 500)) for i in range(1, 7)]
+            self.cmd_pub.publish(msg)
+            time.sleep((move_time_ms + 150) / 1000.0)
 
     def send_ik_target(
         self,
@@ -119,7 +196,7 @@ class PickAndPlaceCommander(Node):
             params=self.params,
         )
         if not sol.success:
-            self.get_logger().error(f"IK Failed for (r={r:.1f}, θ={theta:.1f}, z={z:.1f}): {sol.message}")
+            self.log(f"IK Failed for (r={r:.1f}, θ={theta:.1f}, z={z:.1f}): {sol.message}")
             return False
 
         self.send_pose_ticks(sol.ticks, move_time_ms=move_time_ms)
@@ -214,9 +291,16 @@ class PickAndPlaceCommander(Node):
         print("\n>>> Pick-and-Place Cycle Finished Successfully! <<<\n")
         return True
 
+    def close(self):
+        """Clean teardown."""
+        if self.direct_mode and self.driver:
+            self.driver.emergency_stop()
+            self.driver.disconnect()
+        elif HAS_ROS2 and not self.direct_mode:
+            self.destroy_node()
+
 
 def main():
-    rclpy.init()
     parser = argparse.ArgumentParser(description="xArm 1S Kinematic Pick-and-Place Test")
     parser.add_argument("--r", type=float, default=220.0, help="Pick radius (140-300mm, default: 220mm)")
     parser.add_argument("--theta", type=float, default=0.0, help="Pick azimuth (-45 to +45 deg, default: 0)")
@@ -224,13 +308,26 @@ def main():
     parser.add_argument("--color", default="red", choices=["red", "green", "blue", "yellow"], help="Target drop box color")
     parser.add_argument("--sag", type=float, default=0.0, help="Empirical Z-sag compensation in mm (e.g. +3.0 to lift)")
     parser.add_argument("--arm", default="xarm_1", help="Arm instance (xarm_1 or xarm_2)")
+    parser.add_argument("--port", default="auto", help="USB device port or 'auto'")
+    parser.add_argument("--ros", action="store_true", help="Force ROS 2 topic publishing mode")
+    parser.add_argument("--direct", action="store_true", help="Force direct USB hardware mode (default)")
     args = parser.parse_args()
 
-    node = PickAndPlaceCommander(arm_id=args.arm)
+    use_ros = args.ros and HAS_ROS2
+    if args.ros and not HAS_ROS2:
+        print("[WARN] --ros requested but 'rclpy' is not installed. Falling back to direct USB mode.")
+
+    if use_ros:
+        rclpy.init()
+
+    node = PickAndPlaceCommander(
+        arm_id=args.arm,
+        direct_mode=not use_ros,
+        port=args.port,
+    )
 
     try:
-        # Give ROS 2 subscription time to discover driver node
-        time.sleep(0.5)
+        time.sleep(0.3)
         node.run_5_phase_pick_and_place(
             pick_r=args.r,
             pick_theta=args.theta,
@@ -241,8 +338,9 @@ def main():
     except KeyboardInterrupt:
         print("\n[ABORT] User interrupted pick-and-place.")
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        node.close()
+        if use_ros:
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -145,7 +145,7 @@ class XArmDriver:
             return True
         except PermissionError:
             try:
-                os.system(f"sudo chmod 666 {self.port} 2>/dev/null")
+                os.system(f"sudo -n chmod 666 {self.port} 2>/dev/null")
                 self.hid_fd = os.open(self.port, os.O_RDWR | os.O_NONBLOCK)
                 self.is_connected = True
                 logger.info(f"Auto-granted permissions and connected to xArm on {self.port}.")
