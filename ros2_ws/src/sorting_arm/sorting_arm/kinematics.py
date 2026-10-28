@@ -170,9 +170,14 @@ def compute_natural_pitch(r: float, z: float) -> float:
         return 0.0
 
     if r < 260.0:
-        # Scale factor from 0.0 (r=260) to 1.0 (r=150)
-        factor = clip((260.0 - r) / (260.0 - 150.0), 0.0, 1.0)
-        pitch = -35.0 * factor
+        if r >= 150.0:
+            # Scale factor from 0.0 (r=260) to 1.0 (r=150)
+            factor = (260.0 - r) / 110.0
+            pitch = -35.0 * factor
+        else:
+            # Below 150mm: smoothly incline from -35° down to -60° as R approaches 100mm
+            factor = clip((150.0 - r) / 50.0, 0.0, 1.0)
+            pitch = -35.0 - 25.0 * factor
 
         # Lower Z elevation requires slightly more downward tilt to prevent wrist jamming
         if z < 60.0:
@@ -181,7 +186,7 @@ def compute_natural_pitch(r: float, z: float) -> float:
         elif z > 120.0:
             pitch *= max(0.0, (180.0 - z) / 60.0)
 
-        return clip(pitch, -45.0, 0.0)
+        return clip(pitch, -65.0, 0.0)
 
     return 0.0
 
