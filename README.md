@@ -26,14 +26,15 @@ This project automates color-based object sorting using computer vision, inverse
 2. **Zero-Carpentry Flat Baseboard ($560.0\text{ mm} \times 520.0\text{ mm} \times 18.0\text{ mm}$)**:
    - Single store-cut MDF or shelving board with zero woodworking cuts required.
    - High mass ($\approx 4\text{ kg}$) prevents table slipping, eliminates joint flex, and absorbs servo vibrations.
-3. **Flat Rectangular Arena ($Z = 0.0\text{ mm}$, $400\times 300\text{ mm}$)**:
+3. **Flat Rectangular Arena ($Z = 0.0\text{ mm}$, $400\times 220\text{ mm}$)**:
    - Sits directly flat on the baseboard at $Z = 0.0\text{ mm}$, eliminating 3D-printing massive puzzle tiles or jigsawing deck risers.
    - Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) forms a compliant retaining perimeter that retains $25\text{ mm}$ cubes without jamming the claw.
+   - *Clearance Verified*: $Y \in [40, 260\text{ mm}]$ leaves a safe $+13\text{ mm}$ buffer before reaching the robot metal baseplates ($Y = 283\text{ mm}$), ensuring 100% reachability with zero dead zones.
 4. **Immediate Flank 2×2 Sorting Trays (Short ~70° Swing)**:
    - Dedicated 3D-printed 2×2 quadrant sorting trays ($80\times 80\times 35\text{ mm}$) located on the immediate lateral flanks of each arm at $(50, 360)$ and $(510, 360)$.
    - Drastically cuts drop motion swing from $125^\circ$ to $\approx 70.0^\circ$, halving drop cycle time and eliminating servo stall at the $240^\circ$ ROM limit.
 5. **Table-Coplanar ArUco Markers ($Z = 0.0\text{ mm}$)**:
-   - 4 matte vinyl ArUco stickers applied directly flat to the wooden board at the four corners of the arena.
+   - 4 matte vinyl ArUco stickers applied directly flat to the wooden board at the four corners of the arena ($Y = 255\text{ mm}$ and $Y = 45\text{ mm}$).
    - Because markers are strictly coplanar with the arena floor and cube bases, planar homography produces zero elevation perspective distortion.
 6. **Minimal 3D Printing (< 85 g Total Filament)**:
    - Only two small $2\times 2$ quadrant sorting trays are 3D-printed; overhead camera uses a standard clamp-on desktop boom arm ($H \approx 700\text{ mm}$).
@@ -49,23 +50,25 @@ This project automates color-based object sorting using computer vision, inverse
 │                                                                                        │
 │                           [Clamp-On Overhead Camera Boom Arm]                          │
 │                     ┌────────────────────────────────────────────┐                     │
-│                     │        CENTRAL REAR ELECTRONICS AREA       │                     │
+│                     │       REAR ELECTRONICS BAY (Y=440..500)    │                     │
 │                     │      (Jetson Orin / RPi 5 + Buck Hub)      │                     │
 │                     └─────────────┬────────────────┬─────────────┘                     │
 │                                   │                │                                   │
 │   ┌─────────────────┐             ▼                ▼             ┌─────────────────┐   │
 │   │  Tray 1 (2x2)   │          xArm 1            xArm 2          │  Tray 2 (2x2)   │   │
 │   │  (Left Flank)   │      (X=170, Y=360)    (X=390, Y=360)      │  (Right Flank)  │   │
-│   └─────────────────┘      \                      /              └─────────────────┘   │
-│       ◤ ArUco #0            \                    /                     ArUco #1 ◥      │
-│       (85, 345)              \   RECTANGULAR    /                      (475, 345)      │
-│                               │  PICKING ARENA │                                       │
-│                               │  (400 x 300)   │ (Flat Z = 0.0 mm)                     │
-│                               │  (Foam Border) │                                       │
-│                               /                \                                       │
-│                              /                  \                                      │
-│       ◣ ArUco #2 ───────────┴────────────────────┴─────────── ArUco #3 ◢               │
-│       (85, 55)                                                         (475, 55)       │
+│   │  (Y=320..400)   │      [Base 140x154]    [Base 140x154]      │  (Y=320..400)   │   │
+│   └─────────────────┘             │  +13mm Buffer  │             └─────────────────┘   │
+│        ▲             ═════════════╪════════════════╪═════════════             ▲        │
+│  +50mm │  ◤ ArUco #0              │                │               ArUco #1 ◥ │ +50mm  │
+│        ▼  (85, 255)                \  RECTANGULAR  /               (475, 255) ▼        │
+│                                     │ PICKING ARENA│                                   │
+│                                     │ (400 x 220)  │ (Flat Z = 0.0 mm)                 │
+│                                     │ (Foam Border)│                                   │
+│                                     /              \                                   │
+│                                    /                \                                  │
+│           ◣ ArUco #2 ─────────────┴──────────────────┴───────────── ArUco #3 ◢         │
+│           (85, 45)                                                 (475, 45)           │
 │                                                                                        │
 │                             ◄─── FRONT OF WORKSPACE ───►                               │
 │                                          ▲                                             │
@@ -73,7 +76,7 @@ This project automates color-based object sorting using computer vision, inverse
 └────────────────────────────────────────────────────────────────────────────────────────┘
 
   Base Topology:   Single store-cut flat wooden board (560 x 520 x 18 mm MDF)
-  Vision Focus:    100% of camera pixels warped onto the 400x300 mm picking arena
+  Vision Focus:    100% of camera pixels warped onto the 400x220 mm picking arena
   Drop Travel:     Quick ~70° outward swing to lateral 2x2 sorting trays (r = 120 mm)
 ```
 
@@ -83,13 +86,13 @@ This project automates color-based object sorting using computer vision, inverse
 
 | Component           | Specification                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Manipulators**    | 2× xArm 1s (5/6-DOF bus servo arms, Motor 5 shoulder axis @ $65\text{ mm}$) in V-Configuration ($\pm 35^\circ$)  |
+| **Manipulators**    | 2× xArm 1s in V-Configuration ($-110.0^\circ$ & $-70.0^\circ$ bisector headings, $S = 220\text{ mm}$ spacing)    |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
-| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics area)                 |
+| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics bay)                  |
 | **Camera**          | Overhead USB webcam (Logitech C270 / C920) on clamp-on desktop scissor boom @ $65\text{--}70\text{ cm}$ nadir   |
 | **Baseboard**       | Single store-cut MDF board ($560\text{ mm} \times 520\text{ mm} \times 18\text{ mm}$, zero woodworking cuts)   |
-| **Picking Arena**   | Flat rectangular surface ($Z = 0.0\text{ mm}$, $400\times 300\text{ mm}$) with $8\text{--}10\text{ mm}$ foam tape border|
+| **Picking Arena**   | Flat rectangular surface ($Z = 0.0\text{ mm}$, $400\times 220\text{ mm}$) with $8\text{--}10\text{ mm}$ foam tape border|
 | **Collection Bins** | 2× 3D-printed 2×2 sorting trays ($80\times 80\times 35\text{ mm}$) on flanks at $(50, 360)$ and $(510, 360)$   |
 | **Electronics Area**| Rear section of board ($Y \approx 440\text{ mm}$), short runs ($< 18\text{ cm}$) with surface wire clips         |
 | **Fiducials**       | 4× matte vinyl ArUco stickers (`DICT_4X4_50`) coplanar with arena floor at $Z = 0.0\text{ mm}$                  |

@@ -73,7 +73,7 @@ aruco_reference_markers:
   dictionary: "DICT_4X4_50"
   marker_size_mm: 40.0
   markers:
-    marker_0: {id: 0, role: "rear_left",  world_x: 85.0,  world_y: 345.0, world_z: 0.0}
-    marker_1: {id: 1, role: "rear_right", world_x: 475.0, world_y: 345.0, world_z: 0.0}
-    marker_2: {id: 2, role: "front_left", world_x: 85.0,  world_y: 55.0,  world_z: 0.0}
-    marker_3: {id: 3, role: "front_right",world_x: 475.0, world_y: 55.0,  world_z: 0.0}
+    marker_0: {id: 0, role: "rear_left",  world_x: 85.0,  world_y: 255.0, world_z: 0.0}
+    marker_1: {id: 1, role: "rear_right", world_x: 475.0, world_y: 255.0, world_z: 0.0}
+    marker_2: {id: 2, role: "front_left", world_x: 85.0,  world_y: 45.0,  world_z: 0.0}
+    marker_3: {id: 3, role: "front_right",world_x: 475.0, world_y: 45.0,  world_z: 0.0}

@@ -200,32 +200,26 @@ bool success                      # True if lock successfully cleared
 
 ### 3.1 Spatial Geometry & Coordinate Frames
 
-The chamfered arena workspace measures $400\text{ mm} \times 380\text{ mm}$ with world coordinates $X \in [80, 480\text{ mm}]$ and $Y \in [40, 420\text{ mm}]$.
+The flat rectangular arena workspace measures $400\text{ mm} \times 220\text{ mm}$ with world coordinates $X \in [80, 480\text{ mm}]$ and $Y \in [40, 260\text{ mm}]$.
 
-- **Arm 1 (Left Arm)**: Base center located at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, heading $+35.0^\circ$ inward.
-- **Arm 2 (Right Arm)**: Base center located at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, heading $-35.0^\circ$ inward.
+- **Arm 1 (Left Arm)**: Base center located at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, nominal heading $-110.0^\circ$ inward.
+- **Arm 2 (Right Arm)**: Base center located at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, nominal heading $-70.0^\circ$ inward.
 - **Midline Boundary**: $X_{\text{mid}} = 280.0\text{ mm}$ (axis of symmetry between both arms, $S = 220\text{ mm}$ apart).
 
 ```text
   Y (mm)
-   545 ┌─────────────────────────────────────────────────────────────┐
-       │ [ArUco #2] (360, 545)               [ArUco #3] (730, 545)   │
+   260 ┌─────────────────────────────────────────────────────────────┐
+       │ [ArUco #0] (85, 255)                [ArUco #1] (475, 255)   │
        │                                                             │
-       │  ═════════════════════════════════════════════════════════  │
-       │  ZONE 1: ARM 1 EXCLUSIVE TURF (Y = 350 to 545 mm)           │
-       │  (Arm 1 Picks Freely with Zero Collision Risk)              │
-   350 ├ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ┤
-       │  SHARED CROSSOVER BAND (Y = 250 to 350 mm)                  │
-   300 │  ────── Midline Boundary (Y = 300 mm) ───────────────────── │
-       │  (Requires arena_mutex Lock Before Entering)                │
-   250 ├ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ┤
-       │  ZONE 2: ARM 2 EXCLUSIVE TURF (Y = 55 to 250 mm)            │
-       │  (Arm 2 Picks Freely with Zero Collision Risk)              │
-       │  ═════════════════════════════════════════════════════════  │
-       │                                                             │
-    55 │ [ArUco #0] (360, 55)                [ArUco #1] (730, 55)    │
-       └─────────────────────────────────────────────────────────────┘
-       360                                                         730 ───> X (mm)
+       │  ZONE 1: ARM 1       │      SHARED       │   ZONE 2: ARM 2  │
+       │  EXCLUSIVE TURF      │  CROSSOVER BAND   │  EXCLUSIVE TURF  │
+       │   (X < 240 mm)       │ (X = 240..320 mm) │   (X > 320 mm)   │
+       │  Picks Freely with   │   Requires Mutex  │ Picks Freely with│
+       │ Zero Collision Risk  │  Lock Before Pick │Zero Collision Risk│
+       │                      │                   │                  │
+    40 │ [ArUco #2] (85, 45)  │  X_mid = 280 mm   │ [ArUco #3] (475, 45)│
+       └──────────────────────┴───────────────────┴──────────────────┘
+       80                    240                 320                480 ───> X (mm)
 ```
 
 ### 3.2 Dynamic Load Balancing with Hysteresis
@@ -236,32 +230,32 @@ Let:
 
 - $Q_1$ = Number of queued tasks assigned to Arm 1.
 - $Q_2$ = Number of queued tasks assigned to Arm 2.
-- $Y_c$ = Measured $Y$ coordinate of the target cube.
+- $X_c$ = Measured $X$ coordinate of the target cube.
 
 #### Assignment Rules
 
 1. **Strict Exclusive Zones**:
-   $$\text{If } Y_c > 350.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: False)}$$
-   $$\text{If } Y_c < 250.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: False)}$$
+   $$\text{If } X_c < 240.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: False)}$$
+   $$\text{If } X_c > 320.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: False)}$$
 
-2. **Crossover Zone ($250.0\text{ mm} \le Y_c \le 350.0\text{ mm}$)**:
+2. **Crossover Zone ($240.0\text{ mm} \le X_c \le 320.0\text{ mm}$)**:
    - Both arms can physically reach this band.
    - If $|Q_1 - Q_2| < 2$ (balanced workload):
-     $$\text{If } Y_c \ge 300.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: True)}$$
-     $$\text{If } Y_c < 300.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: True)}$$
+     $$\text{If } X_c \le 280.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: True)}$$
+     $$\text{If } X_c > 280.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: True)}$$
    - If $Q_1 - Q_2 \ge 2$ (Arm 1 is overloaded):
-     - Arm 2 "steals" cubes up to $Y_c \le 340.0\text{ mm}$ to rebalance throughput.
+     - Arm 2 "steals" cubes down to $X_c \ge 250.0\text{ mm}$ to rebalance throughput.
    - If $Q_2 - Q_1 \ge 2$ (Arm 2 is overloaded):
-     - Arm 1 "steals" cubes down to $Y_c \ge 260.0\text{ mm}$ to rebalance throughput.
+     - Arm 1 "steals" cubes up to $X_c \le 310.0\text{ mm}$ to rebalance throughput.
 
 3. **Kinematic Reach Validation**:
    Before assignment, the scheduler confirms the target satisfies:
-   $$R_i = \sqrt{(X_c - X_i)^2 + (Y_c - Y_i)^2} \in [120.0, 320.0\text{ mm}]$$
+   $$R_i = \sqrt{(X_c - X_i)^2 + (Y_c - Y_i)^2} \in [110.0, 320.0\text{ mm}]$$
    If a cube in the crossover zone exceeds $R_{\max} = 320.0\text{ mm}$ for one arm, it is assigned exclusively to the other arm regardless of queue lengths.
 
 ### 3.3 The Spatial Mutex State Machine
 
-The central crossover band ($Y \in [250, 350\text{ mm}]$) allows only **one manipulator inside its physical envelope at any given millisecond**. This is enforced via an atomic state machine inside `scheduler_node`:
+The central crossover band ($X \in [240, 320\text{ mm}]$) allows only **one manipulator inside its physical envelope at any given millisecond**. This is enforced via an atomic state machine inside `scheduler_node`:
 
 ```mermaid
 stateDiagram-v2
@@ -284,8 +278,8 @@ stateDiagram-v2
 
 #### Mutex Safety Invariants
 
-1. **No Grasping Without Lock**: An arm assigned a task with `requires_mutex = True` will move only as far as its **Radial Standoff Waypoint** ($r_{\text{target}} - 30\text{ mm}$). It **MUST** receive `success = True` from `AcquireZone.srv` before advancing its gripper across the $Y = 250\text{--}350\text{ mm}$ boundary.
-2. **Immediate Release on Lift**: As soon as the arm executes **Phase 4 (Ascend & Retract)** and reaches radial clearance outside the crossover band ($r < 170\text{ mm}$ or $Y_{\text{claw}}$ exits $[250, 350\text{ mm}]$), it immediately calls `ReleaseZone.srv`. The mutex is **NEVER held during transit to or release into the drop boxes**.
+1. **No Grasping Without Lock**: An arm assigned a task with `requires_mutex = True` will move only as far as its **Radial Standoff Waypoint** ($r_{\text{target}} - 30\text{ mm}$). It **MUST** receive `success = True` from `AcquireZone.srv` before advancing its gripper across the $X = 240\text{--}320\text{ mm}$ boundary.
+2. **Immediate Release on Lift**: As soon as the arm executes **Phase 4 (Ascend & Retract)** and reaches radial clearance outside the crossover band ($r < 170\text{ mm}$ or $X_{\text{claw}}$ exits $[240, 320\text{ mm}]$), it immediately calls `ReleaseZone.srv`. The mutex is **NEVER held during transit to or release into the drop boxes**.
 3. **5.0-Second Watchdog Timer**: If an arm acquires the lock but fails to release it within $5.0\text{ seconds}$ (due to servo stall or serial dropout), the scheduler forcibly revokes the lock, issues a software abort to that arm, and clears the zone to prevent deadlock.
 
 ---
@@ -350,10 +344,10 @@ class SchedulerNode(Node):
         self.arm1_base = (170.0, 360.0)  # Left Arm (+35° Inward)
         self.arm2_base = (390.0, 360.0)  # Right Arm (-35° Inward)
 
-        # Territorial Boundaries
-        self.y_midline = 300.0
-        self.crossover_y_min = 250.0
-        self.crossover_y_max = 350.0
+        # Territorial Boundaries (X-Midline Split)
+        self.x_midline = 280.0
+        self.crossover_x_min = 240.0
+        self.crossover_x_max = 320.0
 
         # Reach constraints
         self.r_min = 120.0  # mm
@@ -488,12 +482,12 @@ class SchedulerNode(Node):
             assigned_arm = None
             requires_mutex = False
 
-            if obj.y_mm > self.crossover_y_max and valid_arm1:
+            if obj.x_mm < self.crossover_x_min and valid_arm1:
                 assigned_arm = 'arm_1'
-            elif obj.y_mm < self.crossover_y_min and valid_arm2:
+            elif obj.x_mm > self.crossover_x_max and valid_arm2:
                 assigned_arm = 'arm_2'
             else:
-                # Inside shared crossover zone (Y in [250, 350 mm])
+                # Inside shared crossover zone (X in [240, 320 mm])
                 requires_mutex = True
                 # Load balance based on queue differential
                 if valid_arm1 and valid_arm2:
@@ -502,7 +496,7 @@ class SchedulerNode(Node):
                     elif (self.arm2_queue_len - self.arm1_queue_len) >= 2:
                         assigned_arm = 'arm_1'
                     else:
-                        assigned_arm = 'arm_1' if obj.y_mm >= self.y_midline else 'arm_2'
+                        assigned_arm = 'arm_1' if obj.x_mm <= self.x_midline else 'arm_2'
                 elif valid_arm1:
                     assigned_arm = 'arm_1'
                 elif valid_arm2:

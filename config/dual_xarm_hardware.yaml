@@ -40,8 +40,8 @@ workspace:
     cube_center_z_mm: 12.5         # 0.0mm elevation + 12.5mm half-cube height
     min_x_mm: 80.0
     max_x_mm: 480.0
-    min_y_mm: 50.0
-    max_y_mm: 350.0
+    min_y_mm: 40.0
+    max_y_mm: 260.0
 
 # -------------------------------------------------------------------------------------
 # MANIPULATORS CONFIGURATION

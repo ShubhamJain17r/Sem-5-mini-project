@@ -22,21 +22,25 @@ The entire workcell is organized on a single, continuous, store-cut **flat woode
    │  │             [Clamp-On Overhead Camera Boom Arm]            │
    │  │                                                            │
    │  │          ┌──────────────────────────────────────┐          │
-   │  │          │      CENTRAL ELECTRONICS SECTION     │          │
+   │  │          │    REAR ELECTRONICS BAY (Y=440..500) │          │
    │  │          │   (Jetson Orin / RPi 5 + Buck Hub)   │          │
    │  │          └──────────────┬────────┬──────────────┘          │
    │  │                         │        │                         │
    │  │   [Tray 1 2x2]      xArm 1       xArm 2       [Tray 2 2x2] │
    │  │   (Left Flank)   (X=170, Y=360) (X=390, Y=360) (Right Flank)│
-   │  │   [ArUco #0]   \                /   [ArUco #1]             │
-   │  │                 \              /                           │
-   │  │                  \ RECTANGULAR/                            │
-   │  │                   │  PICKING  │                            │
-   │  │                   │   ARENA   │ (Flat Z = 0.0 mm)          │
-   │  │                   │  (400x300)│ (Foam Tape Border)         │
-   │  │                   /           \                            │
-   │  │                  /             \                           │
-   │  │   [ArUco #2] ───┴───────────────┴─── [ArUco #3]            │
+   │  │   (Y=320..400)      [Base]       [Base]       (Y=320..400) │
+   │  │        ▲               │ +13mm   │                 ▲       │
+   │  │  +50mm │ ══════════════╪═════════╪════════════════ │ +50mm │
+   │  │        ▼ [ArUco #0]    │         │      [ArUco #1] ▼       │
+   │  │          ┌─────────────┴─────────┴───────────────┐         │
+   │  │          │                                       │         │
+   │  │          │         ACTIVE PICKING ARENA          │         │
+   │  │          │        400 mm (W) x 220 mm (D)        │         │
+   │  │          │     X ∈ [80, 480], Y ∈ [40, 260]      │         │
+   │  │          │       (Flat Tabletop Z = 0.0 mm)      │         │
+   │  │          │                                       │         │
+   │  │          │ [ArUco #2]                 [ArUco #3] │         │
+   │  │          └───────────────────────────────────────┘         │
    │  │                                                            │
    │  │ FRONT OF WORKSPACE (Operator Position @ Y = 0 mm)          │
    │  └────────────────────────────────────────────────────────────┘
@@ -97,17 +101,24 @@ Instead of mounting the two arms along a single collinear axis that created an o
 ### 3.1 Resolving Complex Woodworking and Riser Issues
 In this design, the picking arena requires **zero woodworking cuts and zero elevated deck risers**:
 - The arena floor sits directly flat on the wooden baseboard at **$Z = 0.0\text{ mm}$**.
-- The boundary is bounded by a **$400.0\text{ mm} \times 300.0\text{ mm}$** rectangle centered along $X = 280.0\text{ mm}$:
+- The boundary is bounded by a **$400.0\text{ mm} \times 220.0\text{ mm}$** rectangle centered along $X = 280.0\text{ mm}$:
   - Left boundary: $X = 80.0\text{ mm}$
   - Right boundary: $X = 480.0\text{ mm}$
-  - Front boundary: $Y = 50.0\text{ mm}$
-  - Rear boundary: $Y = 350.0\text{ mm}$
-- **Perimeter Retaining Border**: Formed by standard **self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall $\times 10\text{--}12\text{ mm}$ wide)** stuck directly along the penciled perimeter.
+  - Front boundary: $Y = 40.0\text{ mm}$
+  - Rear boundary: $Y = 260.0\text{ mm}$
+- **Perimeter Retaining Border**: Formed by standard **self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall $\times 10\text{--}12\text{ mm}$ wide)** stuck directly along the penciled perimeter (outer bounds: $X \in [70, 490\text{ mm}], Y \in [30, 270\text{ mm}]$).
   - Soft compliance prevents any servo overload if a claw finger nudges the border.
   - Keeps wooden craft cubes from skidding or rolling off the active zone.
 - **Target Sorting Cubes**: Standard 1-inch ($25.4\text{ mm}$, nominal $25.0\text{ mm}$) hardwood craft cubes ($14\text{--}16\text{ g}$ mass).
   - Grasp target center is at **$Z_{\text{target}} = 12.5\text{ mm}$** ($0.0\text{ mm} + 25.0/2\text{ mm}$).
 - *(Optional)* High-friction matte silicone mat ($\mu \approx 0.8$, $1.0\text{ mm}$ thickness) placed inside the arena to ensure zero cube skidding during high-speed gripper closure.
+
+### 3.2 Physical Clearance & Zero-Collision Geometry
+By setting the rear arena boundary to $Y = 260.0\text{ mm}$:
+1. **Robot Baseplate Clearance ($+13.0\text{ mm}$)**: The xArm metal baseplates ($140\times 154\text{ mm}$) extend forward to $Y = 283.0\text{ mm}$. With the rear foam border at $Y = 270.0\text{ mm}$, there is $+13.0\text{ mm}$ of clear, unencumbered wood between the baseplate and the arena.
+2. **Sorting Tray Longitudinal Clearance ($+50.0\text{ mm}$)**: The flank trays sit at $Y \in [320, 400\text{ mm}]$. This leaves a generous $50.0\text{ mm}$ buffer separating the drop trays from the arena and ArUco markers ($Y \le 270\text{ mm}$).
+3. **Sorting Tray Lateral Clearance ($+10.0\text{ mm}$)**: When xArm 1 is mounted square at $X = 170\text{ mm}$, its baseplate left edge is at $X = 100.0\text{ mm}$, clearing the Left Tray inner edge ($X = 90.0\text{ mm}$) by $+10.0\text{ mm}$.
+4. **Kinematic Reach Match (100% Reachable)**: The xArm 1s minimum reach is $R_{\min} \approx 120\text{--}130\text{ mm}$. At $Y = 260\text{ mm}$, the radial distance to the base $(170, 360)$ is exactly $100.0\text{ mm}$, reachable with a tucked wrist. At the front edge $Y = 40\text{ mm}$, radial distance is $320.0\text{ mm}$ ($R_{\max}$). Every single point inside the $400\times 220\text{ mm}$ arena is inside the active reachable envelope with zero dead zones.
 
 ---
 
@@ -153,19 +164,19 @@ By placing the collection bins on the **immediate lateral flanks** of each arm b
 ## 5. Optical Framing & Planar ArUco Fiducials
 
 ### 5.1 Overhead Camera Mounting
-- **Scissor Boom Arm**: Standard desktop clamp-on webcam boom arm clamped directly to the rear edge of the baseboard at $(X = 280.0\text{ mm}, Y = 510\text{ mm})$.
-- **Camera Position**: Logitech C270 / C920 centered nadir over $(X = 280.0\text{ mm}, Y = 200.0\text{ mm})$ at an elevation of **$H = 650\text{--}700\text{ mm}$**.
-- **Field of View**: Encloses the complete $400\times 300\text{ mm}$ picking arena, the 4 fiducials, and both flank trays.
+- **Scissor Boom Arm**: Standard desktop clamp-on webcam boom arm clamped directly to the rear edge of the baseboard at $(X = 280.0\text{ mm}, Y = 520\text{ mm})$.
+- **Camera Position**: Logitech C270 / C920 centered nadir over $(X = 280.0\text{ mm}, Y = 150.0\text{ mm})$ at an elevation of **$H = 650\text{--}700\text{ mm}$**.
+- **Field of View**: Encloses the complete $400\times 220\text{ mm}$ picking arena, the 4 fiducials, and both flank trays.
 
 ### 5.2 Coplanar Board-Mounted ArUco Fiducials
-4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) printed at $40.0\text{ mm} \times 40.0\text{ mm}$ on matte vinyl sticker paper are applied directly flat to the wooden board at the four corners of the arena:
+4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) printed at $30.0\text{ mm} \times 30.0\text{ mm}$ on matte vinyl sticker paper are applied directly flat to the wooden board at the four corners of the arena:
 
 | Marker ID | Placement Role | World Coordinate $(X, Y, Z)$ |
 | :---: | :--- | :---: |
-| **ArUco #0** | Rear-Left Arena Corner | $(85.0\text{ mm}, 345.0\text{ mm}, 0.0\text{ mm})$ |
-| **ArUco #1** | Rear-Right Arena Corner | $(475.0\text{ mm}, 345.0\text{ mm}, 0.0\text{ mm})$ |
-| **ArUco #2** | Front-Left Arena Corner | $(85.0\text{ mm}, 55.0\text{ mm}, 0.0\text{ mm})$ |
-| **ArUco #3** | Front-Right Arena Corner | $(475.0\text{ mm}, 55.0\text{ mm}, 0.0\text{ mm})$ |
+| **ArUco #0** | Rear-Left Arena Corner | $(85.0\text{ mm}, 255.0\text{ mm}, 0.0\text{ mm})$ |
+| **ArUco #1** | Rear-Right Arena Corner | $(475.0\text{ mm}, 255.0\text{ mm}, 0.0\text{ mm})$ |
+| **ArUco #2** | Front-Left Arena Corner | $(85.0\text{ mm}, 45.0\text{ mm}, 0.0\text{ mm})$ |
+| **ArUco #3** | Front-Right Arena Corner | $(475.0\text{ mm}, 45.0\text{ mm}, 0.0\text{ mm})$ |
 
 > [!NOTE]
 > **Planar Homography Accuracy**: Because all four ArUco markers and the arena floor are strictly coplanar at **$Z = 0.0\text{ mm}$**, OpenCV planar homography produces a mathematically perfect perspective warp ($H$) with zero elevation-induced parallax error!

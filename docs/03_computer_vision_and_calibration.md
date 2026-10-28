@@ -113,25 +113,25 @@ Four ArUco markers from the `DICT_4X4_50` dictionary are permanently mounted fla
 
 ```text
   Y (mm)
-   345 ┌─────────────────────────────────────────────────────────────┐
+   255 ┌─────────────────────────────────────────────────────────────┐
        │ [ArUco #0] (Rear-Left)              [ArUco #1] (Rear-Right) │
-       │ (85, 345)                           (475, 345)              │
+       │ (85, 255)                           (475, 255)              │
        │                                                             │
        │                    FLAT PICKING ARENA                       │
        │                    (Z = 0.0 mm Plane)                       │
        │                                                             │
        │ [ArUco #2] (Front-Left)             [ArUco #3] (Front-Right)│
-    55 │ (85, 55)                            (475, 55)               │
+    45 │ (85, 45)                            (475, 45)               │
        └─────────────────────────────────────────────────────────────┘
        85                                                          475 ───> X (mm)
 ```
 
 | Marker ID |           Placement Role           |  World Coordinate $(X_w, Y_w)$   |  Physical Elevation   |
 | :-------: | :--------------------------------: | :------------------------------: | :-------------------: |
-| **ID 0**  | Rear-Left Arena Corner             | $(85.0\text{ mm}, 345.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
-| **ID 1**  | Rear-Right Arena Corner            | $(475.0\text{ mm}, 345.0\text{ mm})$| $Z = 0.0\text{ mm}$   |
-| **ID 2**  | Front-Left Arena Corner            | $(85.0\text{ mm}, 55.0\text{ mm})$  | $Z = 0.0\text{ mm}$   |
-| **ID 3**  | Front-Right Arena Corner           | $(475.0\text{ mm}, 55.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
+| **ID 0**  | Rear-Left Arena Corner             | $(85.0\text{ mm}, 255.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
+| **ID 1**  | Rear-Right Arena Corner            | $(475.0\text{ mm}, 255.0\text{ mm})$| $Z = 0.0\text{ mm}$   |
+| **ID 2**  | Front-Left Arena Corner            | $(85.0\text{ mm}, 45.0\text{ mm})$  | $Z = 0.0\text{ mm}$   |
+| **ID 3**  | Front-Right Arena Corner           | $(475.0\text{ mm}, 45.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
 
 > [!CRITICAL]
 > **Strict Coplanarity with Table Surface**: All 4 markers share the exact same physical elevation as the table and arena floor ($Z = 0.0\text{ mm}$). Because the markers are coplanar with the bottom faces of the cubes, planar homography maps image pixels directly to metric world coordinates with zero perspective altitude distortion! Markers are printed on **matte vinyl/paper sticker sheets** to eliminate specular LED reflection.
@@ -152,14 +152,14 @@ Given 4 pairs of non-collinear corresponding points $(u_i, v_i) \leftrightarrow 
 We define a canonical rectified image grid with a scale of **$\text{PPM} = 2.0\text{ pixels/mm}$** ($1\text{ pixel} = 0.5\text{ mm}$):
 
 - **Rectified Width**: $W_{\text{rect}} = (475 - 85) \times 2.0 = \mathbf{780\text{ pixels}}$
-- **Rectified Height**: $H_{\text{rect}} = (345 - 55) \times 2.0 = \mathbf{580\text{ pixels}}$
+- **Rectified Height**: $H_{\text{rect}} = (255 - 45) \times 2.0 = \mathbf{420\text{ pixels}}$
 
 The target destination points for the warp are:
 
 - $\mathbf{p}'_0 = (0, 0)$ (ID 0: Rear-Left)
 - $\mathbf{p}'_1 = (W_{\text{rect}}, 0) = (780, 0)$ (ID 1: Rear-Right)
-- $\mathbf{p}'_2 = (0, H_{\text{rect}}) = (0, 580)$ (ID 2: Front-Left)
-- $\mathbf{p}'_3 = (W_{\text{rect}}, H_{\text{rect}}) = (780, 580)$ (ID 3: Front-Right)
+- $\mathbf{p}'_2 = (0, H_{\text{rect}}) = (0, 420)$ (ID 2: Front-Left)
+- $\mathbf{p}'_3 = (W_{\text{rect}}, H_{\text{rect}}) = (780, 420)$ (ID 3: Front-Right)
 
 ---
 
@@ -467,7 +467,7 @@ class ArenaVisionPipeline:
 
                 # Transform to World coordinates (mm)
                 x_w = 85.0 + (u_c / self.ppm)
-                y_w = 345.0 - (v_c / self.ppm)
+                y_w = 255.0 - (v_c / self.ppm)
                 z_w = 12.5  # 0.0 mm flat arena + 12.5 mm half cube
 
                 # Arm 1 relative (Left Arm @ 170, 360)

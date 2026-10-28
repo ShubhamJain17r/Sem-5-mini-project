@@ -2,18 +2,18 @@
 
 ## System Overview
 
-Two xArm 1s robotic arms pick randomly scattered colored wooden cubes from a **chamfered hexagonal / tapered arena** and sort them into **two dedicated Collection Boxes** mounted in nested wells on their immediate lateral flanks.
+Two xArm 1s robotic arms pick randomly scattered colored wooden cubes from a **flat rectangular arena ($400\times 220\text{ mm}$, $Z = 0.0\text{ mm}$)** and sort them into **two dedicated 3D-printed 2×2 Collection Trays** mounted on their immediate lateral flanks.
 
-The operator views the setup from the **FRONT**. The entire workcell is constructed on a **4-tile modular 3D-printed interlocking base** ($560\text{ mm} \text{ wide} \times 520\text{ mm} \text{ deep}$, compatible with standard $\le 250\times 250\text{ mm}$ 3D print beds). The two arms are mounted in an **inward-angled V-configuration** spaced $220\text{ mm}$ apart center-to-center, angled at **$\pm 35.0^\circ$ inward** toward the arena midline ($X = 280\text{ mm}$).
+The operator views the setup from the **FRONT**. The entire workcell is constructed on a single, store-cut **flat wooden baseboard** ($560\text{ mm} \text{ wide} \times 520\text{ mm} \text{ deep} \times 18\text{ mm}$ MDF). The two arms are mounted flat at $Z = 0.0\text{ mm}$ spaced $220\text{ mm}$ apart center-to-center, with Motor 6 oriented at inward bisector headings ($-110.0^\circ$ for Arm 1, $-70.0^\circ$ for Arm 2) toward the arena midline ($X = 280\text{ mm}$).
 
-- **Picking Arena (Chamfered Hexagonal Geometry)**: Replaces the narrow rectangular strip with a tapered polygon ($450\text{ mm}$ wide at rear tapering to $350\text{ mm}$ at front, $380\text{ mm}$ depth). Elevated by **$+25\text{ mm}$** and lined with a high-friction silicone mat ($\mu \approx 0.8$) and a **$12\text{ mm}$ perimeter retaining curb** to prevent cubes from rolling off. The intersecting radial arcs of both inward-angled arms create an active **central cooperative overlap zone** ($\approx 200\text{ mm} \times 160\text{ mm}$) with zero unreachable blind spots.
-- **Drop Zone (Immediate Flank Nested Pockets)**:
-  - **Box 1 (Left Flank)**: Dedicated to Arm 1, located in a $5\text{ mm}$ recessed well with $45^\circ$ lead-in chamfer immediately to the outer side of Arm 1.
-  - **Box 2 (Right Flank)**: Dedicated to Arm 2, located in a matching recessed well to the outer side of Arm 2.
-  - **Drop Cycle Optimization**: Relocating drop boxes from the old NW/SW positions to the immediate flanks slashes the drop swing from $125^\circ$ down to a fast **$\approx 65^\circ\text{--}75^\circ$ outward swing**, reducing cycle time by $>50\%$ and eliminating LX-15D base servo stall.
-- **Central Rear Wedge Electronics & Power Bay**: The triangular wedge behind the arm bases ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$) hosts the NVIDIA Jetson Orin Nano / Raspberry Pi 5 and dual 7.4V / 10A power hub. Molded under-deck cable channels route USB serial and 7.4V power cleanly to each arm ($< 18\text{ cm}$) and to the rear camera mast.
-- **Kinematic Sweet Spot**: Arms are mounted at $Z = 0\text{ mm}$, utilizing the built-in $65\text{ mm}$ height to Motor 2. Pick radius is bounded between $R_{\min} = 120\text{ mm}$ and $R_{\max} = 320\text{ mm}$, maintaining healthy elbow pitch angles ($\approx 120^\circ$) to eliminate joint singularities and motor stall.
-- **Raised ArUco Perimeter Pads (Hybrid Pocket Method)**: 4 fiducial pads are molded directly into the corner vertices of the elevated retaining curb with $0.8\text{ mm}$ recessed pockets. High-contrast matte vinyl sticker markers press-fitted into these pockets eliminate specular glare while defining CAD ground-truth coordinates.
+- **Picking Arena (Flat Tabletop Geometry)**: Sits directly flat on the wooden baseboard at $Z = 0.0\text{ mm}$ ($400\text{ mm}$ wide $\times 220\text{ mm}$ depth, $X \in [80, 480]$, $Y \in [40, 260]$). Retained by a soft compliant **$10\text{ mm}$ self-adhesive foam tape perimeter** to prevent cubes from rolling off. The intersecting radial arcs of both inward-angled arms create an active **central cooperative overlap zone** ($X \in [240, 320\text{ mm}]$) with zero unreachable blind spots.
+- **Drop Zone (Immediate Flank 2×2 Trays)**:
+  - **Box 1 (Left Flank)**: Dedicated to Arm 1, centered at $(50, 360, 0)$ with 4 color compartments (Red, Green, Blue, Yellow).
+  - **Box 2 (Right Flank)**: Dedicated to Arm 2, centered at $(510, 360, 0)$ with 4 matching color compartments.
+  - **Drop Cycle Optimization**: Relocating drop boxes to the immediate flanks slashes the drop swing from $125^\circ$ down to a fast **$\approx 70.0^\circ$ swing**, reducing cycle time by $>50\%$ and eliminating LX-15D base servo stall.
+- **Rear Electronics & Power Bay**: The area behind the arm bases ($X \in [230, 330\text{ mm}], Y \in [440, 500\text{ mm}]$) hosts the NVIDIA Jetson Orin Nano / Raspberry Pi 5 and dual 7.4V / 5A buck power hub. Surface adhesive cable clips route USB serial and 7.4V power cleanly to each arm.
+- **Kinematic Sweet Spot**: Arms are mounted flat at $Z = 0\text{ mm}$, utilizing the built-in $65\text{ mm}$ height to Motor 2. Pick radius is bounded between $R_{\min} = 120\text{ mm}$ and $R_{\max} = 320\text{ mm}$, maintaining healthy elbow pitch angles ($\approx 120^\circ$) to eliminate joint singularities and motor stall.
+- **Coplanar Board-Mounted ArUco Fiducials**: 4 ArUco markers (IDs 0–3, $30\times 30\text{ mm}$) printed on matte vinyl are applied flat to the wooden board at the four arena corners at $Z = 0.0\text{ mm}$, ensuring zero parallax error during planar homography.
 
 An overhead USB camera mounted on a rear boom stand at 65–75 cm captures the picking arena. The system runs under **ROS 2** on a NVIDIA Jetson Orin Nano / Raspberry Pi 5.
 
@@ -34,18 +34,18 @@ An overhead USB camera mounted on a rear boom stand at 65–75 cm captures the p
 
 | Component        | Spec                                                                                                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arms             | 2× xArm 1s in V-Configuration ($\pm 35.0^\circ$ inward heading, $S = 220\text{ mm}$ spacing)                                                       |
-| Modular Base     | 4-tile interlocking 3D-printed base ($560\text{ mm} \times 520\text{ mm}$, fits $\le 250\text{ mm}$ print beds)                                    |
-| Compute          | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Central Rear Wedge Bay, M2.5 heat-set standoffs)                                              |
-| Camera           | Logitech C270 or C920 (USB) mounted on rear boom stand at 65–75 cm                                                                                   |
-| Picking Arena    | Elevated tapered hexagonal deck ($+25\text{ mm}$) with $12\text{ mm}$ curb & matte silicone friction mat ($\mu \approx 0.8$)                         |
-| ArUco Setup      | 4 raised pads molded into curb vertices with $0.8\text{ mm}$ recessed pockets for matte stickers ($Z = +37\text{ mm}$)                             |
-| Arena Limits     | $R_{\min} = 120\text{ mm}$ inner barrier, $R_{\max} = 320\text{ mm}$ outer reach envelope                                                           |
-| Collection Boxes | 2× dedicated flank drop pockets (Box 1 West @ $-70^\circ$, Box 2 East @ $+70^\circ$, $Z = 0\text{ mm}$)                                            |
-| Electronics Bay  | Central Rear Wedge ($X \in [180, 380\text{ mm}], Y \in [380, 510\text{ mm}]$), molded under-deck cable trunking                                      |
-| Objects          | Wooden cubes (25 mm), spray-painted in 4 high-contrast matte colors                                                                                 |
+| Arms             | 2× xArm 1s in V-Configuration ($-110.0^\circ$ & $-70.0^\circ$ bisector headings, $S = 220\text{ mm}$ spacing)                                      |
+| Baseboard        | Single store-cut MDF board ($560\text{ mm} \times 520\text{ mm} \times 18\text{ mm}$, zero woodworking cuts)                                      |
+| Compute          | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Rear Bay $Y \in [440, 500\text{ mm}]$, adhesive standoffs)                                |
+| Camera           | Logitech C270 or C920 (USB) mounted on rear boom stand at 65–70 cm                                                                                  |
+| Picking Arena    | Flat tabletop deck ($Z = 0.0\text{ mm}$, $400\times 220\text{ mm}$) with $10\text{ mm}$ foam retaining tape perimeter                               |
+| ArUco Setup      | 4 coplanar markers (IDs 0–3, $30\times 30\text{ mm}$) applied flat at arena corners at $Z = 0.0\text{ mm}$                                          |
+| Arena Limits     | $X \in [80, 480\text{ mm}]$, $Y \in [40, 260\text{ mm}]$, $R \in [110, 320\text{ mm}]$ (100% reachable)                                             |
+| Collection Boxes | 2× 3D-printed 2x2 flank trays ($80\times 80\times 35\text{ mm}$, 4 color slots) at Left $(50, 360)$ and Right $(510, 360)$                          |
+| Electronics Bay  | Rear Bay ($X \in [230, 330\text{ mm}], Y \in [440, 500\text{ mm}]$), surface adhesive cable clips                                                   |
+| Objects          | Wooden cubes (25 mm, $15\text{ g}$), spray-painted in 4 high-contrast matte colors                                                                  |
 | Colors           | Red, Green, Blue, Yellow (HSV-separated)                                                                                                            |
-| Connectivity     | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers via direct short conduits ($< 18\text{ cm}$)                                          |
+| Connectivity     | USB-Serial (`/dev/ttyUSB0`, `/dev/ttyUSB1`) to ROS 2 drivers via direct surface wiring                                                             |
 
 ---
 
@@ -144,7 +144,7 @@ _(Full mathematical derivations, QoS profiles, mutex state machines, launch scri
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | :---------------------------: |
 | `camera_node`    | Acquires frames from `/dev/video0` with exposure lock ($156$) and WB lock ($4500\text{K}$) → `/camera/image_raw`                     |        $30\text{ Hz}$         |
 | `vision_node`    | Executes 4-point ArUco homography warp + HSV color segmentation → `/vision/detected_objects`                                         |   $10\text{--}15\text{ Hz}$   |
-| `scheduler_node` | Dynamic load balancing across $Y = 300\text{ mm}$ midline, crossover mutex arbitration ($Y \in [250, 350\text{ mm}]$), task dispatch |      $20\text{ Hz}$ loop      |
+| `scheduler_node` | Dynamic load balancing across $X = 280\text{ mm}$ midline, crossover mutex arbitration ($X \in [240, 320\text{ mm}]$), task dispatch |      $20\text{ Hz}$ loop      |
 | `arm1_node`      | North manipulator controller: closed-form analytical IK, 5-phase trajectory profiling, serial packet writer (`/dev/xarm_arm1`)       | Event + $50\text{ Hz}$ status |
 | `arm2_node`      | South manipulator controller: closed-form analytical IK, 5-phase trajectory profiling, serial packet writer (`/dev/xarm_arm2`)       | Event + $50\text{ Hz}$ status |
 | `dashboard_node` | System telemetry, cycle times, sorting counts, and diagnostics via Foxglove Studio / Web UI                                          |         $5\text{ Hz}$         |

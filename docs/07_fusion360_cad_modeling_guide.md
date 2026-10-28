@@ -136,16 +136,16 @@ In this ultra-simplified design, your 3D printer only needs to print **two small
 ```mermaid
 graph TD
     A["1. Place Pre-Cut Board on Desk (560x520 mm)"] --> B["2. Mark Coordinates with Pencil & Ruler"]
-    B --> C["3. Bolt xArm Manipulators Flat to Board (±35°)"]
-    C --> D["4. Stick Foam Tape Perimeter Border (400x300 mm)"]
+    B --> C["3. Bolt xArm Baseplates Square to Board (170, 360 & 390, 360)"]
+    C --> D["4. Stick Foam Tape Perimeter Border (400x220 mm)"]
     D --> E["5. Press-Fit 4x ArUco Stickers at Arena Corners"]
-    E --> F["6. Place 2x2 Color Sorting Trays on Flanks"]
-    F --> G["7. Clamp Overhead Webcam Boom Arm to Rear Edge"]
-    G --> H["8. Mount SBC with Adhesive PCB Standoffs"]
+    E --> F["6. Place 2x2 Color Sorting Trays on Flanks (50, 360 & 510, 360)"]
+    F --> G["7. Clamp Overhead Webcam Boom Arm to Rear Edge (280, 520)"]
+    G --> H["8. Mount SBC in Rear Bay (Y = 440..500 mm)"]
 ```
 
 ### Step 1: Baseboard Preparation (Zero Tools)
-1. Acquire a single flat rectangular panel of **$18\text{ mm}$ (or $12\text{ mm}$) MDF or shelving board** pre-cut at the hardware store to **$560\text{ mm} \times 520\text{ mm}$** (or $600\text{ mm} \times 500\text{ mm}$).
+1. Acquire a single flat rectangular panel of **$18\text{ mm}$ (or $12\text{ mm}$) MDF or shelving board** pre-cut at the hardware store to **$560\text{ mm} \times 520\text{ mm}$**.
 2. Place it on your desk or workstation. You do zero sawing or cutting.
 
 ### Step 2: Pencil Coordinate Marking
@@ -153,31 +153,32 @@ graph TD
 2. Mark the two arm base centers:
    - **Left Arm (xArm 1)**: $(X = 170\text{ mm}, Y = 360\text{ mm})$
    - **Right Arm (xArm 2)**: $(X = 390\text{ mm}, Y = 360\text{ mm})$
-3. Draw reference lines through each center angled at **$+35.0^\circ$** (Arm 1, pointing South-East) and **$-35.0^\circ$** (Arm 2, pointing South-West).
-4. Outline the rectangular picking arena:
+3. Outline the rectangular picking arena:
    - Left edge: $X = 80\text{ mm}$, Right edge: $X = 480\text{ mm}$ (Width: $400\text{ mm}$, centered at $X = 280\text{ mm}$)
-   - Front edge: $Y = 50\text{ mm}$, Rear edge: $Y = 350\text{ mm}$ (Depth: $300\text{ mm}$)
+   - Front edge: $Y = 40\text{ mm}$, Rear edge: $Y = 260\text{ mm}$ (Depth: $220\text{ mm}$)
+   - *Clearance*: Note that the arena stops at $Y = 260\text{ mm}$, providing a safe $+13.0\text{ mm}$ wood buffer before reaching the robot metal baseplate ($Y = 283\text{ mm}$).
 
 ### Step 3: Fasten the Robotic Arms
-1. Align the metal baseplate of xArm 1 over $(170, 360)$ oriented along the $+35^\circ$ heading.
-2. Mark the 4 mounting holes with your pencil.
-3. Fasten the baseplate directly to the wooden board using four #8 $\times$ 3/4" (or M4) wood screws with washers.
-4. Repeat for xArm 2 at $(390, 360)$ oriented along the $-35^\circ$ heading.
-5. The arms are now rigidly grounded at $Z = 0$ with zero flex and zero wobble.
+1. Align the metal baseplates of xArm 1 and xArm 2 **square with the board edges** ($0^\circ$ physical rotation):
+   - **xArm 1**: Center at $(170, 360)$. Mounting holes ($127\times 143\text{ mm}$): $X \in \{106.5, 233.5\}$, $Y \in \{288.5, 431.5\}$.
+   - **xArm 2**: Center at $(390, 360)$. Mounting holes ($127\times 143\text{ mm}$): $X \in \{326.5, 453.5\}$, $Y \in \{288.5, 431.5\}$.
+2. Fasten the baseplates directly to the wooden board using four #8 $\times$ 3/4" (or M4) wood screws with washers per arm.
+3. Motor 6 (turntable) handles the inward bisector angles electronically ($-110^\circ$ for Arm 1, $-70^\circ$ for Arm 2).
+4. The arms are now rigidly grounded at $Z = 0$ with zero flex, zero wobble, and clear lateral clearance to the flank trays ($+10.0\text{ mm}$).
 
 ### Step 4: Apply the Foam Tape Arena Border
 1. Take a roll of standard **self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall $\times 10\text{--}12\text{ mm}$ wide)**.
-2. Peel the backing and stick it down along the four penciled arena boundary lines ($X \in [80, 480], Y \in [50, 350]$).
-3. This creates a soft, clean retaining bumper that stops wooden cubes from rolling outside the camera's view.
+2. Peel the backing and stick it down along the four penciled arena boundary lines ($X \in [80, 480], Y \in [40, 260]$).
+3. This creates a soft, clean retaining bumper (outer footprint $X \in [70, 490], Y \in [30, 270]$) that stops wooden cubes from rolling outside the camera's view.
 4. *(Optional)* Lay a $1.0\text{ mm}$ high-friction matte silicone mat ($\mu \approx 0.8$) inside the rectangular arena boundary to ensure cubes don't slide during gripper contact.
 
 ### Step 5: Apply the 4 ArUco Calibration Stickers
-1. Print the 4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) at $40\text{ mm} \times 40\text{ mm}$ on matte vinyl sticker paper.
-2. Peel and stick them directly flat onto the wooden board just inside the four corners of the arena:
-   - **ArUco #0 (Rear-Left)**: $(X = 85.0\text{ mm}, Y = 345.0\text{ mm}, Z = 0.0\text{ mm})$
-   - **ArUco #1 (Rear-Right)**: $(X = 475.0\text{ mm}, Y = 345.0\text{ mm}, Z = 0.0\text{ mm})$
-   - **ArUco #2 (Front-Left)**: $(X = 85.0\text{ mm}, Y = 55.0\text{ mm}, Z = 0.0\text{ mm})$
-   - **ArUco #3 (Front-Right)**: $(X = 475.0\text{ mm}, Y = 55.0\text{ mm}, Z = 0.0\text{ mm})$
+1. Print the 4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) at $30\text{ mm} \times 30\text{ mm}$ on matte vinyl sticker paper.
+2. Peel and stick them directly flat onto the wooden board at the four corners of the arena:
+   - **ArUco #0 (Rear-Left)**: $(X = 85.0\text{ mm}, Y = 255.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #1 (Rear-Right)**: $(X = 475.0\text{ mm}, Y = 255.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #2 (Front-Left)**: $(X = 85.0\text{ mm}, Y = 45.0\text{ mm}, Z = 0.0\text{ mm})$
+   - **ArUco #3 (Front-Right)**: $(X = 475.0\text{ mm}, Y = 45.0\text{ mm}, Z = 0.0\text{ mm})$
 3. Because the stickers are coplanar with the table surface ($Z = 0$), OpenCV calculates a mathematically perfect planar homography warp ($H$) with zero perspective skew!
 
 ### Step 6: Position the 2×2 Color Sorting Trays
