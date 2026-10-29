@@ -126,7 +126,7 @@ $$\tau_{\text{shoulder}} = m_{\text{arm}} \cdot g \cdot r_{\text{CoM}} + m_{\tex
 
 Under this load, gear backlash ($\approx 1^\circ\text{--}2^\circ$ per joint) and torsional bracket deflection compound, causing the physical claw to droop **$8\text{--}14\text{ mm}$ below the theoretically computed Cartesian height $Z$**.
 
-Without compensation, a commanded grasp at $Z = 32.5\text{ mm}$ will result in the lower claw finger crashing into the elevated silicone mat at $Z \approx 20\text{ mm}$, jamming the servos.
+Without compensation, a commanded grasp at $Z = 12.5\text{ mm}$ will result in the lower claw finger scraping the flat baseboard surface at $Z \approx 0.0\text{ mm}$, jamming the servos.
 
 ### 3.2 Piecewise Linear Compensation Model
 
@@ -147,12 +147,12 @@ Where:
 
 | Radial Distance $R$ | Distance from Edge $d_{\text{edge}}$ | Measured Uncompensated Droop | Commanded Height Offset $\Delta Z_{\text{sag}}$ | Effective Grasp Height |
 | :---: | :---: | :---: | :---: | :---: |
-| **$140\text{ mm}$** | $7\text{ cm}$ | $-1.5\text{ mm}$ | $+0.0\text{ mm}$ | $32.5\text{ mm}$ |
-| **$180\text{ mm}$** | $11\text{ cm}$ | $-3.0\text{ mm}$ | $+0.0\text{ mm}$ | $32.5\text{ mm}$ |
-| **$220\text{ mm}$** | $15\text{ cm}$ | $-6.0\text{ mm}$ | $+2.8\text{ mm}$ | $35.3\text{ mm}$ |
-| **$260\text{ mm}$** | $19\text{ cm}$ | $-9.5\text{ mm}$ | $+5.6\text{ mm}$ | $38.1\text{ mm}$ |
-| **$300\text{ mm}$** | $23\text{ cm}$ | $-12.0\text{ mm}$ | $+8.4\text{ mm}$ | $40.9\text{ mm}$ |
-| **$320\text{ mm}$** | $25\text{ cm}$ | $-14.0\text{ mm}$ | $+9.8\text{ mm}$ | $42.3\text{ mm}$ |
+| **$140\text{ mm}$** | $7\text{ cm}$ | $-1.5\text{ mm}$ | $+0.0\text{ mm}$ | $12.5\text{ mm}$ |
+| **$180\text{ mm}$** | $11\text{ cm}$ | $-3.0\text{ mm}$ | $+0.0\text{ mm}$ | $12.5\text{ mm}$ |
+| **$220\text{ mm}$** | $15\text{ cm}$ | $-6.0\text{ mm}$ | $+2.8\text{ mm}$ | $15.3\text{ mm}$ |
+| **$260\text{ mm}$** | $19\text{ cm}$ | $-9.5\text{ mm}$ | $+5.6\text{ mm}$ | $18.1\text{ mm}$ |
+| **$300\text{ mm}$** | $23\text{ cm}$ | $-12.0\text{ mm}$ | $+8.4\text{ mm}$ | $20.9\text{ mm}$ |
+| **$320\text{ mm}$** | $25\text{ cm}$ | $-14.0\text{ mm}$ | $+9.8\text{ mm}$ | $22.3\text{ mm}$ |
 
 ---
 

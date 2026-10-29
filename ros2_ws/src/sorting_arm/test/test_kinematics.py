@@ -50,21 +50,45 @@ def test_fk_ik_roundtrip():
 
 
 def test_protocol_calibration_and_limits():
-    # Tested with arm_1 calibrated deviations: M1: 1, M2: 3, M3: -3, M4: -13, M5: 0, M6: 0
-    devs = {1: 1, 2: 3, 3: -3, 4: -13, 5: 0, 6: 0}
-    driver = XArmDriver(port="/dev/null", deviations=devs)
+    # Tested with arm_1 empirical deviations: M1: 1, M2: -2, M3: -3, M4: -5, M5: -2, M6: -5
+    devs1 = {1: 1, 2: -2, 3: -3, 4: -5, 5: -2, 6: -5}
+    driver1 = XArmDriver(port="/dev/null", deviations=devs1)
 
-    # Motor 4 deviation: tick 500 should become 500 - 13 = 487
-    assert driver.apply_deviations_and_limits(4, 500) == 487
+    # Motor 4 deviation: tick 500 should become 500 - 5 = 495
+    assert driver1.apply_deviations_and_limits(4, 500) == 495
 
     # Motor 3 deviation: tick 500 should become 500 - 3 = 497
-    assert driver.apply_deviations_and_limits(3, 500) == 497
+    assert driver1.apply_deviations_and_limits(3, 500) == 497
 
-    # Limit clamping: tick 900 on Motor 6 should be clamped to 850
-    assert driver.apply_deviations_and_limits(6, 900) == 850
+    # Motor 1 deviation: tick 500 should become 500 + 1 = 501
+    assert driver1.apply_deviations_and_limits(1, 500) == 501
 
-    # Limit clamping: tick 50 on Motor 1 should be clamped to 150
-    assert driver.apply_deviations_and_limits(1, 50) == 150
+    # Tested with arm_2 empirical deviations: M1: -2, M2: -4, M3: 2, M4: 3, M5: -3, M6: 2
+    devs2 = {1: -2, 2: -4, 3: 2, 4: 3, 5: -3, 6: 2}
+    driver2 = XArmDriver(port="/dev/null", deviations=devs2)
+
+    # Motor 4 deviation: tick 500 should become 500 + 3 = 503
+    assert driver2.apply_deviations_and_limits(4, 500) == 503
+
+    # Motor 3 deviation: tick 500 should become 500 + 2 = 502
+    assert driver2.apply_deviations_and_limits(3, 500) == 502
+
+    # Limit clamping: tick 950 on Motor 6 should be clamped to default 850
+    assert driver1.apply_deviations_and_limits(6, 950) == 850
+
+    # Limit clamping with custom limits: min 220, max 880
+    custom_limits_min = {1: 220, 2: 200, 3: 110, 4: 135, 5: 120, 6: 100}
+    custom_limits_max = {1: 800, 2: 800, 3: 865, 4: 870, 5: 870, 6: 880}
+    driver_custom = XArmDriver(
+        port="/dev/null",
+        deviations=devs1,
+        min_ticks=custom_limits_min,
+        max_ticks=custom_limits_max,
+    )
+    # Motor 1 tick 200 should clamp to 220
+    assert driver_custom.apply_deviations_and_limits(1, 200) == 220
+    # Motor 6 tick 950 should clamp to 880
+    assert driver_custom.apply_deviations_and_limits(6, 950) == 880
 
 
 def test_load_kinematic_parameters():
@@ -75,25 +99,32 @@ def test_load_kinematic_parameters():
     assert params1.L2 == 95.0
     assert params1.L3_grip == 150.0
     assert params1.L3_tip == 168.0
-    assert params1.min_safe_ticks[1] == 150
-    assert params1.max_safe_ticks[6] == 850
+    assert params1.min_safe_ticks[1] == 220
+    assert params1.max_safe_ticks[6] == 880
 
     params2 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_2")
     assert params2.L1 == 101.0
     assert params2.L2 == 95.0
+    assert params2.min_safe_ticks[1] == 225
+    assert params2.max_safe_ticks[6] == 890
 
 
 def test_get_compartment_target():
     cfg = "config/dual_xarm_hardware.yaml"
     colors = ["red", "green", "blue", "yellow"]
     for color in colors:
-        target = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
-        assert target is not None, f"Failed to get target for color {color}"
-        assert target["color"] == color
-        assert target["r"] > 0.0
-        assert "target_world_mm" in target or "world_xyz" in target
-        assert "drop_yaw_tick" in target
-        assert 700 <= target["drop_yaw_tick"] <= 900
+        target1 = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
+        assert target1 is not None, f"Failed to get target for color {color}"
+        assert target1["color"] == color
+        assert target1["r"] > 0.0
+        assert "target_world_mm" in target1 or "world_xyz" in target1
+        assert "drop_yaw_tick" in target1
+        assert 150 <= target1["drop_yaw_tick"] <= 300
+
+        target2 = get_compartment_target(color, arm_id="xarm_2", config_path=cfg)
+        assert target2 is not None, f"Failed to get target for color {color} on arm_2"
+        assert target2["color"] == color
+        assert 700 <= target2["drop_yaw_tick"] <= 870
 
     # Invalid color returns None
     assert get_compartment_target("magenta", arm_id="xarm_1") is None
@@ -129,19 +160,20 @@ def test_ik_with_claw_tip():
 
 
 def test_world_to_arm_polar():
-    # xarm_1 is at (360, 420)
-    # A point at (560, 420, 32.5) is directly East: dx=200, dy=0 -> r=200, theta=0
-    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1")
+    # xarm_1 is at (170, 360, 0) with nominal heading -110.0 deg
+    # Point at (170, 160, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
+    # theta_arm = -90 - (-110) = +20 deg
+    r, th, z = world_to_arm_polar(170.0, 160.0, 12.5, arm_id="xarm_1")
     assert abs(r - 200.0) < 0.1
-    assert abs(th - 0.0) < 0.1
-    assert abs(z - 32.5) < 0.1
+    assert abs(th - 20.0) < 0.1
+    assert abs(z - 12.5) < 0.1
 
-    # If arm heading is angled (e.g. +45 deg NE)
-    custom_params = KinematicParameters(base_heading_deg=45.0)
-    r, th, z = world_to_arm_polar(560.0, 420.0, 32.5, arm_id="xarm_1", params=custom_params)
+    # If arm heading is custom (e.g. -90 deg South)
+    custom_params = KinematicParameters(base_heading_deg=-90.0)
+    r, th, z = world_to_arm_polar(170.0, 160.0, 12.5, arm_id="xarm_1", params=custom_params)
     assert abs(r - 200.0) < 0.1
-    # Global angle 0° minus heading 45° = -45° local
-    assert abs(th - (-45.0)) < 0.1
+    # Global angle -90° minus heading -90° = 0° local
+    assert abs(th - 0.0) < 0.1
 
 
 def test_base_zero_and_heading_kinematics():
@@ -162,7 +194,7 @@ def test_compartment_target_fallback():
     target = get_compartment_target("red", arm_id="xarm_1", config_path=cfg)
     assert target is not None
     assert "drop_yaw_tick" in target
-    assert target["drop_yaw_tick"] == 835
+    assert target["drop_yaw_tick"] == 175
     assert "drop_pose_preset" in target
     assert "theta_arm_deg" in target
     assert "theta_world_deg" in target

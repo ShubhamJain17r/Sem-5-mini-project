@@ -1,0 +1,25 @@
+timestamp_iso,arm_id,motor_id,joint_name,target_tick,actual_tick,tracking_error_ticks,deviation_trim,is_simulated
+2026-10-29T07:30:17.947966,xarm_1,1,Claw Gripper,230,230,0,1,True
+2026-10-29T07:30:17.947966,xarm_1,2,Wrist Roll,500,500,0,-2,True
+2026-10-29T07:30:17.947966,xarm_1,3,Wrist Pitch,500,500,0,-3,True
+2026-10-29T07:30:17.947966,xarm_1,4,Elbow Pitch,280,280,0,-5,True
+2026-10-29T07:30:17.947966,xarm_1,5,Shoulder Pitch,720,720,0,-2,True
+2026-10-29T07:30:17.947966,xarm_1,6,Base Yaw,500,500,0,-5,True
+2026-10-29T07:30:17.947966,xarm_2,1,Claw Gripper,230,230,0,-2,True
+2026-10-29T07:30:17.947966,xarm_2,2,Wrist Roll,500,500,0,-4,True
+2026-10-29T07:30:17.947966,xarm_2,3,Wrist Pitch,500,500,0,-7,True
+2026-10-29T07:30:17.947966,xarm_2,4,Elbow Pitch,280,280,0,13,True
+2026-10-29T07:30:17.947966,xarm_2,5,Shoulder Pitch,720,720,0,-3,True
+2026-10-29T07:30:17.947966,xarm_2,6,Base Yaw,500,500,0,2,True
+2026-10-29T07:56:00.261928,xarm_1,1,Claw Gripper,230,487,257,1,False
+2026-10-29T07:56:00.261928,xarm_1,2,Wrist Roll,500,498,-2,-2,False
+2026-10-29T07:56:00.261928,xarm_1,3,Wrist Pitch,500,497,-3,-3,False
+2026-10-29T07:56:00.261928,xarm_1,4,Elbow Pitch,280,515,235,-5,False
+2026-10-29T07:56:00.261928,xarm_1,5,Shoulder Pitch,720,496,-224,-2,False
+2026-10-29T07:56:00.261928,xarm_1,6,Base Yaw,500,510,10,-5,False
+2026-10-29T07:56:00.261928,xarm_2,1,Claw Gripper,230,490,260,-2,False
+2026-10-29T07:56:00.261928,xarm_2,2,Wrist Roll,500,500,0,-4,False
+2026-10-29T07:56:00.261928,xarm_2,3,Wrist Pitch,500,501,1,-7,False
+2026-10-29T07:56:00.261928,xarm_2,4,Elbow Pitch,280,497,217,13,False
+2026-10-29T07:56:00.261928,xarm_2,5,Shoulder Pitch,720,496,-224,-3,False
+2026-10-29T07:56:00.261928,xarm_2,6,Base Yaw,500,503,3,2,False

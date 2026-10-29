@@ -33,7 +33,7 @@ DEFAULT_MAX_TICKS = {1: 800, 2: 800, 3: 850, 4: 850, 5: 850, 6: 850}
 
 # Standard Safe Home Pose (M1=Claw, M2=Roll, M3=WPitch, M4=Elbow, M5=Shoulder, M6=Base)
 POSE_HOME_TICKS = {
-    1: 700,  # Claw open
+    1: 230,  # Claw open (~60mm span)
     2: 500,  # Roll center
     3: 500,  # Wrist Pitch center
     4: 280,  # Elbow tucked
@@ -78,6 +78,35 @@ def find_xarm_device() -> Tuple[Optional[str], str]:
             return matches[0], "serial"
 
     return None, "unknown"
+
+
+def find_all_xarm_devices() -> List[Tuple[str, str]]:
+    """
+    Find all connected xArm 1S devices across USB HID and Serial UART interfaces.
+
+    :return: List of tuples (device_path, interface_type).
+    """
+    found = []
+    # 1. Probe for native USB HID xArm (Vendor ID 0483, Product ID 5750)
+    for uevent in sorted(glob.glob("/sys/class/hidraw/hidraw*/device/uevent")):
+        try:
+            with open(uevent, "r") as f:
+                content = f.read()
+                if "00000483:00005750" in content or "Hiwonder xArm" in content:
+                    dev_name = os.path.basename(os.path.dirname(os.path.dirname(uevent)))
+                    dev_path = f"/dev/{dev_name}"
+                    if os.path.exists(dev_path):
+                        found.append((dev_path, "hidraw"))
+        except Exception:
+            pass
+
+    # 2. Probe for standard Serial UART converters (FTDI, CH340, CP2102)
+    for pattern in ["/dev/ttyUSB*", "/dev/ttyACM*", "/dev/xarm_*"]:
+        for match in sorted(glob.glob(pattern)):
+            if match not in [p for p, _ in found]:
+                found.append((match, "serial"))
+
+    return found
 
 
 class XArmDriver:
@@ -145,7 +174,7 @@ class XArmDriver:
             return True
         except PermissionError:
             try:
-                os.system(f"sudo chmod 666 {self.port} 2>/dev/null")
+                os.system(f"sudo -n chmod 666 {self.port} 2>/dev/null")
                 self.hid_fd = os.open(self.port, os.O_RDWR | os.O_NONBLOCK)
                 self.is_connected = True
                 logger.info(f"Auto-granted permissions and connected to xArm on {self.port}.")
@@ -460,3 +489,155 @@ class XArmDriver:
             except Exception as e:
                 logger.debug(f"Position query error on servo {servo_id}: {e}")
                 return None
+
+    def check_connection_health(self) -> Tuple[bool, str]:
+        """
+        Verify that the xArm controller is connected, responsive, and has valid file descriptors.
+
+        :return: (is_healthy, status_message)
+        """
+        if not self.is_connected:
+            return False, "Not connected: is_connected flag is False"
+
+        if self.interface_type == "hidraw":
+            if self.hid_fd is None:
+                self.is_connected = False
+                return False, "HID file descriptor is None"
+            try:
+                os.fstat(self.hid_fd)
+            except OSError as e:
+                self.is_connected = False
+                return False, f"HID file descriptor invalid: {e}"
+        else:
+            if self.serial is None or not self.serial.is_open:
+                self.is_connected = False
+                return False, "Serial port is None or closed"
+            try:
+                if hasattr(self.serial, "fileno"):
+                    os.fstat(self.serial.fileno())
+            except OSError as e:
+                self.is_connected = False
+                return False, f"Serial port file descriptor invalid: {e}"
+
+        return True, f"Connected and healthy on {self.port} ({self.interface_type})"
+
+    def read_all_servo_positions(self, timeout_sec: float = 0.05) -> Dict[int, Optional[int]]:
+        """Query real-time positions for all 6 servos."""
+        positions = {}
+        for sid in range(1, 7):
+            positions[sid] = self.read_servo_position(sid, timeout_sec=timeout_sec)
+        return positions
+
+    def wait_in_position(
+        self,
+        target_ticks: Dict[int, int],
+        tolerance_ticks: int = 10,
+        timeout_sec: float = 2.0,
+        poll_interval_sec: float = 0.03,
+    ) -> Tuple[bool, Dict[int, int], Dict[int, int]]:
+        """
+        Wait until all specified joints arrive within tolerance ticks of their targets.
+
+        :param target_ticks: Target position per servo ID
+        :param tolerance_ticks: Maximum allowable difference |actual - target|
+        :param timeout_sec: Timeout before aborting
+        :param poll_interval_sec: Interval between read polls
+        :return: (arrived, actual_positions, tracking_errors)
+        """
+        start_time = time.time()
+        actual_ticks: Dict[int, int] = {}
+        errors: Dict[int, int] = {}
+
+        while time.time() - start_time < timeout_sec:
+            all_in_position = True
+            for sid, target in target_ticks.items():
+                if sid < 1 or sid > 6:
+                    continue
+                actual = self.read_servo_position(sid, timeout_sec=0.04)
+                if actual is not None:
+                    actual_ticks[sid] = actual
+                    err = actual - target
+                    errors[sid] = err
+                    if abs(err) > tolerance_ticks:
+                        all_in_position = False
+                else:
+                    prev = actual_ticks.get(sid, self.current_ticks.get(sid, 500))
+                    errors[sid] = prev - target
+                    if abs(prev - target) > tolerance_ticks:
+                        all_in_position = False
+
+            if all_in_position and len(actual_ticks) == len(target_ticks):
+                return True, actual_ticks, errors
+
+            time.sleep(poll_interval_sec)
+
+        return False, actual_ticks, errors
+
+    def send_motion_and_wait(
+        self,
+        target_ticks: Dict[int, int],
+        time_ms: int = 1000,
+        tolerance_ticks: int = 10,
+        timeout_margin_sec: float = 0.8,
+        stall_detection: bool = True,
+    ) -> bool:
+        """
+        Execute multi-servo trajectory with pre-command health check, in-position verification,
+        and stall/obstruction safety interlock.
+
+        If stall is detected, immediately cuts torque via CMD_MULT_SERVO_UNLOAD (0x14) and logs an error report.
+        """
+        healthy, msg = self.check_connection_health()
+        if not healthy:
+            logger.error(f"Pre-command check failed: {msg}")
+            return False
+
+        dispatched = self.send_multi_servo_move(target_ticks, time_ms=time_ms, synchronized=True)
+        if not dispatched:
+            return False
+
+        if self.interface_type == "unknown" or (
+            self.hid_fd is None and (self.serial is None or not self.serial.is_open)
+        ):
+            time.sleep(time_ms / 1000.0)
+            for sid, tick in target_ticks.items():
+                self.current_ticks[sid] = tick
+            return True
+
+        move_sec = time_ms / 1000.0
+        lead_time = max(0.0, move_sec * 0.75)
+        time.sleep(lead_time)
+
+        remaining_timeout = max(0.2, (move_sec - lead_time) + timeout_margin_sec)
+        arrived, actuals, errors = self.wait_in_position(
+            target_ticks=target_ticks,
+            tolerance_ticks=tolerance_ticks,
+            timeout_sec=remaining_timeout,
+        )
+
+        for sid, pos in actuals.items():
+            self.current_ticks[sid] = pos
+
+        if arrived:
+            return True
+
+        if stall_detection:
+            stalled_joints = []
+            for sid, target in target_ticks.items():
+                err = errors.get(sid, None)
+                if err is not None and abs(err) > tolerance_ticks:
+                    actual = actuals.get(sid, "Unknown")
+                    name = MOTOR_NAMES.get(sid, f"Motor {sid}")
+                    stalled_joints.append(
+                        f"{name} (ID {sid}): target={target}, actual={actual}, error={err} ticks"
+                    )
+
+            if stalled_joints:
+                logger.error(
+                    f"STALL / OBSTRUCTION DETECTED! Emergency torque cutoff triggered. "
+                    f"Stalled joints: {'; '.join(stalled_joints)}"
+                )
+                self.emergency_stop()
+                return False
+
+        return False

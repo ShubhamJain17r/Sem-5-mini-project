@@ -94,9 +94,9 @@ Represents an individual physical cube identified on the elevated picking arena.
 
 uint32 object_id                  # Unique sequential detection ID
 string color                      # Color classification: "RED", "GREEN", "BLUE", "YELLOW"
-float64 x_mm                      # Absolute world X coordinate in arena frame [360.0, 730.0 mm]
-float64 y_mm                      # Absolute world Y coordinate in arena frame [55.0, 545.0 mm]
-float64 z_mm                      # Elevation coordinate (nominally +32.5 mm for cube centroid)
+float64 x_mm                      # Absolute world X coordinate in arena frame [80.0, 480.0 mm]
+float64 y_mm                      # Absolute world Y coordinate in arena frame [40.0, 420.0 mm]
+float64 z_mm                      # Elevation coordinate (nominally +37.5 mm for cube centroid on +25mm deck)
 float64 yaw_deg                   # Planar orientation angle psi in range [-45.0, +45.0 degrees]
 float64 confidence                # Optical classification confidence score [0.0, 1.0]
 builtin_interfaces/Time stamp     # Timestamp of perception capture
@@ -200,32 +200,26 @@ bool success                      # True if lock successfully cleared
 
 ### 3.1 Spatial Geometry & Coordinate Frames
 
-The arena plane measures $370\text{ mm} \times 490\text{ mm}$ with world coordinates $X \in [360, 730\text{ mm}]$ and $Y \in [55, 545\text{ mm}]$.
+The flat rectangular arena workspace measures $400\text{ mm} \times 220\text{ mm}$ with world coordinates $X \in [80, 480\text{ mm}]$ and $Y \in [40, 260\text{ mm}]$.
 
-- **Arm 1 (North / Back)**: Base center located at $(X_1 = 360.0\text{ mm}, Y_1 = 420.0\text{ mm})$.
-- **Arm 2 (South / Front)**: Base center located at $(X_2 = 360.0\text{ mm}, Y_2 = 180.0\text{ mm})$.
-- **Midline Boundary**: $Y_{\text{mid}} = 300.0\text{ mm}$ (equidistant between both arms, $S = 240\text{ mm}$ apart).
+- **Arm 1 (Left Arm)**: Base center located at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, nominal heading $-110.0^\circ$ inward.
+- **Arm 2 (Right Arm)**: Base center located at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, nominal heading $-70.0^\circ$ inward.
+- **Midline Boundary**: $X_{\text{mid}} = 280.0\text{ mm}$ (axis of symmetry between both arms, $S = 220\text{ mm}$ apart).
 
 ```text
   Y (mm)
-   545 ┌─────────────────────────────────────────────────────────────┐
-       │ [ArUco #2] (360, 545)               [ArUco #3] (730, 545)   │
+   260 ┌─────────────────────────────────────────────────────────────┐
+       │ [ArUco #0] (85, 255)                [ArUco #1] (475, 255)   │
        │                                                             │
-       │  ═════════════════════════════════════════════════════════  │
-       │  ZONE 1: ARM 1 EXCLUSIVE TURF (Y = 350 to 545 mm)           │
-       │  (Arm 1 Picks Freely with Zero Collision Risk)              │
-   350 ├ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ┤
-       │  SHARED CROSSOVER BAND (Y = 250 to 350 mm)                  │
-   300 │  ────── Midline Boundary (Y = 300 mm) ───────────────────── │
-       │  (Requires arena_mutex Lock Before Entering)                │
-   250 ├ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ┤
-       │  ZONE 2: ARM 2 EXCLUSIVE TURF (Y = 55 to 250 mm)            │
-       │  (Arm 2 Picks Freely with Zero Collision Risk)              │
-       │  ═════════════════════════════════════════════════════════  │
-       │                                                             │
-    55 │ [ArUco #0] (360, 55)                [ArUco #1] (730, 55)    │
-       └─────────────────────────────────────────────────────────────┘
-       360                                                         730 ───> X (mm)
+       │  ZONE 1: ARM 1       │      SHARED       │   ZONE 2: ARM 2  │
+       │  EXCLUSIVE TURF      │  CROSSOVER BAND   │  EXCLUSIVE TURF  │
+       │   (X < 240 mm)       │ (X = 240..320 mm) │   (X > 320 mm)   │
+       │  Picks Freely with   │   Requires Mutex  │ Picks Freely with│
+       │ Zero Collision Risk  │  Lock Before Pick │Zero Collision Risk│
+       │                      │                   │                  │
+    40 │ [ArUco #2] (85, 45)  │  X_mid = 280 mm   │ [ArUco #3] (475, 45)│
+       └──────────────────────┴───────────────────┴──────────────────┘
+       80                    240                 320                480 ───> X (mm)
 ```
 
 ### 3.2 Dynamic Load Balancing with Hysteresis
@@ -236,32 +230,32 @@ Let:
 
 - $Q_1$ = Number of queued tasks assigned to Arm 1.
 - $Q_2$ = Number of queued tasks assigned to Arm 2.
-- $Y_c$ = Measured $Y$ coordinate of the target cube.
+- $X_c$ = Measured $X$ coordinate of the target cube.
 
 #### Assignment Rules
 
 1. **Strict Exclusive Zones**:
-   $$\text{If } Y_c > 350.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: False)}$$
-   $$\text{If } Y_c < 250.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: False)}$$
+   $$\text{If } X_c < 240.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: False)}$$
+   $$\text{If } X_c > 320.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: False)}$$
 
-2. **Crossover Zone ($250.0\text{ mm} \le Y_c \le 350.0\text{ mm}$)**:
+2. **Crossover Zone ($240.0\text{ mm} \le X_c \le 320.0\text{ mm}$)**:
    - Both arms can physically reach this band.
    - If $|Q_1 - Q_2| < 2$ (balanced workload):
-     $$\text{If } Y_c \ge 300.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: True)}$$
-     $$\text{If } Y_c < 300.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: True)}$$
+     $$\text{If } X_c \le 280.0\text{ mm} \implies \text{Assign to Arm 1 (Requires Mutex: True)}$$
+     $$\text{If } X_c > 280.0\text{ mm} \implies \text{Assign to Arm 2 (Requires Mutex: True)}$$
    - If $Q_1 - Q_2 \ge 2$ (Arm 1 is overloaded):
-     - Arm 2 "steals" cubes up to $Y_c \le 340.0\text{ mm}$ to rebalance throughput.
+     - Arm 2 "steals" cubes down to $X_c \ge 250.0\text{ mm}$ to rebalance throughput.
    - If $Q_2 - Q_1 \ge 2$ (Arm 2 is overloaded):
-     - Arm 1 "steals" cubes down to $Y_c \ge 260.0\text{ mm}$ to rebalance throughput.
+     - Arm 1 "steals" cubes up to $X_c \le 310.0\text{ mm}$ to rebalance throughput.
 
 3. **Kinematic Reach Validation**:
    Before assignment, the scheduler confirms the target satisfies:
-   $$R_i = \sqrt{(X_c - X_i)^2 + (Y_c - Y_i)^2} \in [120.0, 320.0\text{ mm}]$$
+   $$R_i = \sqrt{(X_c - X_i)^2 + (Y_c - Y_i)^2} \in [110.0, 320.0\text{ mm}]$$
    If a cube in the crossover zone exceeds $R_{\max} = 320.0\text{ mm}$ for one arm, it is assigned exclusively to the other arm regardless of queue lengths.
 
 ### 3.3 The Spatial Mutex State Machine
 
-The central crossover band ($Y \in [250, 350\text{ mm}]$) allows only **one manipulator inside its physical envelope at any given millisecond**. This is enforced via an atomic state machine inside `scheduler_node`:
+The central crossover band ($X \in [240, 320\text{ mm}]$) allows only **one manipulator inside its physical envelope at any given millisecond**. This is enforced via an atomic state machine inside `scheduler_node`:
 
 ```mermaid
 stateDiagram-v2
@@ -284,8 +278,8 @@ stateDiagram-v2
 
 #### Mutex Safety Invariants
 
-1. **No Grasping Without Lock**: An arm assigned a task with `requires_mutex = True` will move only as far as its **Radial Standoff Waypoint** ($r_{\text{target}} - 30\text{ mm}$). It **MUST** receive `success = True` from `AcquireZone.srv` before advancing its gripper across the $Y = 250\text{--}350\text{ mm}$ boundary.
-2. **Immediate Release on Lift**: As soon as the arm executes **Phase 4 (Ascend & Retract)** and reaches radial clearance outside the crossover band ($r < 170\text{ mm}$ or $Y_{\text{claw}}$ exits $[250, 350\text{ mm}]$), it immediately calls `ReleaseZone.srv`. The mutex is **NEVER held during transit to or release into the drop boxes**.
+1. **No Grasping Without Lock**: An arm assigned a task with `requires_mutex = True` will move only as far as its **Radial Standoff Waypoint** ($r_{\text{target}} - 30\text{ mm}$). It **MUST** receive `success = True` from `AcquireZone.srv` before advancing its gripper across the $X = 240\text{--}320\text{ mm}$ boundary.
+2. **Immediate Release on Lift**: As soon as the arm executes **Phase 4 (Ascend & Retract)** and reaches radial clearance outside the crossover band ($r < 170\text{ mm}$ or $X_{\text{claw}}$ exits $[240, 320\text{ mm}]$), it immediately calls `ReleaseZone.srv`. The mutex is **NEVER held during transit to or release into the drop boxes**.
 3. **5.0-Second Watchdog Timer**: If an arm acquires the lock but fails to release it within $5.0\text{ seconds}$ (due to servo stall or serial dropout), the scheduler forcibly revokes the lock, issues a software abort to that arm, and clears the zone to prevent deadlock.
 
 ---
@@ -300,24 +294,24 @@ Each sorting transaction consists of 5 distinct kinematic phases:
 
 |    Phase    | Description                          |          Altitude $Z$           |             Radial Span $r$              |       Speed / Duration       |        Mutex Needed?        |
 | :---------: | ------------------------------------ | :-----------------------------: | :--------------------------------------: | :--------------------------: | :-------------------------: |
-| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+55\text{ mm}$)     | Retracted $\rightarrow r - 30\text{ mm}$ |    Fast ($600\text{ ms}$)    |             No              |
-| **Phase 2** | **Claw Open & Horizontal Advance**   |   Descent ($+32.5\text{ mm}$)   |     $r - 30\text{ mm} \rightarrow r$     |   Smooth ($500\text{ ms}$)   | **YES** _(if in crossover)_ |
-| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+32.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($350\text{ ms}$) | **YES** _(if in crossover)_ |
-| **Phase 4** | **Ascend & Radial Retract**          |     Lift to $+65\text{ mm}$     |     $r \rightarrow r - 50\text{ mm}$     |   Smooth ($500\text{ ms}$)   |    **RELEASE LOCK HERE**    |
-| **Phase 5** | **Drop Slew & Release**              | Drop altitude ($+45\text{ mm}$) |     Swivel to Box ($\pm 125^\circ$)      |    Fast ($800\text{ ms}$)    |       No (Flank Zone)       |
+| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+37.5\text{ mm}$)   | Retracted $\rightarrow r - 35\text{ mm}$ |    Fast ($600\text{ ms}$)    |             No              |
+| **Phase 2** | **Claw Open & Horizontal Advance**   |   Descent ($+12.5\text{ mm}$)   |     $r - 35\text{ mm} \rightarrow r$     |   Smooth ($500\text{ ms}$)   | **YES** _(if in crossover)_ |
+| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+12.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($350\text{ ms}$) | **YES** _(if in crossover)_ |
+| **Phase 4** | **Ascend & Radial Retract**          |     Lift to $+47.5\text{ mm}$   |     $r \rightarrow r - 50\text{ mm}$     |   Smooth ($500\text{ ms}$)   |    **RELEASE LOCK HERE**    |
+| **Phase 5** | **Drop Slew & Release**              | Drop altitude ($+50\text{ mm}$) |     Swivel to Flank Tray ($\pm 70^\circ$)|    Fast ($800\text{ ms}$)    |       No (Flank Zone)       |
 
 ### 4.2 Pipelined Execution Timeline
 
 ```text
 Time (s):  0.0       0.6       1.1       1.4       1.9       2.7       3.3       3.8       4.1
            │─────────│─────────│─────────│─────────│─────────│─────────│─────────│─────────│
-ARM 1:     [Phase 1: Approach] [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift] [Phase 5: Transit & Drop (NW)] [Phase 1: Next Pick]
+ARM 1:     [Phase 1: Approach] [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift] [Phase 5: Transit & Drop (Left)] [Phase 1: Next Pick]
                                └──────── MUTEX HELD (0.8s) ──────┘
-ARM 2:     [Phase 5: Dropping SW] [Phase 1: Approach] ────────────> [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift]
+ARM 2:     [Phase 5: Dropping Right] [Phase 1: Approach] ─────────> [Phase 2: Advance] [Phase 3: Grip] [Phase 4: Lift]
                                                                     └──────── MUTEX HELD (0.8s) ──────┘
 ```
 
-- **Zero Waiting**: While Arm 1 is executing Phase 5 (swiveling West to drop into NW Box 1 at $Z = 0\text{ mm}$), Arm 2 is actively executing Phases 1–3 in the South arena.
+- **Zero Waiting**: While Arm 1 is executing Phase 5 (swiveling West to drop into Left Flank Tray 1 at $Z = 50\text{ mm}$), Arm 2 is actively executing Phases 1–3 in the East arena quadrant ($X > 280\text{ mm}$).
 - **Effective Throughput**: An individual cycle requires $\approx 2.75\text{ seconds}$ per arm. Pipelined in parallel, the dual-arm system achieves an effective completion rate of **one cube sorted every $1.4\text{--}1.6\text{ seconds}$** ($\approx 38\text{--}42\text{ cubes/minute}$ total system throughput).
 
 ---
@@ -346,14 +340,14 @@ class SchedulerNode(Node):
     def __init__(self):
         super().__init__('scheduler_node')
 
-        # Kinematic base origins (in arena mm frame)
-        self.arm1_base = (360.0, 420.0)  # North Arm
-        self.arm2_base = (360.0, 180.0)  # South Arm
+        # Kinematic base origins (in arena mm frame) - V-Configuration
+        self.arm1_base = (170.0, 360.0)  # Left Arm (+35° Inward)
+        self.arm2_base = (390.0, 360.0)  # Right Arm (-35° Inward)
 
-        # Territorial Boundaries
-        self.y_midline = 300.0
-        self.crossover_y_min = 250.0
-        self.crossover_y_max = 350.0
+        # Territorial Boundaries (X-Midline Split)
+        self.x_midline = 280.0
+        self.crossover_x_min = 240.0
+        self.crossover_x_max = 320.0
 
         # Reach constraints
         self.r_min = 120.0  # mm
@@ -488,12 +482,12 @@ class SchedulerNode(Node):
             assigned_arm = None
             requires_mutex = False
 
-            if obj.y_mm > self.crossover_y_max and valid_arm1:
+            if obj.x_mm < self.crossover_x_min and valid_arm1:
                 assigned_arm = 'arm_1'
-            elif obj.y_mm < self.crossover_y_min and valid_arm2:
+            elif obj.x_mm > self.crossover_x_max and valid_arm2:
                 assigned_arm = 'arm_2'
             else:
-                # Inside shared crossover zone (Y in [250, 350 mm])
+                # Inside shared crossover zone (X in [240, 320 mm])
                 requires_mutex = True
                 # Load balance based on queue differential
                 if valid_arm1 and valid_arm2:
@@ -502,7 +496,7 @@ class SchedulerNode(Node):
                     elif (self.arm2_queue_len - self.arm1_queue_len) >= 2:
                         assigned_arm = 'arm_1'
                     else:
-                        assigned_arm = 'arm_1' if obj.y_mm >= self.y_midline else 'arm_2'
+                        assigned_arm = 'arm_1' if obj.x_mm <= self.x_midline else 'arm_2'
                 elif valid_arm1:
                     assigned_arm = 'arm_1'
                 elif valid_arm2:
@@ -736,7 +730,7 @@ class ArmNode(Node):
 
         # Phase 2: Claw Open & Horizontal Advance
         self.state = "GRASPING"
-        ik_pick = self.ik.calculate_ik(r, 32.5, phi, cube_yaw, theta)
+        ik_pick = self.ik.calculate_ik(r, 12.5, phi, cube_yaw, theta)
         # Open claw (position 150 = 55mm aperture)
         self.send_servo_packet({6: 150}, 200)
         time.sleep(0.2)
@@ -886,11 +880,11 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'pixels_per_mm': 2.0,
-                'arena_x_min': 360.0,
-                'arena_x_max': 730.0,
-                'arena_y_min': 55.0,
-                'arena_y_max': 545.0,
-                'elevation_z': 20.0
+                'arena_x_min': 80.0,
+                'arena_x_max': 480.0,
+                'arena_y_min': 40.0,
+                'arena_y_max': 420.0,
+                'elevation_z': 25.0
             }]
         ),
 

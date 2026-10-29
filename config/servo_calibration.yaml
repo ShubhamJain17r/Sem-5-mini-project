@@ -19,39 +19,40 @@
 #   config/dual_xarm_hardware.yaml
 # =====================================================================================
 
-version: "1.0"
-last_calibrated: "2026-09-16"
+version: "1.1"
+last_calibrated: "2026-10-28"
 
 # -------------------------------------------------------------------------------------
-# xArm 1: REAR / BACK MANIPULATOR (Phase 0 Measured)
+# xArm 1: REAR / BACK MANIPULATOR (Empirically Measured via xArm PC App)
 # -------------------------------------------------------------------------------------
 xarm_1:
-  calibrated_date: "2026-09-16"
-  status: "verified"
+  status: "verified_empirical"
+  measurement_tolerance_ticks: 5
   servo_deviations:
     motor_1_claw: 1
-    motor_2_wrist_roll: 3
+    motor_2_wrist_roll: -2
     motor_3_wrist_pitch: -3
-    motor_4_elbow: -13
-    motor_5_shoulder: 0
-    motor_6_base_yaw: 0
+    motor_4_elbow: -5
+    motor_5_shoulder: -2
+    motor_6_base_yaw: -5
 
-  # C++ / Arduino array representation (1-indexed, index 0 unused)
-  # const int SERVO_DEV_ARM1[7] = {0, 1, 3, -3, -13, 0, 0};
+  # C++ / Arduino Array (1-indexed, index 0 unused):
+  # const int SERVO_DEV_ARM1[7] = {0, 1, -2, -3, -5, -2, -5};
 
 # -------------------------------------------------------------------------------------
-# xArm 2: FRONT / SOUTH MANIPULATOR (Baseline / Pending Calibration)
+# xArm 2: FRONT / SOUTH MANIPULATOR (Empirically Measured via xArm PC App)
 # -------------------------------------------------------------------------------------
 xarm_2:
-  calibrated_date: "2026-09-16"
-  status: "pending_physical_zeroing"
+  status: "verified_empirical"
+  measurement_tolerance_ticks: 5
   servo_deviations:
-    motor_1_claw: 0
-    motor_2_wrist_roll: 0
-    motor_3_wrist_pitch: 0
-    motor_4_elbow: 0
-    motor_5_shoulder: 0
-    motor_6_base_yaw: 0
+    motor_1_claw: -2
+    motor_2_wrist_roll: -4
+    motor_3_wrist_pitch: -7
+    motor_4_elbow: 13
+    motor_5_shoulder: -3
+    motor_6_base_yaw: 2
 
-  # C++ / Arduino array representation (1-indexed, index 0 unused)
-  # const int SERVO_DEV_ARM2[7] = {0, 0, 0, 0, 0, 0, 0};
+  # C++ / Arduino array representation (1-indexed, index 0 unused):
+  # const int SERVO_DEV_ARM2[7] = {0, -2, -4, -7, 13, -3, 2};
+

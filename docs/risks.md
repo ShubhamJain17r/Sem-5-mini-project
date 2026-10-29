@@ -1,6 +1,6 @@
 # Risk Assessment & Mitigation Matrix — Dual xArm 1s Color-Sorting Robot
 
-This document details the physical, optical, kinematic, and algorithmic failure modes identified for the dual xArm 1s system, incorporating the **two-center stadium arena (RIGHT side)**, **NW / SW dedicated 2×2 boxes (LEFT side)**, **Central Electronics Bay**, **20 mm elevated arena platform**, and **arena-dedicated ArUco framing (collinear with arms)**.
+This document details the physical, optical, kinematic, and algorithmic failure modes identified for the dual xArm 1s system, incorporating the **Zero-Carpentry Flat-Board architecture ($560\times 520\times 18\text{ mm}$)**, **inward-angled V-configuration**, **immediate flank 2×2 sorting trays**, **flat rectangular arena ($Z = 0.0\text{ mm}$) with foam tape border**, and **table-coplanar ArUco fiducials ($Z = 0.0\text{ mm}$)**.
 
 ---
 
@@ -8,62 +8,55 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 | ID       | Category   | Risk Description                                              |   Severity   | Probability | Primary Mitigation                                                                                              |
 | -------- | ---------- | ------------------------------------------------------------- | :----------: | :---------: | --------------------------------------------------------------------------------------------------------------- |
-| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 20 mm elevated arena + high-friction silicone mat + textured claw pads                                          |
-| **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 320\text{ mm}$) + $65\text{ mm}$ Motor 2 height alignment                           |
-| **R-03** | Vision     | Non-coplanar ArUco distortion if markers sit at mixed heights |   **High**   |   **Low**   | Mount all 4 ArUco markers directly on the raised arena ($Z = +20\text{ mm}$)                                    |
-| **R-04** | Vision     | HSV color threshold drift from changing lab lights            |   **High**   | **Medium**  | Fixed camera exposure + dedicated 5V diffuse LED ring                                                           |
-| **R-05** | Hardware   | Voltage brownout / servo reset under dual-arm torque          | **Critical** | **Medium**  | Separate 7.4V / 5A power supply per arm with shared ground in Central Electronics Bay                           |
-| **R-06** | Comms      | WiFi latency jitter / packet drops causing arm stutter        |   **High**   | **Medium**  | Direct USB-to-UART serial connections (`/dev/ttyUSB0`, `/dev/ttyUSB1`)                                          |
-| **R-07** | Mechanical | Cube bounce off collection box partition rim on drop          |   **Low**    |   **Low**   | Boxes sit at table level ($Z = 0\text{ mm}$); arm drops inside rim with damping pads                            |
-| **R-08** | Mechanical | Table gouging from claw rotation at low angles                |   **High**   |   **Low**   | Fixed wrist orientation (locked $\text{Roll} = 0^\circ$)                                                        |
-| **R-09** | Multi-Arm  | Deadlock or race condition on shared arena access             |   **High**   |   **Low**   | Single `arena_mutex` with 5.0-second watchdog timeout; private NW/SW left boxes                                 |
-| **R-10** | Vision     | ArUco marker occlusion by arm link along central axis         |  **Medium**  |   **Low**   | Markers 0 & 2 offset from base wiring; homography caching locks matrix                                          |
-| **R-11** | Hardware   | Base Servo $240^\circ$ ROM Mechanical Deadzone (Due West)     |   **High**   |   **Low**   | Relocate Box 1 to NW ($\approx +125^\circ$) and Box 2 to SW ($\approx -125^\circ$); total swing $\le 205^\circ$ |
+| **R-01** | Mechanical | Cube sliding during horizontal/angled grasp                   |   **High**   |   **Low**   | 1-inch wooden cubes ($15\text{ g}$ mass) + matte primer/paint + high-friction mat + textured rubber claw pads    |
+| **R-02** | Kinematics | Arm sag & joint flex at extreme reach ($R > 25\text{ cm}$)    |   **High**   |   **Low**   | Bounded radius ($R_{\max} = 320\text{ mm}$) + empirical piecewise linear Z-sag compensation in software         |
+| **R-03** | Vision     | Specular reflection & non-coplanar ArUco distortion           |   **High**   |   **Low**   | 4 matte vinyl stickers applied flat on wooden board ($Z = 0.0\text{ mm}$ coplanar with floor and cube bases)    |
+| **R-04** | Vision     | HSV color threshold drift from changing lab lights            |   **High**   | **Medium**  | Fixed camera exposure (`v4l2-ctl`) + diffuse ambient lighting; wide saturation bands                            |
+| **R-05** | Hardware   | Voltage brownout / servo reset under dual-arm torque          | **Critical** | **Medium**  | Dual independent 7.4V / 5A buck regulators with common star ground and 1000 µF low-ESR buffer capacitors        |
+| **R-06** | Comms      | USB cable snagging / serial latency jitter                    |   **High**   |   **Low**   | Surface adhesive cable clips with short, direct USB serial runs ($< 18\text{ cm}$) to rear-mounted SBC          |
+| **R-07** | Mechanical | Cube bounce off collection tray compartment wall on drop      |   **Low**    |   **Low**   | 3D-printed 2×2 trays with $35\text{ mm}$ wall height; drop executed inside compartment cavity with gravity drop |
+| **R-08** | Mechanical | Table gouging from claw rotation at low angles                |   **High**   |   **Low**   | Fixed wrist roll orientation (locked $\text{Roll} = 0^\circ$ for far picks) and natural adaptive pitch           |
+| **R-09** | Multi-Arm  | Deadlock or race condition on shared arena overlap zone       |   **High**   |   **Low**   | Spatial mutex for crossover zone ($X \in [220, 340\text{ mm}]$); independent outer sectors and private flank trays |
+| **R-10** | Vision     | ArUco marker occlusion by arm link along perimeter            |  **Medium**  |   **Low**   | Markers placed at outer arena corners clear of normal arm sweep; homography caching locks matrix                |
+| **R-11** | Hardware   | Base Servo $240^\circ$ ROM Mechanical Deadzone                |   **High**   |   **Low**   | Flank 2×2 trays at $(50, 360)$ and $(510, 360)$ reduce outward drop swing to only $\approx 70.0^\circ$          |
 
 ---
 
 ## 2. Key Architecture Decisions & How They Resolved Major Risks
 
-### 2.1 Base Servo $240^\circ$ ROM: Why We Angled Drop Boxes to NW and SW (Risk R-11)
+### 2.1 Base Servo $240^\circ$ ROM: Immediate Flank 2×2 Trays (Risk R-11)
 
-- **The Hardware Constraint**: LewanSoul / Hiwonder LX-15D bus servos have a mechanical travel range of $240^\circ$ ($0\text{--}1000$ tick range). With the physical center facing East ($0^\circ$) toward the picking arena, the arm can turn $\pm 120^\circ$. Directly behind the arm ($180^\circ$ due West) is an unreachable deadzone. Attempting a $180^\circ$ drop turn will stall or strip the internal gear train.
-- **The NW / SW Solution**:
-  - Box 1 is placed in the North-West corner at $\approx +125^\circ$ relative to Arm 1.
-  - Box 2 is placed in the South-West corner at $\approx -125^\circ$ relative to Arm 2.
-  - Arm 1 rotates CCW by $\approx 205^\circ$ from its southernmost pick angle to drop in Box 1.
-  - Arm 2 rotates CW by $\approx 205^\circ$ from its northernmost pick angle to drop in Box 2.
-  - Both paths stay safely inside the $240^\circ$ physical limit, guaranteeing zero servo stall.
-- **Central Electronics Bay Bonus**: Clearing the central-left area creates space for the NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) and 7.4V power distribution hub directly between the arms, shortening serial and power cables to $< 25\text{ cm}$.
+- **The Hardware Constraint**: LewanSoul / Hiwonder LX-15D bus servos have a mechanical travel range of $240^\circ$ ($0\text{--}1000$ tick range). Directly behind the arm base is an unreachable deadzone.
+- **The Immediate Flank Solution**:
+  - In the V-configuration, 3D-printed 2×2 grid sorting trays are positioned on the immediate lateral flanks of each arm: Left Tray at $(50, 360)$ for Arm 1, Right Tray at $(510, 360)$ for Arm 2.
+  - To drop, the arm rotates outward by only **$\approx 70.0^\circ$** from its nominal heading.
+  - Total travel from the farthest pick point to drop compartment is well within the $[150, 850]$ safe tick envelope.
+  - **Speedup & Reliability**: Drops are $>50\%$ faster with zero risk of servo stall, and independent lateral trays allow concurrent drops without contention.
 
-### 2.2 The Collinear Arena ArUco Setup: Why We Moved Markers from Behind the Boxes
+### 2.2 Coplanar Table-Level ArUco Stickers (Risk R-03)
 
-- **Previous Vulnerability**: Placing ArUco markers at the far left corners of the baseboard forced the camera to capture a huge $80 \times 60\text{ cm}$ field of view, wasting over 50% of the image resolution on the container boxes and empty space. Furthermore, sorted cubes inside the boxes risked triggering false-positive color detections.
-- **The New Design**: Markers 0 and 2 are aligned with the central arm axis along the inner edge of the elevated arena ($X = 360\text{ mm}$), while Markers 1 and 3 are on the outer right boundary ($X = 730\text{ mm}$).
-  - **Zero False Detections**: The drop boxes on the left are completely excluded from the camera's warped view.
-  - **Double Pixel Density**: 100% of camera pixels are focused on the picking arena.
-  - **Lower Camera Mounting**: Boom stand can sit at $65\text{--}75\text{ cm}$ directly over the arena.
+- **Previous Vulnerability**: Glossy 3D-printed plastic reflects overhead LED light directly into the camera lens, washing out black ArUco cells. Raised curbed markers also introduce parallax errors if cubes rest at a different elevation.
+- **The Coplanar Flat Solution**:
+  - The 4 ArUco fiducials (`DICT_4X4_50`, IDs 0, 1, 2, 3) are printed on **matte vinyl sticker sheets** ($40\times 40\text{ mm}$) and applied directly flat to the wooden board at the four corners of the arena ($Z = 0.0\text{ mm}$).
+  - Because markers share the exact plane of the arena floor and cube bases, OpenCV planar homography calculates a mathematically perfect perspective warp ($H$) with zero elevation-induced parallax error.
 
-### 2.3 Coplanarity Rule (Crucial Optical Physics)
+### 2.3 Flat Rectangular Arena & Soft Foam Border (Risk R-01, R-08)
 
-- A 2D homography maps a flat plane ($Z = \text{constant}$). Because the right-side picking arena is **elevated by $+20\text{ mm}$**, all 4 ArUco markers **must sit on that same elevated platform**. If markers sat at different heights, the homography would compute a false tilt and distort cube coordinates by up to $10\text{ mm}$.
+- Motor 2 (shoulder pitch axis) is **$65.0\text{ mm}$** above the base. With $25\text{ mm}$ craft cubes resting flat on the board ($Z = 0.0\text{ mm}$), the cube grasp center sits at **$Z = 12.5\text{ mm}$**, requiring a vertical shoulder drop of $\approx 52.5\text{ mm}$.
+- Analytical IK solves cleanly for all radii $r \in [130, 300\text{ mm}]$, maintaining high motor torque.
+- The soft self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) retains cubes within the active zone without posing any rigid collision hazard to the robotic claw.
 
-### 2.4 The Elevation Setup: Why We Elevated the Arena and NOT the xArm
+### 2.4 Bounding $R_{\max} = 320\text{ mm}$ (Eliminating Servo Stall)
 
-- **Built-in Height**: Motor 2 (shoulder pitch axis) is already **$65\text{ mm}$** above the base. Raising the arm base would force the arm to point steeply down, reducing horizontal reach and scraping brackets.
-- **Elevating the arena by 20 mm**: Cube centers sit at $Z \approx 32.5\text{ mm}$, only $32.5\text{ mm}$ below Motor 2. The arm reaches **straight out horizontally** in its natural power band. Motor torque strain drops by ~30%.
+- Setting the outer reach boundary at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 120^\circ$, preserving high torque and avoiding straight-arm lock singularities.
 
-### 2.5 Bounding $R_{\max} = 320\text{ mm}$ (Eliminating Servo Stall)
+### 2.5 Modular Stepping-Stone References
 
-- Setting the outer curved boundary barrier at **$R_{\max} = 320\text{ mm}$** keeps the elbow joint at $\approx 122^\circ$, retaining full torque margin and eliminating motor stalls.
-
-### 2.6 Modular Stepping-Stone References
-
-- Consult [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Stepping Stone 1) for physical assembly, NW/SW boxes, and power bay.
+- Consult [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) (Stepping Stone 1) for zero-carpentry flat baseboard, V-configuration mounting, and flank 2×2 trays.
 - Consult [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2) for closed-form IK, reach proofs, dual-regime roll, and 5-phase trajectory profiling.
 - Consult [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3) for planar homography, HSV segmentation, sub-mm centroiding, and polar mapping.
-- Consult [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4) for distributed ROS 2 Humble node graph, dynamic load balancing across $Y = 300\text{ mm}$ midline, crossover spatial mutex state machine, and Linux udev rules.
-
-\*\* See [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) for detailed mathematical proofs showing why pure top-down picks fail beyond $158\text{ mm}$, the analytical inverse kinematics solver equations ($\theta_1\text{--}\theta_5$), dual-regime wrist roll control, 5-phase trajectory profiling, and torque/friction models.
+- Consult [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4) for distributed ROS 2 Humble node graph, dynamic load balancing across $X = 280\text{ mm}$ midline, crossover spatial mutex state machine, and Linux udev rules.
+- Consult [`docs/07_fusion360_cad_modeling_guide.md`](07_fusion360_cad_modeling_guide.md) (Stepping Stone 7) for detailed wood blueprint, 2×2 tray CAD print parameters, and 2-hour assembly guide.
 
 ---
 
@@ -71,10 +64,11 @@ This document details the physical, optical, kinematic, and algorithmic failure 
 
 Before running autonomous sorting:
 
-- [ ] **Coplanar Marker Level**: Confirm all 4 ArUco markers sit flat on the elevated arena platform ($Z = +20\text{ mm}$).
-- [ ] **Arena ROI Check**: Confirm the homography warp only shows the elevated picking arena and completely excludes the left-side drop boxes and Central Electronics Bay.
-- [ ] **Friction Check**: Test dragging a cube on the silicone mat—confirm it holds static position when lightly touched.
-- [ ] **Boundary Verification**: Jog arm to $R=320\text{ mm}$; confirm claw clears outer barrier comfortably.
+- [ ] **Flat Baseboard Stability**: Confirm single wooden board ($560\times 520\text{ mm}$) rests dead-flat on workstation without rocking.
+- [ ] **Coplanar Marker Level**: Confirm all 4 ArUco markers sit flat on the baseboard ($Z = 0.0\text{ mm}$).
+- [ ] **Arena ROI Check**: Confirm the homography warp only shows the $400\times 300\text{ mm}$ arena and cleanly captures the 4 boundary fiducials.
+- [ ] **Friction Check**: Confirm wooden craft blocks hold static position during gripper contact.
+- [ ] **Boundary Verification**: Jog arm to $R = 320\text{ mm}$; confirm claw clears outer foam border comfortably.
 - [ ] **Serial Latency**: Ping both arms over USB serial; confirm latency $< 15\text{ ms}$.
 - [ ] **Lighting Lock**: Confirm camera auto-exposure is disabled and HSV masks show clean bounding boxes.
-- [ ] **$240^\circ$ ROM Verification**: Manually jog Arm 1 to Box 1 (NW @ $+125^\circ$) and Arm 2 to Box 2 (SW @ $-125^\circ$); verify zero hard-stop contact and zero cable tension.
+- [ ] **Flank Tray Swings**: Manually jog Arm 1 to Left Flank Tray ($r = 120\text{ mm}$, swing $\approx 70^\circ$) and Arm 2 to Right Flank Tray; verify zero binding and zero cable tension.

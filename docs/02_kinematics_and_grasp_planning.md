@@ -50,7 +50,7 @@ We establish a right-handed Cartesian base coordinate frame $\mathcal{F}_{\text{
 
 ### 2.2 Physical Dimension Parameters
 
-From technical measurements ([`docs/xArm demensions.png`](xArm%20demensions.png)):
+From technical measurements ([`docs/assets/xArm demensions.png`](assets/xArm%20demensions.png)):
 
 | Parameter                 | Description                                                     |           Value           |
 | ------------------------- | --------------------------------------------------------------- | :-----------------------: |
@@ -60,8 +60,8 @@ From technical measurements ([`docs/xArm demensions.png`](xArm%20demensions.png)
 | $L_3$                     | Motor 4 Wrist Axis to Gripper Fingertip Grasp Center            | $\approx 150.0\text{ mm}$ |
 | $w_{\max}$                | Maximum Gripper Jaw Opening Width                               |     $55.0\text{ mm}$      |
 | $d_{\text{cube}}$         | Target Wooden Cube Side Length                                  |     $25.0\text{ mm}$      |
-| $Z_{\text{arena}}$        | Elevated Picking Arena Floor Surface                            |     $+20.0\text{ mm}$     |
-| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) | $\approx 32.5\text{ mm}$  |
+| $Z_{\text{arena}}$        | Flat Baseboard Picking Arena Surface                            |      $0.0\text{ mm}$      |
+| $Z_{\text{cube\_center}}$ | Grasp Target Elevation ($Z_{\text{arena}} + d_{\text{cube}}/2$) |     $12.5\text{ mm}$      |
 
 ---
 
@@ -73,17 +73,17 @@ A common rookie mistake is attempting to pick cubes by positioning the gripper v
 
 To pick vertically downward, the wrist joint (Motor 4) must hover directly above the object at:
 $$r_w = r_{\text{target}}, \quad z_w = z_{\text{target}} + L_3$$
-With $z_{\text{target}} \approx 30\text{ mm}$ and $L_3 \approx 150\text{ mm}$, the wrist must be at:
-$$z_w = 30 + 150 = 180\text{ mm}$$
+With $z_{\text{target}} = 12.5\text{ mm}$ and $L_3 \approx 150\text{ mm}$, the wrist must be at:
+$$z_w = 12.5 + 150 = 162.5\text{ mm}$$
 The vertical distance from the shoulder axis ($d_1 = 65\text{ mm}$) to the wrist is:
-$$\Delta z = z_w - d_1 = 180 - 65 = 115\text{ mm}$$
+$$\Delta z = z_w - d_1 = 162.5 - 65 = 97.5\text{ mm}$$
 The combined reach of Link 1 and Link 2 is:
 $$L_1 + L_2 = 101 + 95 = 196\text{ mm}$$
 By the Pythagorean theorem, the maximum radial distance $r_{\max,\text{vertical}}$ the wrist can reach is:
-$$r_{\max,\text{vertical}} = \sqrt{(L_1 + L_2)^2 - \Delta z^2} = \sqrt{196^2 - 115^2} = \sqrt{38416 - 13225} = \sqrt{25191} \approx 158.7\text{ mm}$$
+$$r_{\max,\text{vertical}} = \sqrt{(L_1 + L_2)^2 - \Delta z^2} = \sqrt{196^2 - 97.5^2} = \sqrt{38416 - 9506.25} = \sqrt{28909.75} \approx 170.0\text{ mm}$$
 
 > [!WARNING]
-> **Physical Constraint**: Under a pure vertical top-down orientation ($\phi = -90^\circ$), the arm **cannot physically reach any object beyond $15.8\text{ cm}$** from its base. Any cube placed in the outer arena ($r \in [160, 320\text{ mm}] (d_{\text{edge}} \in [9, 25\text{ cm}])$) is kinematically unreachable top-down.
+> **Physical Constraint**: Under a pure vertical top-down orientation ($\phi = -90^\circ$), the arm **cannot physically reach any object beyond $17.0\text{ cm}$** from its base. Any cube placed in the mid-to-far arena ($r \in [180, 320\text{ mm}]$) is kinematically unreachable top-down.
 
 ### 3.2 Why Radial / Angled Picking Resolves the Paradox
 
@@ -92,9 +92,9 @@ $$r_w = r_{\text{target}} - L_3 \cos(\phi)$$
 $$z_w = z_{\text{target}} - L_3 \sin(\phi)$$
 For a horizontal pick ($\phi = 0^\circ$) at $r_{\text{target}} = 220\text{ mm}$:
 $$r_w = 220 - 150 = 70\text{ mm}$$
-$$z_w = 30\text{ mm} \implies \Delta z = 30 - 65 = -35\text{ mm}$$
+$$z_w = 12.5\text{ mm} \implies \Delta z = 12.5 - 65 = -52.5\text{ mm}$$
 The required arm extension is:
-$$D = \sqrt{70^2 + (-35)^2} = \sqrt{4900 + 1225} = 78.2\text{ mm} \ll 196\text{ mm}$$
+$$D = \sqrt{70^2 + (-52.5)^2} = \sqrt{4900 + 2756.25} = \sqrt{7656.25} = 87.5\text{ mm} \ll 196\text{ mm}$$
 The links operate near their mid-range configuration ($\approx 90^\circ\text{--}120^\circ$ elbow bend), where servo gear teeth have maximum contact and motors run in their highest mechanical torque band!
 
 ---
@@ -330,7 +330,7 @@ How can we make the physical grasping system significantly better?
 | **Boundary Singularity ($R > 320\text{ mm} (d_{\text{edge}} > 250\text{ mm})$)**      | Fully extended elbow ($L_1, L_2$ collinear)                           | Jacobian determinant $\det(J) \rightarrow 0$; infinite joint velocity required for radial motion; severe servo jitter | Software clamps all picks to $r \le 320\text{ mm}$                            |
 | **Base Collision Singularity ($R < 120\text{ mm} (d_{\text{edge}} < 50\text{ mm})$)** | Proximity to $140\times 154\text{ mm}$ base mounting plate            | Wrist / Link 2 hits base servo chassis                                                                                | Software rejects any detection with $r < 120\text{ mm}$                       |
 | **Backlash Error Envelope**                                                           | Gear play in plastic/brass spur gearboxes ($1^\circ\text{--}2^\circ$) | End-effector has $\pm 2.5\text{ mm}$ mechanical slack at $240\text{ mm}$ reach                                        | Compensated by wide $55\text{ mm}$ jaw opening ($> 2\times$ cube size)        |
-| **Drop Clearance Limit**                                                              | Left collection box partition height ($H \approx 30\text{ mm}$)       | Arm could clip box wall if dropped at low altitude                                                                    | Planner enforces ascent to $Z = +50\text{ mm}$ before descending into bin     |
+| **Drop Clearance Limit**                                                              | Flank 2x2 sorting tray outer rim height ($H = 35.0\text{ mm}$)        | Arm could clip tray rim if dropped at low altitude                                                                    | Planner enforces ascent to $Z \ge +50\text{ mm}$ before descending into compartment   |
 | **Bus Contention Latency**                                                            | Half-duplex UART communication over shared bus at 115200 baud         | Querying all 6 servo registers takes $\approx 18\text{ ms}$                                                           | Status queries run asynchronously; motion commands broadcast in packet bursts |
 
 ---
@@ -343,9 +343,9 @@ For maximum performance on embedded hardware (NVIDIA Jetson Orin Nano / Orin NX 
 
 |       Distance Range $r_{\text{center}}$       | Distance from Edge $d_{\text{edge}}$ |        Approach Pitch $\phi(r)$        | Standoff Radius $r - \Delta r$ | Grasp Elevation $Z_{\text{pick}}$ |                         Motor 5 Roll Mode                         |
 | :--------------------------------------------: | :----------------------------------: | :------------------------------------: | :----------------------------: | :-------------------------------: | :---------------------------------------------------------------: |
-|     **$120\text{--}170\text{ mm}$** (Near)     |     **$5\text{--}10\text{ cm}$**     |   $-75^\circ$ to $-60^\circ$ (Steep)   |       $r - 20\text{ mm}$       |         $32.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
-|     **$170\text{--}250\text{ mm}$** (Mid)      |    **$10\text{--}18\text{ cm}$**     |  $-50^\circ$ to $-25^\circ$ (Angled)   |       $r - 25\text{ mm}$       |         $32.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
-| **$250\text{--}320\text{ mm}$** (Far Boundary) |    **$18\text{--}25\text{ cm}$**     | $-15^\circ$ to $-5^\circ$ (Horizontal) |       $r - 30\text{ mm}$       |         $32.5\text{ mm}$          | **Locked Level** ($\theta_5 = 0^\circ$, Parallel Self-Centering)  |
+|     **$120\text{--}170\text{ mm}$** (Near)     |     **$5\text{--}10\text{ cm}$**     |   $-75^\circ$ to $-60^\circ$ (Steep)   |       $r - 20\text{ mm}$       |         $12.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
+|     **$170\text{--}250\text{ mm}$** (Mid)      |    **$10\text{--}18\text{ cm}$**     |  $-50^\circ$ to $-25^\circ$ (Angled)   |       $r - 25\text{ mm}$       |         $12.5\text{ mm}$          | **Object-Aligned** ($\theta_5 = \theta_{\text{cube}} - \theta_1$) |
+| **$250\text{--}320\text{ mm}$** (Far Boundary) |    **$18\text{--}25\text{ cm}$**     | $-15^\circ$ to $-5^\circ$ (Horizontal) |       $r - 30\text{ mm}$       |         $12.5\text{ mm}$          | **Locked Level** ($\theta_5 = 0^\circ$, Parallel Self-Centering)  |
 
 ### 10.2 Python IK Solver Reference Implementation
 

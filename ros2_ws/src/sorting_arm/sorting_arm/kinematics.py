@@ -31,18 +31,23 @@ class KinematicParameters:
     L3_tip: float = 168.0     # Wrist pitch axis to outer claw fingertip (mm)
 
     # Servo zero-reference angles (degrees when servo is at 500 ticks)
-    shoulder_zero_deg: float = 45.0  # Angle above horizontal at 500 ticks
-    elbow_zero_deg: float = 90.0     # Interior angle between L1 and L2 at 500 ticks
-    wrist_zero_deg: float = 0.0      # Relative angle with forearm at 500 ticks
+    shoulder_zero_deg: float = 90.0  # Angle above horizontal at 500 ticks (upright vertical)
+    elbow_zero_deg: float = 180.0    # Interior angle between L1 and L2 at 500 ticks (straight collinear)
+    wrist_zero_deg: float = 0.0      # Relative angle with forearm at 500 ticks (collinear)
     base_zero_deg: float = 0.0       # Arm-relative angle at 500 ticks (default 0 deg)
     base_heading_deg: float = 0.0    # Base mounting nominal heading in world frame (East = 0 deg)
+
+    # Motor direction multipliers (+1 standard, -1 inverted)
+    direction_multipliers: Optional[Dict[int, int]] = None
 
     # Soft safety tick clamps
     min_safe_ticks: Optional[Dict[int, int]] = None
     max_safe_ticks: Optional[Dict[int, int]] = None
 
     def __post_init__(self):
-        """Set default safe tick clamps if not provided."""
+        """Set default safe tick clamps and direction multipliers if not provided."""
+        if self.direction_multipliers is None:
+            self.direction_multipliers = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
         if self.min_safe_ticks is None:
             self.min_safe_ticks = {1: 150, 2: 200, 3: 150, 4: 150, 5: 200, 6: 150}
         if self.max_safe_ticks is None:
@@ -116,8 +121,8 @@ def load_kinematic_parameters(
         l3_grip = float(links.get("tool_claw_grip_center_L3", links.get("tool_claw_L4", 150.0)))
         l3_tip = float(links.get("tool_claw_fingertip_L3", 168.0))
 
-        sh_zero = float(motors.get("motor_5", {}).get("zero_reference_angle_deg", 45.0))
-        el_zero = float(motors.get("motor_4", {}).get("zero_reference_angle_deg", 90.0))
+        sh_zero = float(motors.get("motor_5", {}).get("zero_reference_angle_deg", 90.0))
+        el_zero = float(motors.get("motor_4", {}).get("zero_reference_angle_deg", 180.0))
         wr_zero = float(motors.get("motor_3", {}).get("zero_reference_angle_deg", 0.0))
         base_zero = float(motors.get("motor_6", {}).get("zero_reference_angle_deg", 0.0))
         base_heading = float(arm_cfg.get("base_mount_mm", {}).get("nominal_heading_deg", 0.0))
@@ -139,6 +144,15 @@ def load_kinematic_parameters(
             6: int(motors.get("motor_6", {}).get("max_tick", 850)),
         }
 
+        dir_multipliers = {
+            1: int(motors.get("motor_1", {}).get("direction_multiplier", 1)),
+            2: int(motors.get("motor_2", {}).get("direction_multiplier", 1)),
+            3: int(motors.get("motor_3", {}).get("direction_multiplier", 1)),
+            4: int(motors.get("motor_4", {}).get("direction_multiplier", 1)),
+            5: int(motors.get("motor_5", {}).get("direction_multiplier", 1)),
+            6: int(motors.get("motor_6", {}).get("direction_multiplier", 1)),
+        }
+
         return KinematicParameters(
             d1=d1,
             L1=l1,
@@ -150,6 +164,7 @@ def load_kinematic_parameters(
             wrist_zero_deg=wr_zero,
             base_zero_deg=base_zero,
             base_heading_deg=base_heading,
+            direction_multipliers=dir_multipliers,
             min_safe_ticks=min_ticks,
             max_safe_ticks=max_ticks,
         )
@@ -161,29 +176,22 @@ def compute_natural_pitch(r: float, z: float) -> float:
     """
     Compute kinematically optimal approach pitch phi (degrees) based on reach and height.
 
-    - Far reach (r >= 260mm): returns 0.0° (level horizontal pick).
-    - Mid-to-close reach (r < 260mm): smoothly inclines downward (-35° to -10°)
-      to prevent the forearm from pointing vertically downward, keeping Motor 3
-      comfortably within [300, 650] ticks and preventing wrist bracket collision.
+    - For tabletop picking and approach (Z < 50mm): generates a steep downward approach
+      angle (-40° to -70°) so the gripper descends onto objects cleanly from above.
+      This elevates the wrist pitch axis comfortably above the table surface (Zw > 115mm)
+      and keeps Motors 3, 4, 5 well within safe mechanical bounds.
+    - For elevated transit (Z >= 50mm): transitions smoothly toward shallower angles.
     """
-    if r >= 260.0 and z >= 50.0:
-        return 0.0
+    if r < 190.0 and z < 30.0:
+        return -70.0
 
-    if r < 260.0:
-        # Scale factor from 0.0 (r=260) to 1.0 (r=150)
-        factor = clip((260.0 - r) / (260.0 - 150.0), 0.0, 1.0)
-        pitch = -35.0 * factor
+    if z < 50.0:
+        phi = -55.0 + 0.22 * (r - 220.0) + 0.25 * (z - 12.5)
+        return clip(phi, -70.0, -25.0)
 
-        # Lower Z elevation requires slightly more downward tilt to prevent wrist jamming
-        if z < 60.0:
-            pitch -= 5.0 * clip((60.0 - z) / 40.0, 0.0, 1.0)
-        # Higher Z elevation can taper off tilt
-        elif z > 120.0:
-            pitch *= max(0.0, (180.0 - z) / 60.0)
-
-        return clip(pitch, -45.0, 0.0)
-
-    return 0.0
+    # Elevated heights
+    phi = -35.0 + 0.20 * (r - 220.0) + 0.25 * (z - 50.0)
+    return clip(phi, -60.0, 0.0)
 
 
 def solve_ik(
@@ -191,7 +199,7 @@ def solve_ik(
     theta: float,
     z: float,
     phi: Optional[float] = None,
-    claw_tick: int = 700,
+    claw_tick: int = 500,
     roll_tick: int = 500,
     auto_pitch_fallback: bool = True,
     params: Optional[KinematicParameters] = None,
@@ -205,10 +213,10 @@ def solve_ik(
     :param z: Gripper height above table floor (mm)
     :param phi: Gripper pitch angle (degrees relative to table, 0 = level horizontal).
                 If None, automatically selected via compute_natural_pitch(r, z).
-    :param claw_tick: Desired claw position tick (150 closed, 750 open)
+    :param claw_tick: Desired claw position tick (~230 open, ~605 grip 25mm cube, ~780 closed)
     :param roll_tick: Desired wrist roll tick (500 = level)
-    :param auto_pitch_fallback: If True and requested phi violates Motor 3 limits,
-                                 attempts natural pitch as fallback.
+    :param auto_pitch_fallback: If True and requested phi violates joint limits,
+                                 searches nearby feasible pitches to find a valid solution.
     :param params: Optional KinematicParameters instance (defaults to DEFAULT_PARAMS).
     :param use_claw_tip: If True, uses L3_tip (168mm); if False, uses L3_grip (150mm).
     :return: IKSolution with success flag, tick mapping, and joint angles.
@@ -221,11 +229,12 @@ def solve_ik(
         target_phi = phi
 
     sol = _solve_ik_internal(r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
-    if not sol.success and auto_pitch_fallback and phi is not None:
-        alt_phi = compute_natural_pitch(r, z)
-        if abs(alt_phi - phi) > 1.0:
+    if not sol.success and auto_pitch_fallback:
+        # Search nearby pitch offsets if default natural pitch hit a joint limit
+        for delta in [-5.0, 5.0, -10.0, 10.0, -15.0, 15.0]:
+            candidate_phi = clip(target_phi + delta, -75.0, 0.0)
             alt_sol = _solve_ik_internal(
-                r, theta, z, alt_phi, claw_tick, roll_tick, p, use_claw_tip
+                r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip
             )
             if alt_sol.success:
                 return alt_sol
@@ -313,17 +322,22 @@ def _solve_ik_internal(
     theta_wrist_rel_deg = phi - theta_forearm_deg
 
     # Step 6: Convert angles to theoretical servo ticks using configured zero-references
+    dir_mult = params.direction_multipliers or {i: 1 for i in range(1, 7)}
+
     # Motor 6: Base Yaw (500 = center = configured base_zero_deg)
-    tick_6 = int(round(500 + (theta - params.base_zero_deg) * TICKS_PER_DEG))
+    tick_6 = int(round(500 + dir_mult.get(6, 1) * (theta - params.base_zero_deg) * TICKS_PER_DEG))
 
-    # Motor 5: Shoulder Pitch (configured zero angle, default 45° forward)
-    tick_5 = int(round(500 + (theta_shoulder_deg - params.shoulder_zero_deg) * TICKS_PER_DEG))
+    # Motor 5: Shoulder Pitch (configured zero angle, 90° upright at 500 ticks)
+    # Tilting forward toward horizontal decreases theta_shoulder_deg and increases ticks
+    tick_5 = int(round(500 + dir_mult.get(5, 1) * (params.shoulder_zero_deg - theta_shoulder_deg) * TICKS_PER_DEG))
 
-    # Motor 4: Elbow Pitch (configured zero interior angle, default 90°)
-    tick_4 = int(round(500 + (alpha3_deg - params.elbow_zero_deg) * TICKS_PER_DEG))
+    # Motor 4: Elbow Pitch (configured zero interior angle, 180° collinear at 500 ticks)
+    # Folding forward decreases interior angle alpha3_deg and decreases ticks
+    tick_4 = int(round(500 - dir_mult.get(4, 1) * (params.elbow_zero_deg - alpha3_deg) * TICKS_PER_DEG))
 
-    # Motor 3: Wrist Pitch (configured zero relative angle, default 0° collinear)
-    tick_3 = int(round(500 - (theta_wrist_rel_deg - params.wrist_zero_deg) * TICKS_PER_DEG))
+    # Motor 3: Wrist Pitch (configured zero relative angle, 0° collinear at 500 ticks)
+    # Pitching downward relative to forearm decreases theta_wrist_rel_deg and increases ticks
+    tick_3 = int(round(500 - dir_mult.get(3, 1) * (theta_wrist_rel_deg - params.wrist_zero_deg) * TICKS_PER_DEG))
 
     # Motor 2: Wrist Roll
     tick_2 = roll_tick
@@ -392,23 +406,25 @@ def solve_fk(
     l2 = p.L2
     d1 = p.d1
 
-    # Base Yaw
-    theta = p.base_zero_deg + (tick_6 - 500) * DEG_PER_TICK
+    dir_mult = p.direction_multipliers or {i: 1 for i in range(1, 7)}
 
-    # Shoulder
-    theta_shoulder_deg = p.shoulder_zero_deg + (tick_5 - 500) * DEG_PER_TICK
+    # Base Yaw
+    theta = p.base_zero_deg + dir_mult.get(6, 1) * (tick_6 - 500) * DEG_PER_TICK
+
+    # Shoulder (500 ticks is upright 90°, increasing ticks tilts forward toward 0°)
+    theta_shoulder_deg = p.shoulder_zero_deg - dir_mult.get(5, 1) * (tick_5 - 500) * DEG_PER_TICK
     theta_shoulder_rad = math.radians(theta_shoulder_deg)
 
-    # Elbow
-    alpha3_deg = p.elbow_zero_deg + (tick_4 - 500) * DEG_PER_TICK
+    # Elbow (500 ticks is collinear 180°, decreasing ticks folds forward)
+    alpha3_deg = p.elbow_zero_deg + dir_mult.get(4, 1) * (tick_4 - 500) * DEG_PER_TICK
     theta_elbow_bend_deg = 180.0 - alpha3_deg
 
     # Forearm angle
     theta_forearm_deg = theta_shoulder_deg - theta_elbow_bend_deg
     theta_forearm_rad = math.radians(theta_forearm_deg)
 
-    # Wrist pitch
-    theta_wrist_rel_deg = p.wrist_zero_deg - (tick_3 - 500) * DEG_PER_TICK
+    # Wrist pitch (500 ticks is collinear 0°, increasing ticks tilts downward)
+    theta_wrist_rel_deg = p.wrist_zero_deg - dir_mult.get(3, 1) * (tick_3 - 500) * DEG_PER_TICK
     phi = theta_forearm_deg + theta_wrist_rel_deg
     phi_rad = math.radians(phi)
 
@@ -446,8 +462,8 @@ def world_to_arm_polar(
     """
     p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
 
-    base_x = 360.0
-    base_y = 420.0 if arm_id == "xarm_1" else 180.0
+    base_x = 170.0 if arm_id == "xarm_1" else 390.0
+    base_y = 360.0
     base_z = 0.0
 
     candidates = [
@@ -512,8 +528,8 @@ def get_compartment_target(
             data = yaml.safe_load(f)
 
         arm_cfg = data.get("manipulators", {}).get(arm_id, {})
-        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 360.0))
-        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 420.0))
+        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 170.0 if arm_id == "xarm_1" else 390.0))
+        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 360.0))
         base_z = float(arm_cfg.get("base_mount_mm", {}).get("z", 0.0))
 
         compartments = arm_cfg.get("collection_box", {}).get("compartments", {})
@@ -529,9 +545,9 @@ def get_compartment_target(
             return None
 
         target_w = matched.get("target_world_mm", {})
-        wx = float(target_w.get("x", 85.0))
-        wy = float(target_w.get("y", 530.0))
-        wz = float(target_w.get("z", 25.0))
+        wx = float(target_w.get("x", 30.0 if arm_id == "xarm_1" else 490.0))
+        wy = float(target_w.get("y", 380.0))
+        wz = float(target_w.get("z", 35.0))
 
         # Vector relative to arm base mount
         rel_x = wx - base_x

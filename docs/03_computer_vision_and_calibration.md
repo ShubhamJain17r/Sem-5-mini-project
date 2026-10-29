@@ -109,32 +109,32 @@ v4l2-ctl -d /dev/video0 -c brightness=128
 
 ### 3.1 Coplanar ArUco Marker Setup
 
-Four ArUco markers from the `DICT_4X4_50` dictionary are permanently mounted at the 4 corners of the **elevated picking platform ($Z = +20\text{ mm}$)**.
+Four ArUco markers from the `DICT_4X4_50` dictionary are permanently mounted flat at the 4 corners of the **flat picking arena ($Z = 0.0\text{ mm}$)**.
 
 ```text
   Y (mm)
-   545 ┌─────────────────────────────────────────────────────────────┐
-       │ [ArUco #2] (Inner Back)            [ArUco #3] (Outer Back)  │
-       │ (360, 545)                         (730, 545)               │
+   255 ┌─────────────────────────────────────────────────────────────┐
+       │ [ArUco #0] (Rear-Left)              [ArUco #1] (Rear-Right) │
+       │ (85, 255)                           (475, 255)              │
        │                                                             │
-       │                   ELEVATED PICKING ARENA                    │
-       │                      (Z = +20 mm Plane)                     │
+       │                    FLAT PICKING ARENA                       │
+       │                    (Z = 0.0 mm Plane)                       │
        │                                                             │
-       │ [ArUco #0] (Inner Front)           [ArUco #1] (Outer Front) │
-    55 │ (360, 55)                          (730, 55)                │
+       │ [ArUco #2] (Front-Left)             [ArUco #3] (Front-Right)│
+    45 │ (85, 45)                            (475, 45)               │
        └─────────────────────────────────────────────────────────────┘
-       360                                                         730 ───> X (mm)
+       85                                                          475 ───> X (mm)
 ```
 
 | Marker ID |           Placement Role           |  World Coordinate $(X_w, Y_w)$   |  Physical Elevation   |
 | :-------: | :--------------------------------: | :------------------------------: | :-------------------: |
-| **ID 0**  | Inner Front (Collinear with Arm 2) | $(360\text{ mm}, 55\text{ mm})$  | $Z = +20.0\text{ mm}$ |
-| **ID 1**  | Outer Front (Right Arena Boundary) | $(730\text{ mm}, 55\text{ mm})$  | $Z = +20.0\text{ mm}$ |
-| **ID 2**  | Inner Back (Collinear with Arm 1)  | $(360\text{ mm}, 545\text{ mm})$ | $Z = +20.0\text{ mm}$ |
-| **ID 3**  | Outer Back (Right Arena Boundary)  | $(730\text{ mm}, 545\text{ mm})$ | $Z = +20.0\text{ mm}$ |
+| **ID 0**  | Rear-Left Arena Corner             | $(85.0\text{ mm}, 255.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
+| **ID 1**  | Rear-Right Arena Corner            | $(475.0\text{ mm}, 255.0\text{ mm})$| $Z = 0.0\text{ mm}$   |
+| **ID 2**  | Front-Left Arena Corner            | $(85.0\text{ mm}, 45.0\text{ mm})$  | $Z = 0.0\text{ mm}$   |
+| **ID 3**  | Front-Right Arena Corner           | $(475.0\text{ mm}, 45.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
 
 > [!CRITICAL]
-> **Coplanarity Requirement**: All 4 markers and the picking arena mat **must share the exact same physical height ($Z = +20\text{ mm}$)**. A 2D planar homography assumes $Z = \text{const}$. If any marker is offset vertically by even $5\text{ mm}$, the computed projective matrix will induce a perspective shear error of up to $8\text{ mm}$ on detected cube coordinates!
+> **Strict Coplanarity with Table Surface**: All 4 markers share the exact same physical elevation as the table and arena floor ($Z = 0.0\text{ mm}$). Because the markers are coplanar with the bottom faces of the cubes, planar homography maps image pixels directly to metric world coordinates with zero perspective altitude distortion! Markers are printed on **matte vinyl/paper sticker sheets** to eliminate specular LED reflection.
 
 ### 3.2 Homography Mathematical Derivation
 
@@ -151,15 +151,15 @@ Given 4 pairs of non-collinear corresponding points $(u_i, v_i) \leftrightarrow 
 
 We define a canonical rectified image grid with a scale of **$\text{PPM} = 2.0\text{ pixels/mm}$** ($1\text{ pixel} = 0.5\text{ mm}$):
 
-- **Rectified Width**: $W_{\text{rect}} = (730 - 360) \times 2.0 = \mathbf{740\text{ pixels}}$
-- **Rectified Height**: $H_{\text{rect}} = (545 - 55) \times 2.0 = \mathbf{980\text{ pixels}}$
+- **Rectified Width**: $W_{\text{rect}} = (475 - 85) \times 2.0 = \mathbf{780\text{ pixels}}$
+- **Rectified Height**: $H_{\text{rect}} = (255 - 45) \times 2.0 = \mathbf{420\text{ pixels}}$
 
 The target destination points for the warp are:
 
-- $\mathbf{p}'_0 = (0, H_{\text{rect}}) = (0, 980)$
-- $\mathbf{p}'_1 = (W_{\text{rect}}, H_{\text{rect}}) = (740, 980)$
-- $\mathbf{p}'_2 = (0, 0) = (0, 0)$
-- $\mathbf{p}'_3 = (W_{\text{rect}}, 0) = (740, 0)$
+- $\mathbf{p}'_0 = (0, 0)$ (ID 0: Rear-Left)
+- $\mathbf{p}'_1 = (W_{\text{rect}}, 0) = (780, 0)$ (ID 1: Rear-Right)
+- $\mathbf{p}'_2 = (0, H_{\text{rect}}) = (0, 420)$ (ID 2: Front-Left)
+- $\mathbf{p}'_3 = (W_{\text{rect}}, H_{\text{rect}}) = (780, 420)$ (ID 3: Front-Right)
 
 ---
 
@@ -270,24 +270,27 @@ Once a cube centroid $(\bar{u}, \bar{v})$ is identified in the rectified metric 
 
 ### 6.1 Transformation to World Coordinates $(X_w, Y_w)$
 
-Since rectified image $(0, 0)$ corresponds to $(X_w = 360\text{ mm}, Y_w = 545\text{ mm})$:
-$$X_w = 360.0 + \frac{\bar{u}}{\text{PPM}} = 360.0 + \frac{\bar{u}}{2.0}$$
-$$Y_w = 545.0 - \frac{\bar{v}}{\text{PPM}} = 545.0 - \frac{\bar{v}}{2.0}$$
+Since rectified image $(0, 0)$ corresponds to $(X_w = 80\text{ mm}, Y_w = 420\text{ mm})$:
+$$X_w = 80.0 + \frac{\bar{u}}{\text{PPM}} = 80.0 + \frac{\bar{u}}{2.0}$$
+$$Y_w = 420.0 - \frac{\bar{v}}{\text{PPM}} = 420.0 - \frac{\bar{v}}{2.0}$$
 
 ### 6.2 Transformation to Robot Polar Coordinates $(r, \theta, d_{\text{edge}})$
 
-Both arms are mounted on the collinear axis at $X = 360.0\text{ mm}$:
+The two arms are mounted in an inward-angled V-configuration ($S = 220\text{ mm}$ spacing):
 
-- **Arm 1 (Back Arm)**: Center at $(X_1 = 360.0\text{ mm}, Y_1 = 420.0\text{ mm})$
-- **Arm 2 (Front Arm)**: Center at $(X_2 = 360.0\text{ mm}, Y_2 = 180.0\text{ mm})$
+- **Arm 1 (Left Arm)**: Center at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, nominal heading $\theta_{\text{nom}, 1} = +35.0^\circ$
+- **Arm 2 (Right Arm)**: Center at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, nominal heading $\theta_{\text{nom}, 2} = -35.0^\circ$
 
 For target arm $i \in \{1, 2\}$:
-$$\Delta X_i = X_w - X_i = \frac{\bar{u}}{2.0} \quad (\text{always } \ge 0 \text{ into the right arena})$$
+$$\Delta X_i = X_w - X_i$$
 $$\Delta Y_i = Y_w - Y_i$$
 
-The radial distance $r_i$ and azimuth angle $\theta_i$ relative to the arm's base are:
+The radial distance $r_i$ and global azimuth angle $\theta_{\text{world}, i}$ relative to the arm's base are:
 $$r_i = \sqrt{(\Delta X_i)^2 + (\Delta Y_i)^2}$$
-$$\theta_i = \text{atan2}(\Delta Y_i, \Delta X_i)$$
+$$\theta_{\text{world}, i} = \text{atan2}(\Delta Y_i, \Delta X_i)$$
+
+The arm-relative azimuth $\theta_{\text{arm}, i}$ normalized to $[-180^\circ, +180^\circ]$ is:
+$$\theta_{\text{arm}, i} = \theta_{\text{world}, i} - \theta_{\text{nom}, i}$$
 
 The physical distance from the outer flat edge of the baseplate ($70\text{ mm}$ offset) is:
 $$d_{\text{edge}, i} = r_i - 70.0\text{ mm}$$
@@ -323,20 +326,20 @@ class DetectedCube:
         self.color = color
         self.x_w = x_w          # World X in mm
         self.y_w = y_w          # World Y in mm
-        self.z_w = z_w          # World Z in mm (elevated surface + half cube = 32.5 mm)
+        self.z_w = z_w          # World Z in mm (flat surface + half cube = 12.5 mm)
         self.yaw_deg = yaw_deg  # Cube orientation on mat (-45° to +45°)
 
-        # Arm 1 (Back Arm @ Y=420) coordinates
+        # Arm 1 (Left Arm @ X=170, Y=360) coordinates
         self.r1 = r1
         self.theta1 = theta1
         self.d_edge1 = d_edge1
 
-        # Arm 2 (Front Arm @ Y=180) coordinates
+        # Arm 2 (Right Arm @ X=390, Y=360) coordinates
         self.r2 = r2
         self.theta2 = theta2
         self.d_edge2 = d_edge2
 
-        self.assigned_arm = assigned_arm  # "arm_1" or "arm_2" based on Y=300 mm midline
+        self.assigned_arm = assigned_arm  # "arm_1" or "arm_2" based on X=280 mm midline
 
     def __repr__(self):
         return (f"DetectedCube({self.color}, X={self.x_w:.1f}mm, Y={self.y_w:.1f}mm, "
@@ -347,23 +350,23 @@ class ArenaVisionPipeline:
     def __init__(self, pixels_per_mm: float = 2.0):
         self.ppm = pixels_per_mm
 
-        # World coordinates of 4 ArUco markers (Plane Z = +20 mm)
-        # IDs: 0 (Inner Front), 1 (Outer Front), 2 (Inner Back), 3 (Outer Back)
+        # World coordinates of 4 ArUco markers (Raised Curb Z = +37 mm)
+        # IDs: 0 (Rear-Left), 1 (Rear-Right), 2 (Front-Left), 3 (Front-Right)
         self.world_corners = {
-            0: (360.0, 55.0),
-            1: (730.0, 55.0),
-            2: (360.0, 545.0),
-            3: (730.0, 545.0)
+            0: (80.0, 420.0),
+            1: (480.0, 420.0),
+            2: (105.0, 40.0),
+            3: (455.0, 40.0)
         }
 
-        self.rect_w = int((730.0 - 360.0) * self.ppm)  # 740 px
-        self.rect_h = int((545.0 - 55.0) * self.ppm)   # 980 px
+        self.rect_w = int((480.0 - 80.0) * self.ppm)  # 800 px
+        self.rect_h = int((420.0 - 40.0) * self.ppm)  # 760 px
 
         self.dst_pts = np.array([
-            [0, self.rect_h],           # ID 0 (Inner Front)
-            [self.rect_w, self.rect_h], # ID 1 (Outer Front)
-            [0, 0],                     # ID 2 (Inner Back)
-            [self.rect_w, 0]            # ID 3 (Outer Back)
+            [0, 0],                     # ID 0 (Rear-Left)
+            [self.rect_w, 0],           # ID 1 (Rear-Right)
+            [0, self.rect_h],           # ID 2 (Front-Left)
+            [self.rect_w, self.rect_h]  # ID 3 (Front-Right)
         ], dtype=np.float32)
 
         self.H_matrix: Optional[np.ndarray] = None
@@ -376,9 +379,11 @@ class ArenaVisionPipeline:
         # Morphological structuring element
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
-        # Arm base centers
-        self.arm1_base = (360.0, 420.0)
-        self.arm2_base = (360.0, 180.0)
+        # Inward-Angled V-Configuration Arm Base Centers & Headings
+        self.arm1_base = (170.0, 360.0)  # Left Arm (Heading: +35.0°)
+        self.arm2_base = (390.0, 360.0)  # Right Arm (Heading: -35.0°)
+        self.arm1_heading_deg = 35.0
+        self.arm2_heading_deg = -35.0
 
     def calibrate_homography(self, frame: np.ndarray) -> bool:
         \"\"\"Detects 4 ArUco markers and updates planar homography matrix H.\"\"\"
@@ -461,24 +466,24 @@ class ArenaVisionPipeline:
                 elif yaw > 45.0: yaw -= 90.0
 
                 # Transform to World coordinates (mm)
-                x_w = 360.0 + (u_c / self.ppm)
-                y_w = 545.0 - (v_c / self.ppm)
-                z_w = 32.5  # 20 mm raised arena + 12.5 mm half cube
+                x_w = 85.0 + (u_c / self.ppm)
+                y_w = 255.0 - (v_c / self.ppm)
+                z_w = 12.5  # 0.0 mm flat arena + 12.5 mm half cube
 
-                # Arm 1 relative (Back Arm @ 360, 420)
+                # Arm 1 relative (Left Arm @ 170, 360)
                 dx1, dy1 = x_w - self.arm1_base[0], y_w - self.arm1_base[1]
                 r1 = float(np.hypot(dx1, dy1))
                 th1 = float(np.degrees(np.arctan2(dy1, dx1)))
                 d_edge1 = r1 - 70.0
 
-                # Arm 2 relative (Front Arm @ 360, 180)
+                # Arm 2 relative (Right Arm @ 390, 360)
                 dx2, dy2 = x_w - self.arm2_base[0], y_w - self.arm2_base[1]
                 r2 = float(np.hypot(dx2, dy2))
                 th2 = float(np.degrees(np.arctan2(dy2, dx2)))
                 d_edge2 = r2 - 70.0
 
-                # Initial midline assignment
-                assigned_arm = "arm_1" if y_w >= 300.0 else "arm_2"
+                # Initial midline assignment (X = 280 mm workcell midline)
+                assigned_arm = "arm_1" if x_w <= 280.0 else "arm_2"
 
                 # Boundary validation check (must fall inside 5-25 cm operating reach)
                 active_r = r1 if assigned_arm == "arm_1" else r2
