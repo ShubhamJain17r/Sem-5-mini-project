@@ -6,13 +6,13 @@ An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **Ope
 
 ## 📸 System Architecture & Visual Renders
 
-![Realistic 3D Perspective Render of Dual xArm Workcell](docs/workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Dual xArm Workcell](docs/assets/workcell_perspective_render.jpg)
 
-![Dual xArm Workcell Multi-View Engineering Blueprint](docs/workcell_multiview_blueprint.jpg)
+![Dual xArm Workcell Multi-View Engineering Blueprint](docs/assets/workcell_multiview_blueprint.jpg)
 
-![High-Precision 1:1 Chart Paper Drafting Layout](docs/chartpaper_drafting_sheet.png)
+![High-Precision 1:1 Chart Paper Drafting Layout](docs/assets/chartpaper_drafting_sheet.png)
 
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/tray_3d_print_cad.png)
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/assets/tray_3d_print_cad.png)
 
 ---
 
@@ -165,15 +165,16 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 
 ### System Integration & Planning
 
+- 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md): **Comprehensive Operator Manual & Debugging Guide** (Python venv testing, Web Config Server, ROS 2 Docker workflow, and fault troubleshooting).
 - 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
 - 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4) replacing rigid weekly schedules.
 - 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
 
 ### Technical Drawings & Schematics
 
-- 🖼️ [`docs/design.png`](docs/design.png): High-resolution architectural diagram showing 4-tile modular base, V-configuration dual arms, flank drop wells, Central Rear Wedge Bay, and chamfered hexagonal arena.
-- 🖼️ [`docs/pcb module.webp`](docs/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
-- 🖼️ [`docs/xArm demensions.png`](docs/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
+- 🖼️ [`docs/assets/design.png`](docs/assets/design.png): High-resolution architectural diagram showing 4-tile modular base, V-configuration dual arms, flank drop wells, Central Rear Wedge Bay, and chamfered hexagonal arena.
+- 🖼️ [`docs/assets/pcb module.webp`](docs/assets/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
+- 🖼️ [`docs/assets/xArm demensions.png`](docs/assets/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
 
 ---
 
@@ -193,8 +194,14 @@ Sem-5-mini-project/
 │   ├── dual_xarm_hardware.yaml     # Immutable link lengths, mounting origins, joint limits & 4 color compartments
 │   └── servo_calibration.yaml      # Measured zero-point deviation trims per joint
 │
+├── docker/                         # Docker & Hardware Pass-Through Scripts
+│   ├── Dockerfile                  # ROS 2 Humble base image with OpenCV, serial & GUI support
+│   ├── build.sh                    # Container build script
+│   └── run.sh                      # Hardware passthrough container runner
+│
 ├── docs/                           # Stepping-Stone & System Documentation
 │   ├── README.md                   # Documentation Index & Architecture Map
+│   ├── MANUAL.md                   # 📖 End-to-End Operator Manual & Debugging Guide
 │   ├── 00_docker_and_ros2_development_guide.md # Stepping Stone 0: Docker & ROS 2 Workflow
 │   ├── 01_arena_and_layout.md      # Stepping Stone 1: Arena & Component Placement
 │   ├── 02_kinematics_and_grasp_planning.md # Stepping Stone 2: Kinematics & Grasp Planning
@@ -203,41 +210,42 @@ Sem-5-mini-project/
 │   ├── 05_hardware_bringup_and_firmware_control.md # Stepping Stone 5: Low-Level Protocols & Bringup
 │   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
 │   ├── 07_fusion360_cad_modeling_guide.md # Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication
-│   ├── chartpaper_drafting_sheet.png # 1:1 Scale engineering drafting layout for chart paper
-│   ├── design.png                  # High-resolution architectural schematic
+│   ├── assets/                     # CAD Renders, Blueprints, Photos & Layout Diagrams
 │   ├── implementation_plan.md      # System architecture & integration blueprint
-│   ├── pcb module.webp             # Controller board pinout diagram
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
-│   ├── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
-│   ├── tray_3d_print_cad.png       # 3D printable 2x2 sorting tray CAD render
-│   ├── wood_platform_blueprint.png # Single flat-board fabrication blueprint (560x520 mm)
-│   ├── workcell_flat_overview.png  # Overhead 3D render of flat workcell layout
-│   ├── workcell_multiview_blueprint.jpg # Multi-view engineering drawing (top, front, isometric)
-│   ├── workcell_perspective_render.jpg # Photorealistic 3D perspective render
-│   └── xArm demensions.png         # Physical robot dimension schematic
+│   └── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
 │
-├── ros2_ws/                        # ROS 2 Humble Workspace
+├── ros2_ws/                        # ROS 2 Humble Workspace (RUN EXCLUSIVELY IN DOCKER)
 │   └── src/
-│       └── sorting_arm/            # Hardware driver node, analytical polar IK, & teleop
+│       └── sorting_arm/            # Hardware driver node, analytical polar IK, trajectory & coordinator
 │           ├── launch/
-│           │   └── xarm_driver.launch.py
+│           │   ├── xarm_driver.launch.py
+│           │   └── dual_xarm.launch.py
 │           ├── sorting_arm/
 │           │   ├── direct_test.py      # Standalone USB HID/serial driver test
 │           │   ├── driver_node.py      # ROS 2 hardware driver node with E-Stop
+│           │   ├── dual_arm_coordinator_node.py # Dual-arm coordinator with spatial corridor mutex
 │           │   ├── kinematics.py       # Closed-form analytical polar IK solver
 │           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
+│           │   ├── trajectory.py       # Quintic polynomial minimum-jerk trajectory generator
 │           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
 │           ├── test/
-│           │   ├── test_copyright.py
-│           │   ├── test_flake8.py
-│           │   ├── test_kinematics.py  # Analytical IK and reachability unit tests
-│           │   └── test_pep257.py
+│           │   ├── run_tests.py        # Standalone offline simulation test suite
+│           │   └── test_calibration_and_features.py # 18 verification unit tests
 │           ├── package.xml
 │           ├── setup.cfg
 │           └── setup.py
-│       # (Planned future packages: sorting_interfaces, sorting_vision, sorting_scheduler)
+│
+├── tools/                          # Utility & Calibration Tools (RUN IN VENV OR DOCKER)
+│   ├── pick_and_place_test.py      # Trajectory test with closed-loop verification
+│   ├── telemetry_logger.py         # Sub-millimeter drift analysis & repeatability logger
+│   └── web_config/                 # Real-time Web Configuration & Calibration Tool
+│       ├── server.py               # Dynamic port auto-detect HTTP & REST API server (:8000)
+│       └── index.html              # Interactive browser dashboard
 │
 ├── .devcontainer/                 # VS Code Dev Container configuration
+├── requirements.txt                # Python host virtual environment dependencies
+└── setup_venv.sh                   # One-click host Python virtual environment setup
 │   └── devcontainer.json           # 1-click isolated ROS 2 environment
 │
 ├── docker/                         # Project-Level Docker Environment
@@ -305,40 +313,39 @@ ros2 run sorting_arm polar_teleop_node
 
 ---
 
-### Option B: Native Installation (Ubuntu 22.04 LTS Only)
+### Option B: Host Python Virtual Environment (Standalone Python Tools Only)
 
-#### 1. Prerequisites
-- Ubuntu 22.04 LTS with [ROS 2 Humble Desktop](https://docs.ros.org/en/humble/Installation.html)
-- Python 3.10+
-- USB Webcam (Logitech C270 or C920)
-- 2× xArm 1s Robotic Arms connected via USB-UART
+For running standalone Python scripts (Web Configuration Dashboard, servo calibration, telemetry analysis, direct tests) without spinning up Docker:
 
-#### 2. Installation & Build
+> [!WARNING]
+> **ROS 2 Execution Policy**: All ROS 2 nodes, launches, and coordination services must run **strictly inside the Docker container** (`./docker/run.sh`). Python commands on the host must be run exclusively inside the dedicated Python virtual environment (`.venv`).
+
+#### 1. Setup Host Virtual Environment
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
+# Run one-click setup script (creates .venv and installs dependencies)
+./setup_venv.sh
 
-# Build the ROS 2 workspace
-cd ros2_ws
-colcon build --symlink-install
-source install/setup.bash
+# Or activate manually
+source .venv/bin/activate
 ```
 
-#### 3. Launching the System
+#### 2. Run Web Configuration & Calibration Tool
 ```bash
-# Run automated kinematics tests
-pytest src/sorting_arm/test/test_kinematics.py
-
-# Launch xArm 1s hardware driver node
-ros2 launch sorting_arm xarm_driver.launch.py
-
-# Or run polar teleoperation node
-ros2 run sorting_arm polar_teleop_node
-
-# (Future Full Pipeline — Phase 3+):
-# ros2 launch sorting_vision vision.launch.py
-# ros2 launch sorting_scheduler system.launch.py
+# Launch dynamic auto-detecting web server on port 8000
+python3 tools/web_config/server.py
+# Open http://localhost:8000 in your browser
 ```
+
+#### 3. Run Standalone Tests & Telemetry
+```bash
+# Run 18 offline simulation unit tests
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+
+# Run sub-millimeter telemetry drift logger
+python3 tools/telemetry_logger.py --scan
+```
+
+For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md).
 
 ---
 
@@ -360,8 +367,9 @@ ros2 run sorting_arm polar_teleop_node
 - [x] Stepping Stone 5: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
 - [x] Stepping Stone 6: Testing, Diagnostics & Reach Verification (`docs/06_system_testing_diagnostics_and_verification.md`)
 - [x] Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication (`docs/07_fusion360_cad_modeling_guide.md`)
-- [x] Zero-Carpentry Flat Board + 2x2 Flank Tray Architecture (`docs/workcell_flat_overview.png`, `docs/wood_platform_blueprint.png`, `docs/tray_3d_print_cad.png`)
-- [x] Technical Schematic Design (`docs/design.png` & `docs/pcb module.webp`)
+- [x] End-to-End Operator Manual & Debugging Guide (`docs/MANUAL.md`)
+- [x] Zero-Carpentry Flat Board + 2x2 Flank Tray Architecture (`docs/assets/workcell_flat_overview.png`, `docs/assets/wood_platform_blueprint.png`, `docs/assets/tray_3d_print_cad.png`)
+- [x] Technical Schematic Design (`docs/assets/design.png` & `docs/assets/pcb module.webp`)
 - [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
 - [x] Phase 0: Arduino Hardware Bringup, Calibration & Reach Testing (`arduino/`)
 - [x] Phase 1 Core: ROS 2 Hardware Driver, Closed-Form Polar IK, & Teleop (`ros2_ws/src/sorting_arm/`)

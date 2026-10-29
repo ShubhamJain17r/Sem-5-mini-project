@@ -50,7 +50,7 @@ We establish a right-handed Cartesian base coordinate frame $\mathcal{F}_{\text{
 
 ### 2.2 Physical Dimension Parameters
 
-From technical measurements ([`docs/xArm demensions.png`](xArm%20demensions.png)):
+From technical measurements ([`docs/assets/xArm demensions.png`](assets/xArm%20demensions.png)):
 
 | Parameter                 | Description                                                     |           Value           |
 | ------------------------- | --------------------------------------------------------------- | :-----------------------: |

@@ -8,11 +8,11 @@ This document details the complete mechanical construction, spatial dimensions, 
 
 The entire workcell is organized on a single, continuous, store-cut **flat wooden baseboard** ($18\text{ mm}$ or $12\text{ mm}$ MDF / shelving board) with a compact footprint of **$560.0\text{ mm} \text{ (Width)} \times 520.0\text{ mm} \text{ (Depth)}$**:
 
-![Realistic 3D Perspective Render of Dual xArm Workcell](workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Dual xArm Workcell](assets/workcell_perspective_render.jpg)
 
-![Dual xArm Workcell Multi-View Blueprint](workcell_multiview_blueprint.jpg)
+![Dual xArm Workcell Multi-View Blueprint](assets/workcell_multiview_blueprint.jpg)
 
-![High-Precision 1:1 Chart Paper Drafting Layout](chartpaper_drafting_sheet.png)
+![High-Precision 1:1 Chart Paper Drafting Layout](assets/chartpaper_drafting_sheet.png)
 
 ```text
   Y (Depth: 520 mm)
@@ -60,7 +60,7 @@ The entire workcell is organized on a single, continuous, store-cut **flat woode
 
 Instead of mounting the two arms along a single collinear axis that created an overly elongated strip with severe reach limits, the two xArm 1s manipulators are mounted in an **inward-angled V-configuration** symmetric about the workcell midline ($X = 280.0\text{ mm}$):
 
-![Wooden Baseboard Dimensional Technical Blueprint](wood_platform_blueprint.png)
+![Wooden Baseboard Dimensional Technical Blueprint](assets/wood_platform_blueprint.png)
 
 | Manipulator | Base Center $(X, Y)$ | Mounting Elevation | Nominal Heading ($\theta_{\text{nom}}$) | Operating Role |
 | :--- | :---: | :---: | :---: | :--- |
@@ -83,7 +83,7 @@ Instead of mounting the two arms along a single collinear axis that created an o
 
 ### 2.1 Kinematic Spacing & Overlap Verification
 - **Center-to-Center Base Spacing**: $S = 390.0 - 170.0 = \mathbf{220.0\text{ mm}}$ along $X$.
-- **Baseplate Dimensions**: $140.0\text{ mm} \text{ (Width)} \times 154.0\text{ mm} \text{ (Length)}$ ([`docs/xArm demensions.png`](xArm%20demensions.png)).
+- **Baseplate Dimensions**: $140.0\text{ mm} \text{ (Width)} \times 154.0\text{ mm} \text{ (Length)}$ ([`docs/assets/xArm demensions.png`](assets/xArm%20demensions.png)).
 - **Clearance Between Arm Bases**: With $220.0\text{ mm}$ center spacing and $140.0\text{ mm}$ base width:
   $$\text{Gap}_{\text{bases}} = 220.0 - 140.0 = \mathbf{80.0\text{ mm}}$$
   Provides generous clearance preventing link collisions while keeping the shared workcell compact.
@@ -127,7 +127,7 @@ By setting the rear arena boundary to $Y = 260.0\text{ mm}$:
 ### 4.1 Minimal 3D Printing (< 85 g Total Filament)
 Only two small parts in the entire workcell require 3D printing: two identical **2×2 quadrant color sorting trays**:
 
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](tray_3d_print_cad.png)
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/tray_3d_print_cad.png)
 
 ```text
              TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
