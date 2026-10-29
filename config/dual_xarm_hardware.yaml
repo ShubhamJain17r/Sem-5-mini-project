@@ -333,24 +333,24 @@ manipulators:
       motor_3:
         joint_name: "wrist_pitch"
         hardware_id: 3
-        min_tick: 130
-        max_tick: 875
-        nominal_center_tick: 502
-        direction_multiplier: -1       # Inverted horn orientation relative to xArm 1
+        min_tick: 125
+        max_tick: 865
+        nominal_center_tick: 493
+        direction_multiplier: 1
         zero_reference_angle_deg: 0.0
-        motion_description: "0° (horizon forward) at 139 ticks; 180° (horizon backward) at 871 ticks; increasing ticks tilts upward/backward (inverted horn)"
-        test_500_to_450_direction: "Pitches wrist DOWNWARD toward 0°"
+        motion_description: "0° (horizon forward) at 853 ticks; 180° (horizon backward) at 133 ticks; decreasing ticks tilts upward/backward"
+        test_500_to_450_direction: "Pitches wrist UPWARD away from table"
 
       motor_4:
         joint_name: "elbow_pitch"
         hardware_id: 4
-        min_tick: 120
-        max_tick: 865
-        nominal_center_tick: 503
-        direction_multiplier: -1       # Inverted horn orientation relative to xArm 1
+        min_tick: 145
+        max_tick: 875
+        nominal_center_tick: 513
+        direction_multiplier: 1
         zero_reference_angle_deg: 180.0
-        motion_description: "0° (folded forward) at 856 ticks; 180° (folded backward) at 126 ticks; decreasing ticks folds backward (inverted horn)"
-        test_500_to_450_direction: "Folds forearm backward toward 180°"
+        motion_description: "0° (folded forward) at 158 ticks; 180° (folded backward) at 868 ticks; increasing ticks folds backward"
+        test_500_to_450_direction: "Folds forearm forward toward upper arm"
 
       motor_5:
         joint_name: "shoulder_pitch"
@@ -381,10 +381,10 @@ manipulators:
         description: "Straight upright vertical reset pose; all servos at center (nominal 500 ticks)"
         transit_time_ms: 1500
       ready_standoff:
-        ticks: [234, 500, 254, 845, 529, 502]
-        description: "Hovering safely above right arena picking zone awaiting mutex (Zw ≈ 165mm, inverted M3/M4)"
+        ticks: [234, 500, 746, 155, 529, 502]
+        description: "Hovering safely above right arena picking zone awaiting mutex (Zw ≈ 165mm, aligned M3/M4)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [602, 500, 170, 840, 470, 792]
-        description: "Hovering safely over Right Flank 2x2 tray (Z ≈ 56mm) ready to release object (inverted M3/M4)"
+        ticks: [602, 500, 830, 160, 470, 792]
+        description: "Hovering safely over Right Flank 2x2 tray (Z ≈ 56mm) ready to release object (aligned M3/M4)"
         transit_time_ms: 1800

@@ -31,6 +31,7 @@ setup(
             'driver_node = sorting_arm.driver_node:main',
             'polar_teleop = sorting_arm.polar_teleop_node:main',
             'pick_and_place = sorting_arm.pick_and_place_test:main',
+            'coordinator_node = sorting_arm.dual_arm_coordinator_node:main',
         ],
     },
 )

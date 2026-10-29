@@ -65,6 +65,13 @@ def generate_launch_description():
         ],
     )
 
+    coordinator_node = Node(
+        package="sorting_arm",
+        executable="coordinator_node",
+        name="dual_arm_coordinator",
+        output="screen",
+    )
+
     return LaunchDescription([
         arm1_port_arg,
         arm2_port_arg,
@@ -73,4 +80,5 @@ def generate_launch_description():
         launch_arm2_arg,
         driver_node_arm1,
         driver_node_arm2,
+        coordinator_node,
     ])

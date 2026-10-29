@@ -236,7 +236,18 @@ class XArmDriverNode(Node):
         )
 
     def publish_joint_states(self):
-        """Publish current cached joint states to /xarm/joint_states."""
+        """Publish real-time joint states to namespaced joint_states topic."""
+        # Staggered live readback: query one servo potentiometer per 10Hz tick to avoid packet collision
+        if getattr(self, "live_readback", True) and self.driver.is_connected:
+            try:
+                sid = getattr(self, "_readback_sid", 1)
+                actual_pos = self.driver.read_servo_position(sid, timeout_sec=0.02)
+                if actual_pos is not None:
+                    self.driver.current_ticks[sid] = actual_pos
+                self._readback_sid = (sid % 6) + 1
+            except Exception:
+                pass
+
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = f"{self.arm_id}_base_link"

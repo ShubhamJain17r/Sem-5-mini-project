@@ -48,11 +48,11 @@ xarm_2:
   servo_deviations:
     motor_1_claw: -2
     motor_2_wrist_roll: -4
-    motor_3_wrist_pitch: 2
-    motor_4_elbow: 3
+    motor_3_wrist_pitch: -7
+    motor_4_elbow: 13
     motor_5_shoulder: -3
     motor_6_base_yaw: 2
 
   # C++ / Arduino array representation (1-indexed, index 0 unused):
-  # const int SERVO_DEV_ARM2[7] = {0, -2, -4, 2, 3, -3, 2};
+  # const int SERVO_DEV_ARM2[7] = {0, -2, -4, -7, 13, -3, 2};
 

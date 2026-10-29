@@ -46,6 +46,7 @@ from sorting_arm.kinematics import (
     load_kinematic_parameters,
     solve_ik,
 )
+from sorting_arm.trajectory import generate_joint_trajectory
 from sorting_arm.xarm_protocol import XArmDriver
 
 
@@ -58,11 +59,15 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         config_dir: str = "config",
         direct_mode: bool = True,
         port: str = "auto",
+        smooth: bool = True,
+        closed_loop: bool = True,
     ):
         self.arm_id = arm_id
         self.config_dir = config_dir
         self.direct_mode = direct_mode
         self.port = port
+        self.smooth = smooth
+        self.closed_loop = closed_loop
         self.driver = None
 
         self.hardware_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
@@ -112,7 +117,8 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         self.log(
             f"Initialized Pick-and-Place Calibrator for {self.arm_id}\n"
             f"  Claw Open Tick: {self.claw_open_tick} | Grip Tick: {self.claw_grip_tick}\n"
-            f"  Drop Yaw Tick: {self.drop_yaw_tick} | Cube Pick Z: {self.cube_pick_z} mm"
+            f"  Drop Yaw Tick: {self.drop_yaw_tick} | Cube Pick Z: {self.cube_pick_z} mm\n"
+            f"  Smooth Trajectory: {self.smooth} | Closed-Loop Verification: {self.closed_loop}"
         )
 
     def log(self, text: str):
@@ -158,15 +164,26 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
                     pass
         return {i: 0 for i in range(1, 7)}
 
-    def send_pose_ticks(self, ticks: Dict[int, int], move_time_ms: int = 1200):
+    def send_pose_ticks(self, ticks: Dict[int, int], move_time_ms: int = 1200) -> bool:
         """Dispatch joint ticks to physical hardware or publish via ROS 2."""
         if self.direct_mode:
             if self.driver and self.driver.is_connected:
-                self.driver.send_multi_servo_move(ticks, time_ms=move_time_ms)
+                if self.closed_loop:
+                    return self.driver.send_motion_and_wait(
+                        ticks,
+                        time_ms=move_time_ms,
+                        tolerance_ticks=10,
+                        stall_detection=True,
+                    )
+                else:
+                    ok = self.driver.send_multi_servo_move(ticks, time_ms=move_time_ms)
+                    time.sleep((move_time_ms + 150) / 1000.0)
+                    return ok
             else:
                 tick_str = ", ".join(f"M{k}:{v}" for k, v in sorted(ticks.items()))
                 print(f"    -> [SIM] Pose Ticks: {tick_str} (time: {move_time_ms}ms)")
-            time.sleep((move_time_ms + 150) / 1000.0)
+                time.sleep((move_time_ms + 150) / 1000.0)
+                return True
         else:
             msg = JointState()
             msg.header.stamp = self.get_clock().now().to_msg()
@@ -174,6 +191,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             msg.position = [float(ticks.get(i, 500)) for i in range(1, 7)]
             self.cmd_pub.publish(msg)
             time.sleep((move_time_ms + 150) / 1000.0)
+            return True
 
     def send_ik_target(
         self,
@@ -199,8 +217,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             self.log(f"IK Failed for (r={r:.1f}, θ={theta:.1f}, z={z:.1f}): {sol.message}")
             return False
 
-        self.send_pose_ticks(sol.ticks, move_time_ms=move_time_ms)
-        return True
+        return self.send_pose_ticks(sol.ticks, move_time_ms=move_time_ms)
 
     def run_5_phase_pick_and_place(
         self,
@@ -312,6 +329,8 @@ def main():
     parser.add_argument("--port", default="auto", help="USB device port or 'auto'")
     parser.add_argument("--ros", action="store_true", help="Force ROS 2 topic publishing mode")
     parser.add_argument("--direct", action="store_true", help="Force direct USB hardware mode (default)")
+    parser.add_argument("--open-loop", action="store_true", help="Disable closed-loop position verification")
+    parser.add_argument("--no-smooth", action="store_true", help="Disable trajectory smoothing")
     args = parser.parse_args()
 
     use_ros = args.ros and HAS_ROS2
@@ -325,6 +344,8 @@ def main():
         arm_id=args.arm,
         direct_mode=not use_ros,
         port=args.port,
+        smooth=not args.no_smooth,
+        closed_loop=not args.open_loop,
     )
 
     try:
