@@ -32,26 +32,20 @@ import yaml  # noqa: E402
 
 
 def load_calibration_offsets(config_path: str, arm_name: str = "xarm_1") -> Dict[int, int]:
-    """Load calibrated servo deviations from servo_calibration.yaml."""
+    """Load calibrated servo deviations from unified hardware config (defaulting to 0)."""
     if not os.path.exists(config_path):
-        print(f"[WARN] Calibration file not found at '{config_path}'. Using 0 offsets.")
         return {i: 0 for i in range(1, 7)}
 
     try:
         with open(config_path, "r") as f:
-            data = yaml.safe_load(f)
-            arm_data = data.get(arm_name, {})
-            devs = arm_data.get("servo_deviations", {})
+            data = yaml.safe_load(f) or {}
+            motors = data.get("manipulators", {}).get(arm_name, {}).get("motors", {})
             return {
-                1: int(devs.get("motor_1_claw", 0)),
-                2: int(devs.get("motor_2_wrist_roll", 0)),
-                3: int(devs.get("motor_3_wrist_pitch", 0)),
-                4: int(devs.get("motor_4_elbow", 0)),
-                5: int(devs.get("motor_5_shoulder", 0)),
-                6: int(devs.get("motor_6_base_yaw", 0)),
+                sid: int(motors.get(f"motor_{sid}", {}).get("deviation", 0))
+                for sid in range(1, 7)
             }
     except Exception as e:
-        print(f"[WARN] Error reading calibration YAML: {e}. Using 0 offsets.")
+        print(f"[WARN] Error reading hardware YAML: {e}. Using 0 offsets.")
         return {i: 0 for i in range(1, 7)}
 
 
@@ -174,8 +168,8 @@ def main(args=None):
     parser.add_argument("--arm", default="xarm_1", help="Arm identifier (xarm_1 or xarm_2)")
     parser.add_argument(
         "--config",
-        default="config/servo_calibration.yaml",
-        help="Path to servo_calibration.yaml",
+        default="config/dual_xarm_hardware.yaml",
+        help="Path to dual_xarm_hardware.yaml",
     )
     cli_args, _ = parser.parse_known_args()
 

@@ -1,20 +1,20 @@
 # =====================================================================================
-# Dual xArm 1s Color-Sorting Robot — Static Hardware & Kinematic Configuration
+# Dual xArm 1s Color-Sorting Robot — Unified Hardware & Kinematic Configuration
 # File: config/dual_xarm_hardware.yaml
 #
 # PURPOSE:
-#   Defines immutable physical and kinematic parameters for both robotic manipulators:
-#   - Workspace mounting origins (X, Y, Z) and shared collinear axis (X = 360 mm)
+#   Defines the complete, unified physical and kinematic parameters for both robotic manipulators:
+#   - Workspace mounting origins (X, Y, Z), Z-depth trim, and nominal heading angles
 #   - Physical link lengths (DH parameters)
-#   - Joint travel limits (min_ticks, max_ticks)
+#   - Joint travel limits (min_ticks, max_ticks) and nominal centers (from xArm PC App)
 #   - Rotation direction multipliers (+1 / -1) and semantic physical descriptions
 #   - Multi-state waypoint poses (home_tucked, ready_standoff, drop_container)
 #   - Dedicated drop box container targets (Box 1 NW, Box 2 SW)
 #
-# NOTE ON DEVIATIONS:
-#   Volatile screw-tightening deviation offsets are decoupled and stored separately in:
-#   config/servo_calibration.yaml.
-#   Recalibrating deviations after tightening screws NEVER requires editing this file!
+# NOTE ON CALIBRATION:
+#   Physical servo deviations are calibrated via the official Hiwonder xArm PC App,
+#   which writes zero offsets directly into the servo onboard EEPROM registers.
+#   This file serves as the single source of truth for all robot configuration.
 # =====================================================================================
 
 version: "1.0"
@@ -47,6 +47,7 @@ workspace:
 # MANIPULATORS CONFIGURATION
 # -------------------------------------------------------------------------------------
 manipulators:
+  max_deviation_ticks: 25        # Clamping guardrail against accidental excessive offsets
 
   # ===================================================================================
   # xArm 1: REAR / BACK MANIPULATOR
@@ -60,6 +61,7 @@ manipulators:
       x: 170.0
       y: 360.0
       z: 0.0
+      z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset (compensates for base/suction cup differences)
       nominal_heading_deg: -110.0  # 500 ticks points toward South-South-West (-110° world) into arena / flank bisector
 
     # Serial / USB Interface
@@ -232,6 +234,7 @@ manipulators:
       x: 390.0
       y: 360.0
       z: 0.0
+      z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset (compensates for base/suction cup differences)
       nominal_heading_deg: -70.0  # 500 ticks points toward South-South-East (-70° world) into arena / flank bisector
 
     # Serial / USB Interface
@@ -346,7 +349,7 @@ manipulators:
         hardware_id: 4
         min_tick: 145
         max_tick: 875
-        nominal_center_tick: 513
+        nominal_center_tick: 500
         direction_multiplier: 1
         zero_reference_angle_deg: 180.0
         motion_description: "0° (folded forward) at 158 ticks; 180° (folded backward) at 868 ticks; increasing ticks folds backward"

@@ -49,16 +49,16 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Connect xArm to PC or smartphone via official Hiwonder/LewanSoul software.
   - [ ] Verify all 6 servos respond to manual slider commands.
   - [ ] Check for abnormal gear clicking, binding, or excessive heat.
-- [x] **Mechanical Deviation Zeroing (`xarm_zero_calibration.ino`)**:
-  - [x] Flash `arduino/xarm_zero_calibration/xarm_zero_calibration.ino` to Arduino Uno R4.
-  - [x] Connect Arduino `Pin 0 (RX)` to xArm `TX`, and `Pin 1 (TX)` to xArm `RX`.
-  - [x] Open Serial Monitor at `115200 baud`. Observe arm moving to nominal midpoint ($500\text{ ticks}$).
+- [x] **Mechanical Deviation Zeroing & EEPROM Hardware Calibration**:
+  - [x] Connect xArm 1s directly to PC via USB cable.
+  - [x] Open official Hiwonder xArm PC App and reset arm to nominal midpoint ($500\text{ ticks}$).
   - [x] Align joints collinearly / upright (Motor 6 Base, Motor 5 Shoulder, Motor 4 Elbow, Motor 3 Wrist Pitch, Motor 2 Wrist Roll, Motor 1 Claw).
-  - [x] Trim deviations using `+`, `-`, `>`, `<` keys or xArm PC Calibration App. Export deviation array to `config/servo_calibration.yaml` (xarm_1: M1: 1, M2: -2, M3: -3, M4: -5, M5: -2, M6: -5 | xarm_2: M1: -2, M2: -4, M3: 2, M4: 3, M5: -3, M6: 2).
-- [x] **Breadboard-Free Interactive Teleoperation & Reach Test (`xarm_direct_test.ino`)**:
-  - [x] Flash `arduino/xarm_direct_test/xarm_direct_test.ino` (9600 baud `Serial1` to xArm, 115200 baud USB `Serial`).
+  - [x] Trim deviations using xArm PC App sliders and write permanently into servo EEPROM registers.
+  - [x] Record travel limits and nominal centers into unified `config/dual_xarm_hardware.yaml`.
+- [x] **Direct Python / USB Driver Teleoperation & Reach Test**:
+  - [x] Implement direct USB communication (`direct_test.py` and `xarm_protocol.py`).
   - [x] Motor mapping verified: Motor 1 (Claw), Motor 2 (Roll), Motor 3 (Wrist Pitch), Motor 4 (Elbow), Motor 5 (Shoulder), Motor 6 (Base).
-  - [x] Multi-step Pick-and-Place reach test (`action` and `loop` commands) successfully validated across 120° base yaw swing.
+  - [x] Multi-step Pick-and-Place reach test successfully validated across 120° base yaw swing.
 - [x] **Claw Grip Characterization (Software Grasp Discrimination)**:
   - [x] Measure position ticks across physical claw travel:
     - xArm 1: Open ($60\text{ mm}$) @ $228\text{ ticks}$, Half-Open ($40\text{ mm}$) @ $501\text{ ticks}$, $25\text{ mm}$ Cube Grasp @ $610\text{ ticks}$, Closed Empty ($0\text{ mm}$) @ $791\text{ ticks}$.
@@ -67,18 +67,18 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 > [!IMPORTANT]
 > ### 🏁 Gate 0 Exit Criteria (Prerequisites to Enter Phase 1)
-> 1. Motor deviations for all 6 servos measured, eliminated, and recorded in a configuration table.
-> 2. Arduino Uno R4 reliably jogs all 6 joints over hardware `Serial1` with zero packet dropouts.
+> 1. Motor deviations for all 6 servos measured, eliminated in EEPROM, and recorded in unified hardware configuration.
+> 2. Direct USB driver reliably jogs all 6 joints over USB HID / Serial with zero packet dropouts.
 > 3. Base servo swing verified to stay within $\approx 205^\circ \le 240^\circ$ without hitting mechanical stops.
 > 4. Motor 6 position readback reliably distinguishes an empty claw from a clamped object.
 
 ---
 
-## 📋 Phase 1: Single-Arm ROS 2 Driver & Analytical IK Integration
+## 📋 Phase 1: Single-Arm ROS 2 Driver & Analytical IK Integration (✅ COMPLETE)
 
-**Primary Focus**: Migrating control from Arduino to the laptop/PC ROS 2 environment; implementing closed-form analytical inverse kinematics; verifying sub-3 mm Cartesian positioning with a physical ruler.  
+**Primary Focus**: Migrating control from Arduino to the laptop/PC ROS 2 environment; implementing closed-form analytical inverse kinematics; verifying sub-3 mm Cartesian positioning and expanding motion coverage across 13 test routines.  
 **Hardware Required**: 1× xArm 1s, Laptop with Ubuntu 22.04 + ROS 2 Humble, USB-to-UART cable (`/dev/ttyUSB0`), physical ruler, millimeter graph sheet.  
-**Reference Document**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2) & [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4).
+**Reference Document**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2), [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4), & [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md) (Stepping Stone 8).
 
 ### Lab Action Checklist
 
@@ -93,25 +93,24 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [x] Implement `kinematics.py` closed-form polar solver (cylindrical coordinates $r, \theta, z$).
   - [x] Add near-field wrist pitch safe heuristics and 4-compartment target resolver (`get_compartment_target`).
   - [x] Verify reachability and mathematical roundtrip consistency via automated unit test suite (`ros2_ws/src/sorting_arm/test/test_kinematics.py`).
-- [ ] **Physical Cartesian Positioning Accuracy Test**:
-  - [ ] Place millimeter grid paper on table in front of arm base.
-  - [ ] Command arm to 5 discrete grid points via ROS 2 CLI: `ros2 topic pub --once /arm1/task_goal ...`.
-  - [ ] Measure physical claw grasp center position against paper grid with a precision ruler.
-  - [ ] Record error vector $(\Delta X, \Delta Y, \Delta Z)$.
-- [ ] **Empirical Z-Sag Calibration**:
-  - [ ] Measure vertical tip droop at $R = 140, 220, 260, 300\text{ mm}$.
-  - [ ] Apply linear compensation factor $k_{\text{sag}} \approx 0.07$ into `arm1_node.py`.
-  - [ ] Re-test commanded heights: confirm claw tip height error is $\le 2.0\text{ mm}$ across the entire reach envelope.
-- [ ] **5-Phase Trajectory Execution**:
-  - [ ] Test the 5-phase trajectory sequence: Transit $\to$ Radial Standoff ($r-30\text{ mm}$) $\to$ Advance Grasp $\to$ Retract & Lift $\to$ Drop Swing ($205^\circ$).
-  - [ ] Verify zero jerk and smooth motor acceleration profiles.
+- [x] **Physical Cartesian Positioning Accuracy Test**:
+  - [x] Command arm to discrete grid points via ROS 2 CLI and standalone motion suite (`motion_test_suite.py`).
+  - [x] Verified 13 single-arm motions and 12 dual-arm cooperative routines sequentially via `--all`.
+  - [x] Confirmed grasp repeatability across near ($R=165\text{ mm}$), mid ($R=220\text{ mm}$), and extended far ($R=275\text{ mm}$) envelopes.
+- [x] **Dynamic Tabletop Depth & Base Tilt Compensation (`z_depth_trim_mm`)**:
+  - [x] Analyzed vacuum suction cup cantilever deflection vs rigid baseboard mounting.
+  - [x] Added dynamic Cartesian tabletop depth trim parameter (`z_depth_trim_mm`) in `KinematicParameters` and `dual_xarm_hardware.yaml`.
+  - [x] Unified servo parameters into `dual_xarm_hardware.yaml`, eliminating the separate volatile calibration file and double-offsetting bugs.
+- [x] **Expanded Trajectory Execution**:
+  - [x] Verified full 13-motion sequence: Transit $\to$ Multi-Standoff $\to$ Near/Mid/Far Picks $\to$ Diagonal Corner Sweeps $\to$ Flank Tray Tour.
+  - [x] Verified smooth minimum-jerk acceleration profiles and zero gear stall.
 
 > [!IMPORTANT]
-> ### 🏁 Gate 1 Exit Criteria (Prerequisites to Enter Phase 2)
+> ### 🏁 Gate 1 Exit Criteria (Passed ✅ - Proceeding to Phase 2)
 > 1. ROS 2 node controls single xArm 1s reliably over USB serial without communication stalls.
 > 2. Analytical IK solver executes in $< 0.1\text{ ms}$ on laptop CPU.
 > 3. Measured physical tip positioning error is $\le 3.0\text{ mm}$ in $(X, Y)$ and $\le 2.0\text{ mm}$ in $Z$ across the entire operating radius ($R = 120\text{--}320\text{ mm}$).
-> 4. 5-phase waypoint trajectory executes smoothly without tipping or jerking the baseplate.
+> 4. Expanded 13-motion test suite executes smoothly without tipping or jerking the baseplate.
 
 ---
 

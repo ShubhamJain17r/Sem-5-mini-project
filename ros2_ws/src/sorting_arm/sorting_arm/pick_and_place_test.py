@@ -47,7 +47,7 @@ from sorting_arm.kinematics import (
     solve_ik,
 )
 from sorting_arm.trajectory import generate_joint_trajectory
-from sorting_arm.xarm_protocol import XArmDriver
+from sorting_arm.xarm_protocol import XArmDriver, find_all_xarm_devices
 
 
 class PickAndPlaceCommander(Node if HAS_ROS2 else object):
@@ -71,7 +71,6 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         self.driver = None
 
         self.hardware_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
-        self.calib_yaml = os.path.join(config_dir, "servo_calibration.yaml")
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
 
         # Load hardware specs
@@ -92,18 +91,29 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         arena_cfg = self.hw_config.get("workspace", {}).get("picking_arena", {})
         self.cube_pick_z = float(arena_cfg.get("cube_center_z_mm", 12.5))
 
-        # Load deviations for direct driver
-        self.deviations = self._load_deviations(self.calib_yaml, self.arm_id)
+        # Load deviations from unified hardware config (default 0)
+        self.deviations = {
+            sid: int(motors_cfg.get(f"motor_{sid}", {}).get("deviation", 0))
+            for sid in range(1, 7)
+        }
 
         if not self.direct_mode and HAS_ROS2:
-            super().__init__("pick_and_place_calibrator")
+            super().__init__("pick_and_place_calibrator", namespace=self.arm_id)
             self.cmd_pub = self.create_publisher(JointState, "joint_commands", 10)
-            self.log("Operating in ROS 2 Topic Mode (publishing to 'joint_commands')")
+            self.log(f"Operating in ROS 2 Topic Mode (publishing to '/{self.arm_id}/joint_commands')")
         else:
             self.direct_mode = True
-            self.log(f"Operating in Direct Hardware USB Mode (port: {self.port})")
+            target_port = self.port
+            if target_port in ["auto", "", None]:
+                all_devices = find_all_xarm_devices()
+                if self.arm_id in ["xarm_2", "arm2", "2"] and len(all_devices) >= 2:
+                    target_port = all_devices[1][0]
+                elif len(all_devices) >= 1:
+                    target_port = all_devices[0][0]
+
+            self.log(f"Operating in Direct Hardware USB Mode (port: {target_port})")
             self.driver = XArmDriver(
-                port=self.port,
+                port=target_port,
                 deviations=self.deviations,
                 min_ticks=self.params.min_safe_ticks,
                 max_ticks=self.params.max_safe_ticks,

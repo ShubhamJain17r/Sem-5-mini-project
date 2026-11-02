@@ -6,20 +6,20 @@ Features:
   - Subscribes to /xarm/joint_commands (sensor_msgs/msg/JointState)
   - Publishes /xarm/joint_states at 10 Hz
   - Exposes /xarm/emergency_stop and /xarm/re_enable services (std_srvs/srv/Trigger)
-  - Loads physical deviations from servo_calibration.yaml
+  - Loads physical joint limits and optional deviations from dual_xarm_hardware.yaml
   - Enforces physical safety limit clamps and prevents brownout current spikes
 """
 
 import math
 import os
-from typing import Dict
+from typing import Dict, Tuple
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from sorting_arm.kinematics import DEG_PER_TICK, TICKS_PER_DEG
-from sorting_arm.xarm_protocol import XArmDriver
+from sorting_arm.xarm_protocol import XArmDriver, find_all_xarm_devices
 from std_srvs.srv import Trigger
 import yaml
 
@@ -65,7 +65,7 @@ class XArmDriverNode(Node):
         self.declare_parameter("port", "auto")
         self.declare_parameter("baudrate", 115200)
         self.declare_parameter("arm_id", "xarm_1")
-        self.declare_parameter("config_path", "config/servo_calibration.yaml")
+        self.declare_parameter("config_path", "config/dual_xarm_hardware.yaml")
         self.declare_parameter("default_move_time_ms", 120)
         self.declare_parameter("stagger_ms", 0)
         self.declare_parameter("synchronized", True)
@@ -82,24 +82,46 @@ class XArmDriverNode(Node):
         adaptive_param = self.get_parameter("adaptive_timing")
         self.adaptive_timing = adaptive_param.get_parameter_value().bool_value
 
-        # Load calibration offsets
-        deviations = self._load_deviations(self.config_path, self.arm_id)
-        self.get_logger().info(f"Loaded deviations for {self.arm_id}: {deviations}")
+        # Load hardware limits and deviations from unified hardware config
+        deviations, min_ticks, max_ticks, max_dev = self._load_hardware_config(
+            self.config_path, self.arm_id
+        )
+        self.get_logger().info(
+            f"Loaded config for {self.arm_id}: min_ticks={min_ticks}, max_ticks={max_ticks}, max_deviation={max_dev}"
+        )
+
+        # Resolve target port (support multi-arm auto detection)
+        actual_port = self.port
+        if actual_port in ["auto", "", None]:
+            all_devices = find_all_xarm_devices()
+            if self.arm_id in ["xarm_2", "arm2", "2"] and len(all_devices) >= 2:
+                actual_port = all_devices[1][0]
+                self.get_logger().info(
+                    f"Auto-selected second xArm interface {actual_port} for {self.arm_id}"
+                )
+            elif len(all_devices) >= 1:
+                actual_port = all_devices[0][0]
+                self.get_logger().info(
+                    f"Auto-selected first xArm interface {actual_port} for {self.arm_id}"
+                )
 
         # Initialize hardware driver
         self.driver = XArmDriver(
-            port=self.port,
+            port=actual_port,
             baudrate=self.baudrate,
             deviations=deviations,
+            min_ticks=min_ticks,
+            max_ticks=max_ticks,
+            max_deviation_ticks=max_dev,
         )
 
         self.get_logger().info(
-            f"Attempting to connect to xArm on {self.port} @ {self.baudrate} baud..."
+            f"Attempting to connect to xArm on {actual_port} @ {self.baudrate} baud..."
         )
         connected = self.driver.connect()
         if not connected:
             self.get_logger().error(
-                f"Failed to connect to xArm on {self.port}. Driver running in offline mode."
+                f"Failed to connect to xArm on {actual_port}. Driver running in offline mode."
             )
 
         # Subscribers: Use depth 1 QoS to avoid stale buffered commands
@@ -133,7 +155,10 @@ class XArmDriverNode(Node):
 
         self.get_logger().info("xArm Driver Node started successfully.")
 
-    def _load_deviations(self, config_file: str, arm_name: str) -> Dict[int, int]:
+    def _load_hardware_config(
+        self, config_file: str, arm_name: str
+    ) -> Tuple[Dict[int, int], Dict[int, int], Dict[int, int], int]:
+        """Load joint travel limits, deviations, and max deviation threshold from unified config."""
         candidates = [
             config_file,
             os.path.join(os.getcwd(), config_file),
@@ -145,27 +170,46 @@ class XArmDriverNode(Node):
                 chosen = c
                 break
 
+        default_min = {1: 150, 2: 200, 3: 150, 4: 150, 5: 200, 6: 150}
+        default_max = {1: 800, 2: 800, 3: 850, 4: 850, 5: 850, 6: 850}
+        default_devs = {i: 0 for i in range(1, 7)}
+        default_max_dev = 25
+
         if not chosen:
             self.get_logger().warn(
-                f"Calibration file not found at {config_file}. Using zero deviations."
+                f"Hardware config file not found at {config_file}. Using safe defaults."
             )
-            return {i: 0 for i in range(1, 7)}
+            return default_devs, default_min, default_max, default_max_dev
 
         try:
             with open(chosen, "r") as f:
-                data = yaml.safe_load(f)
-                devs = data.get(arm_name, {}).get("servo_deviations", {})
-                return {
-                    1: int(devs.get("motor_1_claw", 0)),
-                    2: int(devs.get("motor_2_wrist_roll", 0)),
-                    3: int(devs.get("motor_3_wrist_pitch", 0)),
-                    4: int(devs.get("motor_4_elbow", 0)),
-                    5: int(devs.get("motor_5_shoulder", 0)),
-                    6: int(devs.get("motor_6_base_yaw", 0)),
-                }
+                data = yaml.safe_load(f) or {}
+
+            # Support unified dual_xarm_hardware.yaml
+            manipulators = data.get("manipulators", {})
+            max_dev = int(manipulators.get("max_deviation_ticks", default_max_dev))
+            arm_cfg = manipulators.get(arm_name, {})
+            motors = arm_cfg.get("motors", {})
+
+            min_ticks = {}
+            max_ticks = {}
+            deviations = {}
+
+            for sid in range(1, 7):
+                m_cfg = motors.get(f"motor_{sid}", {})
+                min_ticks[sid] = int(m_cfg.get("min_tick", default_min[sid]))
+                max_ticks[sid] = int(m_cfg.get("max_tick", default_max[sid]))
+                deviations[sid] = int(m_cfg.get("deviation", 0))
+
+            return deviations, min_ticks, max_ticks, max_dev
         except Exception as e:
-            self.get_logger().warn(f"Error loading calibration YAML: {e}. Using zero deviations.")
-            return {i: 0 for i in range(1, 7)}
+            self.get_logger().warn(f"Error loading hardware YAML: {e}. Using safe defaults.")
+            return default_devs, default_min, default_max, default_max_dev
+
+    def _load_deviations(self, config_file: str, arm_name: str) -> Dict[int, int]:
+        """Backward-compatibility wrapper."""
+        devs, _, _, _ = self._load_hardware_config(config_file, arm_name)
+        return devs
 
     def joint_command_callback(self, msg: JointState):
         """Process incoming JointState message and dispatch serial commands."""

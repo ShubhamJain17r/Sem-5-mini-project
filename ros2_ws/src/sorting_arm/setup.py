@@ -32,6 +32,7 @@ setup(
             'polar_teleop = sorting_arm.polar_teleop_node:main',
             'pick_and_place = sorting_arm.pick_and_place_test:main',
             'coordinator_node = sorting_arm.dual_arm_coordinator_node:main',
+            'motion_test = sorting_arm.motion_test_suite:main',
         ],
     },
 )

@@ -87,23 +87,45 @@ python3 ros2_ws/src/sorting_arm/sorting_arm/direct_test.py --arm xarm_1 --port a
 python3 ros2_ws/src/sorting_arm/sorting_arm/direct_test.py --arm xarm_2 --port auto
 ```
 
-### Step 3: Comprehensive Multi-Motion Test Suite
+### Step 3: Comprehensive Multi-Motion Test Suite (13 Single / 12 Dual Motions)
 Execute calibrated single-arm motions or dual-arm cooperative routines:
 ```bash
-# Motion 1: Upright Reset & Gripper Calibration (500-tick reset -> 60mm open -> 25mm clamp)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 1
+# Execute ALL 13 single-arm motions sequentially on xArm 1
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
 
-# Motion 2: Pure Vertical Cartesian Plunge & Lift (Z = 120mm -> 25mm -> 120mm at R = 220mm)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 2
+# Execute ALL 13 single-arm motions sequentially on xArm 2
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_2 --all
 
-# Motion 3: Radial Sweep (R = 160mm -> 270mm -> 160mm at Z = 35mm)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 3
+# Execute individual motion by ID (1 to 13):
+# Motion 5: Standard Mid-Range Pick & Place (R=220mm, θ=0°, Z=12.5mm)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 5
 
-# Dual Motion 3: Concurrent Partitioned Sorting (Both arms move concurrently without interference)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --motion 3
+# Motion 6: Near-Field Shallow Pick (R=165mm, θ=0°, Z=12.5mm)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 6
 
-# Dual Motion 4: Midline Mutex Arbitration (Contention resolution on X = 280mm)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --motion 4
+# Motion 7: Extended Far-Reach Pick (R=275mm, θ=0°, Z=12.5mm)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 7
+
+# Motion 8: Left-Quadrant Flank Diagonal Pick (R=210mm, θ=-30° West)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 8
+
+# Motion 9: Right-Quadrant Midline Diagonal Pick (R=210mm, θ=+30° East)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 9
+
+# Motion 10: Far-Corner Radial Sweep (R=265mm, θ=-25° to +25°, Z=20mm)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 10
+
+# Motion 11: Multi-Altitude Standoff Staircase (Z=150 -> 90 -> 40 -> 12.5mm)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 11
+
+# Motion 12: Continuous 3-Point Tabletop Rapid Touch (West -> Center -> East)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 12
+
+# Motion 13: 4-Color Flank Sorting Box Tour (Red -> Green -> Blue -> Yellow)
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 13
+
+# Execute ALL 12 dual-arm cooperative motions sequentially
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --all
 ```
 
 ### Step 4: 5-Phase Pick-and-Place with Trajectory Smoothing & Stall Detection
@@ -136,14 +158,16 @@ Open **`http://localhost:8000`** in Google Chrome or any modern browser.
 
 ### 2. Tabular Motor Configuration Editor
 - **Live Table**: Displays Motor 1 to 6 for both `xArm 1` and `xArm 2`:
-  - `Min Tick` and `Max Tick`: Physical travel safety clamps.
-  - `Center Tick`: 90° upright center position (nominal ~500).
-  - `Dev`: Calibration trim in ticks (added to theoretical angle).
-  - `Dir`: Direction multiplier (`+1` for both arms after re-alignment).
-  - `Live`: Real-time potentiometer feedback.
-  - `Err`: Current tracking error ($T_{\text{actual}} - T_{\text{target}}$).
-- **Inline Editing**: Modify values directly in the table. Cells validate input bounds in real time.
-- **Atomic Save**: Click **"Save Configuration to YAML"** in the top-right corner. The server validates all parameters, writes atomically to `dual_xarm_hardware.yaml` and `servo_calibration.yaml`, and creates automatic `.bak` backup files.
+  - `Min (ticks / deg)` and `Max (ticks / deg)`: Physical travel safety clamps with real-time physical degree conversions ($0.24^\circ/\text{tick}$).
+  - `Center (ticks / deg)`: 90° upright center position (nominal ~500 ticks / $120.0^\circ$).
+  - `Dev`: Volatile mechanical horn trim offset in ticks ($\text{hardware\_ticks} = \text{theoretical\_ticks} + \text{dev}$).
+  - `Dir`: Direction multiplier (`+1` standard).
+  - `Live (ticks / deg)`: Continuous real-time potentiometer feedback polled from hardware.
+  - `Err`: Current tracking error in ticks ($T_{\text{actual}} - T_{\text{target}}$).
+  - `Z-Trim (mm)`: Dynamic Cartesian tabletop height trim in card header to compensate for base mounting/suction cup differences.
+- **Inline Editing**: Modify values directly in the table. Degree labels update in real time as numbers are typed.
+- **Atomic Save**: Click **"Save Configuration to YAML"** in the top-right corner. The server validates parameters, writes atomically to `dual_xarm_hardware.yaml`, and creates automatic `.bak` backup files.
+- 📖 **Comprehensive Step-by-Step Tuning Guide**: Refer to [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md) for full procedural instructions on finding mechanical limits safely and preventing gear stalls.
 
 ### 3. Dynamic Hotplug Port Detection & Manual Controls
 - **System Devices Bar**: The header displays all USB HID and Serial devices discovered by Linux in real-time.
@@ -240,7 +264,7 @@ python3 tools/telemetry_logger.py --stats-only
   | Condition | Diagnostic Meaning | Corrective Action |
   | :--- | :--- | :--- |
   | $\sigma > 3.0\text{ ticks}$ | Joint mechanical backlash / loose horn spline | Tighten M3 center lock screw on servo horn |
-  | $|\mu| > 5.0\text{ ticks}$ | Systematic mechanical drift or settling | Update deviation trim in `servo_calibration.yaml` |
+  | $|\mu| > 5.0\text{ ticks}$ | Systematic mechanical drift or settling | Recalibrate zero position in xArm PC App or update `dual_xarm_hardware.yaml` |
   | Every 500 cycles / 7 days | Routine scheduled verification | Run 10-sample telemetry scan and inspect CSV drift slope |
 
 ---
