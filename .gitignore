@@ -14,7 +14,7 @@
 !.env.example
 
 # Hardware configuration tracking
-# (Note: config/dual_xarm_hardware.yaml & config/servo_calibration.yaml are committed baseline configs)
+# (Note: config/dual_xarm_hardware.yaml is the committed baseline config)
 config/bin_coordinates.yaml
 config/arm_ips.yaml
 !config/bin_coordinates.example.yaml

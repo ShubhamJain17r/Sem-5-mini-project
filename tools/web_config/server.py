@@ -35,7 +35,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("web_config_server")
 
 CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/dual_xarm_hardware.yaml")
-CONFIG_CALIB_PATH = os.path.join(project_root, "config/servo_calibration.yaml")
 INDEX_HTML_PATH = os.path.join(script_dir, "index.html")
 
 # Global driver cache for arms
@@ -49,9 +48,9 @@ def get_arm_driver(arm_id: str, auto_reconnect: bool = True) -> Optional[XArmDri
     """Retrieve or initialize driver instance for arm with hotplug auto-detection."""
     global ARM_DRIVERS
     driver = ARM_DRIVERS.get(arm_id)
-    devs = load_deviations(CONFIG_CALIB_PATH, arm_id)
 
     hw = load_yaml(CONFIG_HARDWARE_PATH)
+    devs = load_deviations(hw, arm_id)
     arm_cfg = hw.get("manipulators", {}).get(arm_id, {})
     comm = arm_cfg.get("communication", {})
     fallback = comm.get("fallback_serial_device", "/dev/ttyUSB0" if arm_id == "xarm_1" else "/dev/ttyUSB1")
@@ -100,18 +99,14 @@ def load_yaml(path: str) -> Dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
-def load_deviations(calib_path: str, arm_id: str) -> Dict[int, int]:
-    """Load deviation offsets for specific arm."""
-    data = load_yaml(calib_path)
-    devs = data.get(arm_id, {}).get("servo_deviations", {})
-    return {
-        1: int(devs.get("motor_1_claw", 0)),
-        2: int(devs.get("motor_2_wrist_roll", 0)),
-        3: int(devs.get("motor_3_wrist_pitch", 0)),
-        4: int(devs.get("motor_4_elbow", 0)),
-        5: int(devs.get("motor_5_shoulder", 0)),
-        6: int(devs.get("motor_6_base_yaw", 0)),
-    }
+def load_deviations(hw_source: Any, arm_id: str) -> Dict[int, int]:
+    """Load deviation offsets for specific arm from unified hardware config."""
+    if isinstance(hw_source, str):
+        data = load_yaml(hw_source)
+    else:
+        data = hw_source or {}
+    motors = data.get("manipulators", {}).get(arm_id, {}).get("motors", {})
+    return {sid: int(motors.get(f"motor_{sid}", {}).get("deviation", 0)) for sid in range(1, 7)}
 
 
 def atomic_write_yaml(target_path: str, data: Dict[str, Any]) -> Tuple[bool, str]:
@@ -213,9 +208,21 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
 
     def handle_get_config(self):
-        """Return combined hardware and calibration configuration."""
+        """Return unified hardware configuration with backward-compatible format."""
         hw = load_yaml(CONFIG_HARDWARE_PATH)
-        cal = load_yaml(CONFIG_CALIB_PATH)
+        dev_keys = {
+            1: "motor_1_claw", 2: "motor_2_wrist_roll", 3: "motor_3_wrist_pitch",
+            4: "motor_4_elbow", 5: "motor_5_shoulder", 6: "motor_6_base_yaw"
+        }
+        cal = {}
+        for arm in ["xarm_1", "xarm_2"]:
+            motors = hw.get("manipulators", {}).get(arm, {}).get("motors", {})
+            cal[arm] = {
+                "servo_deviations": {
+                    dev_keys[sid]: int(motors.get(f"motor_{sid}", {}).get("deviation", 0))
+                    for sid in range(1, 7)
+                }
+            }
 
         response = {
             "manipulators": hw.get("manipulators", {}),
@@ -225,7 +232,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(response, indent=2).encode())
 
     def handle_save_config(self, payload: Dict[str, Any]):
-        """Validate parameters and atomically save updates to YAML files."""
+        """Validate parameters and atomically save updates to dual_xarm_hardware.yaml."""
         hw_updates = payload.get("manipulators")
         cal_updates = payload.get("calibrations")
 
@@ -233,6 +240,9 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
             self._set_headers(status=400)
             self.wfile.write(json.dumps({"error": "No configuration payload provided"}).encode())
             return
+
+        hw_current = load_yaml(CONFIG_HARDWARE_PATH)
+        max_dev_clamp = int(hw_current.get("manipulators", {}).get("max_deviation_ticks", 25))
 
         # Validation rules
         errors = []
@@ -245,6 +255,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
                         max_t = mcfg.get("max_tick")
                         center_t = mcfg.get("nominal_center_tick")
                         mult = mcfg.get("direction_multiplier")
+                        dev = mcfg.get("deviation")
 
                         if min_t is not None and max_t is not None:
                             if not (100 <= min_t < max_t <= 900):
@@ -254,47 +265,57 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
                                 errors.append(f"{arm_name} {mid_str}: center tick {center_t} out of range [150, 850]")
                         if mult is not None and mult not in [-1, 1]:
                             errors.append(f"{arm_name} {mid_str}: direction_multiplier must be +1 or -1")
+                        if dev is not None and not (-max_dev_clamp <= int(dev) <= max_dev_clamp):
+                            errors.append(f"{arm_name} {mid_str}: deviation {dev} exceeds safe range [-{max_dev_clamp}, +{max_dev_clamp}]")
 
         if cal_updates:
             for arm_name in ["xarm_1", "xarm_2"]:
                 if arm_name in cal_updates:
                     devs = cal_updates[arm_name].get("servo_deviations", {})
                     for k, val in devs.items():
-                        if not (-60 <= int(val) <= 60):
-                            errors.append(f"{arm_name} deviation {k}={val} exceeds safe range [-60, +60]")
+                        if not (-max_dev_clamp <= int(val) <= max_dev_clamp):
+                            errors.append(f"{arm_name} deviation {k}={val} exceeds safe range [-{max_dev_clamp}, +{max_dev_clamp}] (configured in YAML)")
 
         if errors:
             self._set_headers(status=422)
             self.wfile.write(json.dumps({"error": "Validation failed", "details": errors}).encode())
             return
 
-        # Perform atomic updates
-        results = []
+        # Perform atomic updates to dual_xarm_hardware.yaml
+        dev_to_sid = {
+            "motor_1_claw": 1, "motor_2_wrist_roll": 2, "motor_3_wrist_pitch": 3,
+            "motor_4_elbow": 4, "motor_5_shoulder": 5, "motor_6_base_yaw": 6
+        }
+
         if hw_updates:
-            hw_current = load_yaml(CONFIG_HARDWARE_PATH)
             for arm_name, arm_val in hw_updates.items():
                 if arm_name in hw_current.get("manipulators", {}):
+                    if "z_depth_trim_mm" in arm_val:
+                        z_val = float(arm_val["z_depth_trim_mm"])
+                        hw_current["manipulators"][arm_name]["z_depth_trim_mm"] = z_val
+                        if "base_mount_mm" in hw_current["manipulators"][arm_name]:
+                            hw_current["manipulators"][arm_name]["base_mount_mm"]["z_depth_trim_mm"] = z_val
                     if "motors" in arm_val:
                         for m_key, m_val in arm_val["motors"].items():
                             if m_key in hw_current["manipulators"][arm_name].get("motors", {}):
                                 hw_current["manipulators"][arm_name]["motors"][m_key].update(m_val)
                     if "poses" in arm_val:
                         hw_current["manipulators"][arm_name]["poses"].update(arm_val["poses"])
-            ok, msg = atomic_write_yaml(CONFIG_HARDWARE_PATH, hw_current)
-            results.append(("hardware_yaml", ok, msg))
 
         if cal_updates:
-            cal_current = load_yaml(CONFIG_CALIB_PATH)
             for arm_name, arm_val in cal_updates.items():
-                if arm_name in cal_current:
-                    if "servo_deviations" in arm_val:
-                        cal_current[arm_name]["servo_deviations"].update(arm_val["servo_deviations"])
-            ok, msg = atomic_write_yaml(CONFIG_CALIB_PATH, cal_current)
-            results.append(("calib_yaml", ok, msg))
+                if arm_name in hw_current.get("manipulators", {}):
+                    devs = arm_val.get("servo_deviations", {})
+                    for dev_k, val in devs.items():
+                        sid = dev_to_sid.get(dev_k)
+                        if sid and f"motor_{sid}" in hw_current["manipulators"][arm_name].get("motors", {}):
+                            hw_current["manipulators"][arm_name]["motors"][f"motor_{sid}"]["deviation"] = int(val)
 
-        success = all(ok for _, ok, _ in results)
-        self._set_headers(status=200 if success else 500)
-        self.wfile.write(json.dumps({"success": success, "results": results}).encode())
+        ok, msg = atomic_write_yaml(CONFIG_HARDWARE_PATH, hw_current)
+        results = [("hardware_yaml", ok, msg)]
+
+        self._set_headers(status=200 if ok else 500)
+        self.wfile.write(json.dumps({"success": ok, "results": results}).encode())
 
     def handle_get_status(self):
         """Query real-time status, device nodes, and potentiometer readings for both arms."""

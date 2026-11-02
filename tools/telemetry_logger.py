@@ -34,7 +34,6 @@ from sorting_arm.xarm_protocol import MOTOR_NAMES, XArmDriver
 DATA_DIR = os.path.join(project_root, "data")
 CSV_LOG_PATH = os.path.join(DATA_DIR, "telemetry_drift_log.csv")
 CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/dual_xarm_hardware.yaml")
-CONFIG_CALIB_PATH = os.path.join(project_root, "config/servo_calibration.yaml")
 
 CSV_HEADER = [
     "timestamp_iso",
@@ -82,21 +81,13 @@ def run_telemetry_scan(
     ensure_csv_header(csv_path)
     now_iso = datetime.now().isoformat()
 
-    calib_data = load_yaml(CONFIG_CALIB_PATH)
+    hw_data = load_yaml(CONFIG_HARDWARE_PATH)
     scan_rows: List[Dict[str, Any]] = []
 
-    dev_keys = {
-        1: "motor_1_claw",
-        2: "motor_2_wrist_roll",
-        3: "motor_3_wrist_pitch",
-        4: "motor_4_elbow",
-        5: "motor_5_shoulder",
-        6: "motor_6_base_yaw",
-    }
-
     for arm_id in arm_ids:
-        devs_raw = calib_data.get(arm_id, {}).get("servo_deviations", {})
-        devs = {sid: int(devs_raw.get(k, 0)) for sid, k in dev_keys.items()}
+        arm_cfg = hw_data.get("manipulators", {}).get(arm_id, {})
+        motors = arm_cfg.get("motors", {})
+        devs = {sid: int(motors.get(f"motor_{sid}", {}).get("deviation", 0)) for sid in range(1, 7)}
 
         driver = XArmDriver(port="auto", deviations=devs)
         connected = driver.connect()
@@ -207,7 +198,7 @@ def compute_drift_statistics(csv_path: str = CSV_LOG_PATH) -> Dict[str, Any]:
         if abs(mean_err) > 5.0:
             recommendations.append(
                 f"[CALIBRATION] {key} shows systematic drift (μ = {mean_err:+.1f} ticks > ±5.0). "
-                f"Update software deviation trim in servo_calibration.yaml by {-int(round(mean_err))} ticks."
+                f"Calibrate zero position in xArm PC App or update dual_xarm_hardware.yaml by {-int(round(mean_err))} ticks."
             )
 
     if not recommendations:

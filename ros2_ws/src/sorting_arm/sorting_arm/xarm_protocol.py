@@ -18,7 +18,7 @@ import logging
 import os
 import select
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger("xarm_protocol")
 
@@ -119,6 +119,7 @@ class XArmDriver:
         deviations: Optional[Dict[int, int]] = None,
         min_ticks: Optional[Dict[int, int]] = None,
         max_ticks: Optional[Dict[int, int]] = None,
+        max_deviation_ticks: Optional[int] = None,
         timeout: float = 0.2,
     ):
         """Initialize driver parameters and state caches."""
@@ -137,6 +138,7 @@ class XArmDriver:
         self.deviations = deviations if deviations is not None else {i: 0 for i in range(1, 7)}
         self.min_ticks = min_ticks if min_ticks is not None else DEFAULT_MIN_TICKS.copy()
         self.max_ticks = max_ticks if max_ticks is not None else DEFAULT_MAX_TICKS.copy()
+        self.max_deviation_ticks = max_deviation_ticks
 
         # Current internal tick cache
         self.current_ticks = POSE_HOME_TICKS.copy()
@@ -243,6 +245,14 @@ class XArmDriver:
     def apply_deviations_and_limits(self, servo_id: int, target_tick: int) -> int:
         """Apply calibration deviation and clamp to safe physical boundaries."""
         dev = self.deviations.get(servo_id, 0)
+        if self.max_deviation_ticks is not None and abs(dev) > self.max_deviation_ticks:
+            clamped_dev = self.max_deviation_ticks if dev > 0 else -self.max_deviation_ticks
+            logger.warning(
+                f"Servo {servo_id} deviation {dev} exceeds dynamic threshold {self.max_deviation_ticks}. "
+                f"Clamping deviation to {clamped_dev} ticks."
+            )
+            dev = clamped_dev
+
         hardware_tick = target_tick + dev
 
         min_t = self.min_ticks.get(servo_id, 150)

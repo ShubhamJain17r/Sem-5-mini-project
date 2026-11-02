@@ -1,22 +1,22 @@
 # Stepping Stone 5: Hardware Bringup, Calibration & Low-Level Control Protocol
 
-This document serves as the technical specification and laboratory handbook for **Stepping Stone 5: Hardware Bringup, Servo Calibration, and Low-Level Firmware Interfacing**. It covers the binary and ASCII serial protocols of the **LewanSoul / Hiwonder xArm 1s**, the **Arduino Uno R4 WiFi** electrical interfacing, the step-by-step motor deviation zeroing workflow, and the empirical joint limit envelopes.
+This document serves as the technical specification and laboratory handbook for **Stepping Stone 5: Hardware Bringup, Servo Calibration, and Low-Level Firmware Interfacing**. It covers the binary and ASCII serial protocols of the **LewanSoul / Hiwonder xArm 1s**, direct USB HID / Serial interfacing, the official Hiwonder xArm PC App zeroing workflow, and empirical joint limit envelopes.
 
 ---
 
 ## 1. Low-Level Communication Architecture
 
-The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconnected via a half-duplex daisy-chain bus. The arm base incorporates an onboard secondary microcontroller board that provides two communication modalities:
+The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconnected via a half-duplex daisy-chain bus. The arm base incorporates an onboard controller board that communicates directly with the PC/Jetson over USB:
 
 ```text
     ┌───────────────────────────┐
-    │  PC (ROS 2) or Laptop     │
-    │  (/dev/ttyUSB0 @ 115200)   │
+    │  PC (ROS 2 / Python Host) │
+    │  (USB HID / /dev/ttyUSB*) │
     └─────────────┬─────────────┘
-                  │ (USB Serial)
+                  │ (Direct USB @ 115200 / 9600 Baud)
                   ▼
     ┌───────────────────────────┐
-    │ xArm 1s Onboard Controller │ ◄── [ Hardware Serial1 (Pins 0/1) ] ── [ Arduino Uno R4 WiFi ]
+    │ xArm 1s Onboard Controller │ ◄── [ Official xArm PC App / Python Driver ]
     │ (STC / STM32 Processor)   │
     └─────────────┬─────────────┘
                   │ (1-Wire Half-Duplex Bus @ 115200 Baud)
@@ -35,9 +35,9 @@ The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconn
 > - **Hardware Motor 4**: Elbow Pitch
 > - **Hardware Motor 5**: Shoulder Pitch
 > - **Hardware Motor 6**: Base Yaw
-> Both the Arduino firmware (`xarm_direct_test.ino`, `xarm_zero_calibration.ino`), configuration (`config/dual_xarm_hardware.yaml`), and ROS 2 driver (`driver_node.py`) strictly adhere to these official hardware IDs.
+> Both the unified configuration (`config/dual_xarm_hardware.yaml`), ROS 2 driver (`driver_node.py`), and test suite (`motion_test_suite.py`) strictly adhere to these official hardware IDs.
 
-### 1.1 Secondary Development Controller UART Protocol (Arduino to xArm Base)
+### 1.1 Direct Controller UART & USB HID Protocol
 
 The secondary development UART header on the xArm base board (`RX TX GND`) interfaces with the onboard host microcontroller. Commands sent across this interface use the **Hiwonder / Lobot Bus Servo Controller Protocol**:
 
@@ -134,33 +134,29 @@ Every hobby robotic arm experiences physical assembly tolerance errors: a servo 
          Motor 1 (Claw Gripper):  Fingers at nominal mid-span (~40 mm opening)
 ```
 
-### 3.1 Step-by-Step Zeroing Procedure (30-Minute Lab Protocol)
+### 3.1 Step-by-Step Zeroing Procedure (Official xArm PC App Protocol)
 
 1. **Physical Inspection**:
    * Inspect the arm mechanically before applying power. Ensure no cables are tangled around the base or shoulder linkages.
-2. **Flash Zeroing Sketch**:
-   * Connect Arduino Uno R4 to laptop via USB.
-   * Open `arduino/xarm_zero_calibration/xarm_zero_calibration.ino` in Arduino IDE. Select board **Arduino UNO R4 WiFi** and the assigned COM/TTY port.
-   * Upload sketch.
-3. **Open Serial Monitor**:
-   * Set baud rate to **`115200 baud`**.
-   * The arm will immediately move to its default midpoint ($500\text{ ticks}$ on all motors) over $1.5\text{ seconds}$.
+2. **Launch Official xArm PC App**:
+   * Connect xArm 1s to PC via USB cable.
+   * Open the official Hiwonder xArm PC App. Connect to the arm's COM port or USB HID interface.
+3. **Reset to Midpoint**:
+   * Click **Reset** in the app. The arm moves to default midpoint ($500\text{ ticks}$ on all motors).
 4. **Mechanical Alignment Verification**:
-   * **Motor 6 (Base Yaw / $\theta_1$)**: Verify the arm points directly along the chassis midline (East / +X).
+   * **Motor 6 (Base Yaw / $\theta_1$)**: Verify the arm points directly along the chassis midline.
    * **Motor 5 (Shoulder Pitch / $\theta_2$)**: Inspect if the upper arm segment is perpendicular to the base mounting plate.
    * **Motor 4 (Elbow Pitch / $\theta_3$)**: Check if the forearm forms a clean right angle ($90^\circ$) with the upper arm.
    * **Motor 3 (Wrist Pitch / $\theta_4$)**: Confirm the tool assembly is collinearly aligned with the forearm.
    * **Motor 2 (Wrist Roll / $\theta_5$)**: Verify the claw jaws are parallel to the table.
    * **Motor 1 (Claw Gripper / $\theta_6$)**: Confirm fingers rest at nominal mid-span ($500\text{ ticks}$).
-5. **Trimming Deviations Interactively**:
-   * Type `1` through `6` into the Serial Monitor to select a motor (e.g. `6` for Base Yaw).
-   * Type `+` or `-` to adjust the deviation by $\pm 1\text{ tick}$ ($0.24^\circ$).
-   * Type `>` or `<` to adjust by $\pm 10\text{ ticks}$ ($2.4^\circ$).
-   * Observe physical joint movement until the chassis alignment marks match perfectly.
-6. **Export Calibration Offsets**:
-   * Type `p` in the Serial Monitor.
-   * The sketch outputs a formatted C++ / Python / YAML array representing the measured deviations.
-   * Save these values to `config/servo_calibration.yaml` for use by the ROS 2 driver!
+5. **Adjusting & Saving Deviations in Hardware EEPROM**:
+   * Use the deviation sliders in the xArm PC App to adjust zero-point trim until linkages align perfectly.
+   * Click **"Download Deviation" / "Save Deviation"** to write the offsets permanently into each bus servo's onboard EEPROM registers.
+   * Note the min and max ticks for travel boundaries and the nominal center tick.
+6. **Save to Unified Hardware Configuration**:
+   * Record the verified min/max travel limits and nominal center ticks into `config/dual_xarm_hardware.yaml`.
+   * All subsequent ROS 2 nodes, kinematics solvers, and motion test suites read directly from this unified configuration!
 
 ---
 

@@ -179,7 +179,8 @@
           <div>
             <span>xArm 1 (Left / West)</span>
             <div style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">
-              Port: <span id="port-display-arm1" style="color: #fff; font-family: monospace;">auto</span>
+              Port: <span id="port-display-arm1" style="color: #fff; font-family: monospace;">auto</span> |
+              Z-Trim: <input type="number" id="xarm_1-ztrim" value="0.0" step="0.5" min="-20" max="20" style="width: 55px; padding: 2px 4px; font-size: 11px;"> mm
             </div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -192,12 +193,12 @@
             <tr>
               <th>ID</th>
               <th>Joint</th>
-              <th>Min</th>
-              <th>Max</th>
-              <th>Center</th>
+              <th>Min (ticks / deg)</th>
+              <th>Max (ticks / deg)</th>
+              <th>Center (ticks / deg)</th>
               <th>Dev</th>
               <th>Dir</th>
-              <th>Live</th>
+              <th>Live (ticks / deg)</th>
               <th>Err</th>
             </tr>
           </thead>
@@ -211,7 +212,8 @@
           <div>
             <span>xArm 2 (Right / East - Aligned)</span>
             <div style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">
-              Port: <span id="port-display-arm2" style="color: #fff; font-family: monospace;">auto</span>
+              Port: <span id="port-display-arm2" style="color: #fff; font-family: monospace;">auto</span> |
+              Z-Trim: <input type="number" id="xarm_2-ztrim" value="0.0" step="0.5" min="-20" max="20" style="width: 55px; padding: 2px 4px; font-size: 11px;"> mm
             </div>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
@@ -224,12 +226,12 @@
             <tr>
               <th>ID</th>
               <th>Joint</th>
-              <th>Min</th>
-              <th>Max</th>
-              <th>Center</th>
+              <th>Min (ticks / deg)</th>
+              <th>Max (ticks / deg)</th>
+              <th>Center (ticks / deg)</th>
               <th>Dev</th>
               <th>Dir</th>
-              <th>Live</th>
+              <th>Live (ticks / deg)</th>
               <th>Err</th>
             </tr>
           </thead>
@@ -320,12 +322,28 @@
       }
     }
 
+    function updateDegLabel(arm, field, sid) {
+      const el = document.getElementById(`${arm}-${field}-${sid}`);
+      const label = document.getElementById(`${arm}-${field}-deg-${sid}`);
+      if (el && label) {
+        const val = parseFloat(el.value) || 0;
+        label.textContent = (field === 'dev' && val > 0 ? '+' : '') + (val * 0.24).toFixed(1) + '°';
+      }
+    }
+
     function renderMotors() {
       ['xarm_1', 'xarm_2'].forEach(arm => {
         const tbody = document.getElementById('tbody-' + (arm === 'xarm_1' ? 'arm1' : 'arm2'));
         tbody.innerHTML = '';
-        const motors = currentConfig?.manipulators?.[arm]?.motors || {};
+        const armCfg = currentConfig?.manipulators?.[arm] || {};
+        const motors = armCfg.motors || {};
         const devs = currentConfig?.calibrations?.[arm]?.servo_deviations || {};
+
+        const zTrimInput = document.getElementById(`${arm}-ztrim`);
+        if (zTrimInput) {
+          const currentZTrim = armCfg.z_depth_trim_mm ?? armCfg.base_mount_mm?.z_depth_trim_mm ?? 0.0;
+          zTrimInput.value = currentZTrim;
+        }
 
         const devKeys = {
           1: 'motor_1_claw', 2: 'motor_2_wrist_roll', 3: 'motor_3_wrist_pitch',
@@ -334,16 +352,31 @@
 
         for (let sid = 1; sid <= 6; sid++) {
           const m = motors['motor_' + sid] || {};
+          const minT = m.min_tick ?? 150;
+          const maxT = m.max_tick ?? 850;
+          const centerT = m.nominal_center_tick ?? 500;
           const dev = devs[devKeys[sid]] ?? 0;
           const tr = document.createElement('tr');
 
           tr.innerHTML = `
             <td><strong>M${sid}</strong></td>
             <td>${m.joint_name || 'joint_' + sid}</td>
-            <td><input type="number" id="${arm}-min-${sid}" value="${m.min_tick ?? 150}" min="100" max="800"></td>
-            <td><input type="number" id="${arm}-max-${sid}" value="${m.max_tick ?? 850}" min="200" max="900"></td>
-            <td><input type="number" id="${arm}-center-${sid}" value="${m.nominal_center_tick ?? 500}" min="200" max="800"></td>
-            <td><input type="number" id="${arm}-dev-${sid}" value="${dev}" min="-50" max="50"></td>
+            <td>
+              <input type="number" id="${arm}-min-${sid}" value="${minT}" min="100" max="800" oninput="updateDegLabel('${arm}', 'min', ${sid})">
+              <div id="${arm}-min-deg-${sid}" style="font-size:10px; color:var(--text-muted); font-family:monospace;">${(minT * 0.24).toFixed(1)}°</div>
+            </td>
+            <td>
+              <input type="number" id="${arm}-max-${sid}" value="${maxT}" min="200" max="900" oninput="updateDegLabel('${arm}', 'max', ${sid})">
+              <div id="${arm}-max-deg-${sid}" style="font-size:10px; color:var(--text-muted); font-family:monospace;">${(maxT * 0.24).toFixed(1)}°</div>
+            </td>
+            <td>
+              <input type="number" id="${arm}-center-${sid}" value="${centerT}" min="200" max="800" oninput="updateDegLabel('${arm}', 'center', ${sid})">
+              <div id="${arm}-center-deg-${sid}" style="font-size:10px; color:var(--text-muted); font-family:monospace;">${(centerT * 0.24).toFixed(1)}°</div>
+            </td>
+            <td>
+              <input type="number" id="${arm}-dev-${sid}" value="${dev}" min="-25" max="25" oninput="updateDegLabel('${arm}', 'dev', ${sid})">
+              <div id="${arm}-dev-deg-${sid}" style="font-size:10px; color:var(--text-muted); font-family:monospace;">${dev > 0 ? '+' : ''}${(dev * 0.24).toFixed(1)}°</div>
+            </td>
             <td>
               <select id="${arm}-mult-${sid}">
                 <option value="1" ${m.direction_multiplier === 1 ? 'selected' : ''}>+1</option>
@@ -422,7 +455,8 @@
           const errTd = document.getElementById(`${arm}-err-${sid}`);
 
           if (liveTd && m.actual_tick !== undefined) {
-            liveTd.textContent = m.actual_tick + (m.is_simulated ? ' (sim)' : '');
+            const deg = (m.actual_tick * 0.24).toFixed(1);
+            liveTd.innerHTML = `<strong>${m.actual_tick}</strong> <span style="font-size:10px; color:var(--text-muted);">(${deg}°)</span>${m.is_simulated ? ' <span style="font-size:10px; color:var(--warning);">(sim)</span>' : ''}`;
           }
           if (errTd && m.tracking_error !== undefined) {
             const err = Math.abs(m.tracking_error);
@@ -468,6 +502,11 @@
       };
 
       ['xarm_1', 'xarm_2'].forEach(arm => {
+        const ztrimInput = document.getElementById(`${arm}-ztrim`);
+        if (ztrimInput) {
+          payload.manipulators[arm].z_depth_trim_mm = parseFloat(ztrimInput.value) || 0.0;
+        }
+
         for (let sid = 1; sid <= 6; sid++) {
           const minVal = parseInt(document.getElementById(`${arm}-min-${sid}`).value);
           const maxVal = parseInt(document.getElementById(`${arm}-max-${sid}`).value);
@@ -493,7 +532,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert("Configuration saved atomically to dual_xarm_hardware.yaml and servo_calibration.yaml!", true);
+          showAlert("Configuration saved atomically to dual_xarm_hardware.yaml!", true);
         } else {
           showAlert("Save failed: " + (data.error || "Unknown error"), false);
         }

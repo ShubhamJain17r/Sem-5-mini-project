@@ -159,9 +159,10 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
 - 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), hardware exposure/WB locks, HSV color segmentation, spatial moments centroiding, and Python perception pipeline.
 - 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, custom interface definitions, dynamic load balancing with hysteresis across $Y = 300\text{ mm}$ midline, spatial crossover mutex state machine, and production Python nodes.
-- 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), Arduino Uno R4 WiFi test bench, servo deviation zeroing, and tick-to-angle conversion.
+- 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), direct USB-HID/UART bringup, xArm PC App servo calibration, and tick-to-angle conversion.
 - 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 6 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
 - 📄 **Stepping Stone 7**: [`docs/07_fusion360_cad_modeling_guide.md`](docs/07_fusion360_cad_modeling_guide.md) — Physical workcell fabrication guide, wood/MDF layered build, 3D renders, cut list, camera mast & non-glare painting.
+- 📄 **Stepping Stone 8**: [`docs/08_servo_limits_and_calibration_guide.md`](docs/08_servo_limits_and_calibration_guide.md) — Comprehensive guide for servo min/max angles, physical-to-tick math ($0.24^\circ/\text{tick}$), safe boundary discovery, Web Config Portal integration, and Cartesian Z-depth trim adjustment.
 
 ### System Integration & Planning
 
@@ -183,16 +184,9 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 ```text
 Sem-5-mini-project/
 │
-├── arduino/                        # Microcontroller Test & Calibration Firmware
-│   ├── xarm_direct_test/           # Breadboard-free teleoperation, reach & pick-and-place testing
-│   │   └── xarm_direct_test.ino
-│   └── xarm_zero_calibration/      # Interactive servo zeroing & deviation calibration
-│       └── xarm_zero_calibration.ino
-│
-├── config/                         # Configuration YAMLs
+├── config/                         # Unified Configuration YAMLs
 │   ├── camera_calibration.yaml     # Overhead camera intrinsics & ArUco corner coordinates
-│   ├── dual_xarm_hardware.yaml     # Immutable link lengths, mounting origins, joint limits & 4 color compartments
-│   └── servo_calibration.yaml      # Measured zero-point deviation trims per joint
+│   └── dual_xarm_hardware.yaml     # Unified link lengths, mounting origins, joint limits, centers & 4 color compartments
 │
 ├── docker/                         # Docker & Hardware Pass-Through Scripts
 │   ├── Dockerfile                  # ROS 2 Humble base image with OpenCV, serial & GUI support
@@ -336,16 +330,23 @@ python3 tools/web_config/server.py
 # Open http://localhost:8000 in your browser
 ```
 
-#### 3. Run Standalone Tests & Telemetry
+#### 3. Run Standalone Tests & Motion Test Suite
 ```bash
 # Run 18 offline simulation unit tests
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+
+# Run comprehensive 13-motion single-arm trajectory test suite
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 1
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
+
+# Run 12-motion cooperative dual-arm test suite
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --all
 
 # Run sub-millimeter telemetry drift logger
 python3 tools/telemetry_logger.py --scan
 ```
 
-For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md).
+For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and 📄 [**`docs/08_servo_limits_and_calibration_guide.md`**](docs/08_servo_limits_and_calibration_guide.md).
 
 ---
 
@@ -359,25 +360,18 @@ For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md).
 
 ## 📅 Project Status
 
-- [x] Stepping Stone 0: Docker & ROS 2 Development Environment (`docs/00_docker_and_ros2_development_guide.md`)
-- [x] Stepping Stone 1: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
-- [x] Stepping Stone 2: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
-- [x] Stepping Stone 3: Computer Vision & Calibration (`docs/03_computer_vision_and_calibration.md`)
-- [x] Stepping Stone 4: ROS 2 Architecture & Mutex Scheduling (`docs/04_ros2_architecture_and_scheduling.md`)
-- [x] Stepping Stone 5: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
-- [x] Stepping Stone 6: Testing, Diagnostics & Reach Verification (`docs/06_system_testing_diagnostics_and_verification.md`)
-- [x] Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication (`docs/07_fusion360_cad_modeling_guide.md`)
-- [x] End-to-End Operator Manual & Debugging Guide (`docs/MANUAL.md`)
-- [x] Zero-Carpentry Flat Board + 2x2 Flank Tray Architecture (`docs/assets/workcell_flat_overview.png`, `docs/assets/wood_platform_blueprint.png`, `docs/assets/tray_3d_print_cad.png`)
-- [x] Technical Schematic Design (`docs/assets/design.png` & `docs/assets/pcb module.webp`)
-- [x] Risk Matrix & $240^\circ$ ROM Mitigation (`docs/risks.md`)
-- [x] Phase 0: Arduino Hardware Bringup, Calibration & Reach Testing (`arduino/`)
-- [x] Phase 1 Core: ROS 2 Hardware Driver, Closed-Form Polar IK, & Teleop (`ros2_ws/src/sorting_arm/`)
-- [ ] Physical Assembly & Arena Mounting _(Week 1)_
-- [ ] OpenCV Dedicated Arena Homography & HSV Tuning _(Week 2)_
-- [ ] ROS 2 Graph & Mutex Scheduler _(Week 3)_
-- [ ] Single Arm Pick & Pitch LUT Calibration _(Weeks 4–6)_
-- [ ] Dual Arm Pipelined Integration _(Weeks 7–8)_
-- [ ] Live Web Dashboard & Robustness Polish _(Weeks 9–10)_
-- [ ] Final Presentation & Demo Video _(Week 11)_
+- [x] **Stepping Stone 0**: Docker & ROS 2 Development Environment (`docs/00_docker_and_ros2_development_guide.md`)
+- [x] **Stepping Stone 1**: Arena & Physical Component Placement (`docs/01_arena_and_layout.md`)
+- [x] **Stepping Stone 2**: Kinematics & Grasp Planning (`docs/02_kinematics_and_grasp_planning.md`)
+- [x] **Stepping Stone 3**: Computer Vision & Calibration (`docs/03_computer_vision_and_calibration.md`)
+- [x] **Stepping Stone 4**: ROS 2 Architecture & Mutex Scheduling (`docs/04_ros2_architecture_and_scheduling.md`)
+- [x] **Stepping Stone 5**: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
+- [x] **Stepping Stone 6**: Testing, Diagnostics & Reach Verification (`docs/06_system_testing_diagnostics_and_verification.md`)
+- [x] **Stepping Stone 7**: Flat Board & 3D Printed Tray Rapid Fabrication (`docs/07_fusion360_cad_modeling_guide.md`)
+- [x] **Stepping Stone 8**: Servo Limits, Calibration & Z-Trim Web Guide (`docs/08_servo_limits_and_calibration_guide.md`)
+- [x] **Phase 0**: Direct USB Hardware Bringup, xArm App Calibration & Reach Testing
+- [x] **Phase 1**: Kinematics, Driver, Calibration & 13-Motion Multi-Distance Test Suite (`ros2_ws/src/sorting_arm/`) — **✅ COMPLETE**
+- [ ] **Phase 2**: Camera Calibration, ArUco Homography & HSV Color Detection Pipeline (`camera_node` & `vision_node`) — **⏳ IN PROGRESS**
+- [ ] **Phase 3**: Multi-Arm Synchronization, Midline Spatial Mutex & Trajectory Coordination (`scheduler_node`)
+- [ ] **Phase 4**: Full Integrated Workcell Demonstration & High-Speed Multi-Block Sorting
 

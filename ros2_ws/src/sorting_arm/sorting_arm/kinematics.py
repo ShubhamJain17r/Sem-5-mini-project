@@ -30,12 +30,18 @@ class KinematicParameters:
     L3_grip: float = 150.0    # Wrist pitch axis to rubber grip pad center (mm)
     L3_tip: float = 168.0     # Wrist pitch axis to outer claw fingertip (mm)
 
-    # Servo zero-reference angles (degrees when servo is at 500 ticks)
-    shoulder_zero_deg: float = 90.0  # Angle above horizontal at 500 ticks (upright vertical)
-    elbow_zero_deg: float = 180.0    # Interior angle between L1 and L2 at 500 ticks (straight collinear)
-    wrist_zero_deg: float = 0.0      # Relative angle with forearm at 500 ticks (collinear)
-    base_zero_deg: float = 0.0       # Arm-relative angle at 500 ticks (default 0 deg)
+    # Dynamic Cartesian tabletop depth offset (mm, compensates for suction cup/mounting differences)
+    z_depth_trim_mm: float = 0.0
+
+    # Servo zero-reference angles (degrees when servo is at its nominal center tick)
+    shoulder_zero_deg: float = 90.0  # Angle above horizontal at center tick (upright vertical)
+    elbow_zero_deg: float = 180.0    # Interior angle between L1 and L2 at center tick (straight collinear)
+    wrist_zero_deg: float = 0.0      # Relative angle with forearm at center tick (collinear)
+    base_zero_deg: float = 0.0       # Arm-relative angle at center tick (default 0 deg)
     base_heading_deg: float = 0.0    # Base mounting nominal heading in world frame (East = 0 deg)
+
+    # Dynamic nominal center ticks (loaded from dual_xarm_hardware.yaml, defaults to 500)
+    nominal_center_ticks: Optional[Dict[int, int]] = None
 
     # Motor direction multipliers (+1 standard, -1 inverted)
     direction_multipliers: Optional[Dict[int, int]] = None
@@ -45,7 +51,9 @@ class KinematicParameters:
     max_safe_ticks: Optional[Dict[int, int]] = None
 
     def __post_init__(self):
-        """Set default safe tick clamps and direction multipliers if not provided."""
+        """Set default safe tick clamps, center ticks and direction multipliers if not provided."""
+        if self.nominal_center_ticks is None:
+            self.nominal_center_ticks = {1: 500, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
         if self.direction_multipliers is None:
             self.direction_multipliers = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
         if self.min_safe_ticks is None:
@@ -125,7 +133,9 @@ def load_kinematic_parameters(
         el_zero = float(motors.get("motor_4", {}).get("zero_reference_angle_deg", 180.0))
         wr_zero = float(motors.get("motor_3", {}).get("zero_reference_angle_deg", 0.0))
         base_zero = float(motors.get("motor_6", {}).get("zero_reference_angle_deg", 0.0))
-        base_heading = float(arm_cfg.get("base_mount_mm", {}).get("nominal_heading_deg", 0.0))
+        base_mount = arm_cfg.get("base_mount_mm", {})
+        base_heading = float(base_mount.get("nominal_heading_deg", 0.0))
+        z_depth_trim = float(base_mount.get("z_depth_trim_mm", arm_cfg.get("z_depth_trim_mm", 0.0)))
 
         min_ticks = {
             1: int(motors.get("motor_1", {}).get("min_tick", 150)),
@@ -144,6 +154,15 @@ def load_kinematic_parameters(
             6: int(motors.get("motor_6", {}).get("max_tick", 850)),
         }
 
+        center_ticks = {
+            1: int(motors.get("motor_1", {}).get("nominal_center_tick", 500)),
+            2: int(motors.get("motor_2", {}).get("nominal_center_tick", 500)),
+            3: int(motors.get("motor_3", {}).get("nominal_center_tick", 500)),
+            4: int(motors.get("motor_4", {}).get("nominal_center_tick", 500)),
+            5: int(motors.get("motor_5", {}).get("nominal_center_tick", 500)),
+            6: int(motors.get("motor_6", {}).get("nominal_center_tick", 500)),
+        }
+
         dir_multipliers = {
             1: int(motors.get("motor_1", {}).get("direction_multiplier", 1)),
             2: int(motors.get("motor_2", {}).get("direction_multiplier", 1)),
@@ -159,11 +178,13 @@ def load_kinematic_parameters(
             L2=l2,
             L3_grip=l3_grip,
             L3_tip=l3_tip,
+            z_depth_trim_mm=z_depth_trim,
             shoulder_zero_deg=sh_zero,
             elbow_zero_deg=el_zero,
             wrist_zero_deg=wr_zero,
             base_zero_deg=base_zero,
             base_heading_deg=base_heading,
+            nominal_center_ticks=center_ticks,
             direction_multipliers=dir_multipliers,
             min_safe_ticks=min_ticks,
             max_safe_ticks=max_ticks,
@@ -259,9 +280,10 @@ def _solve_ik_internal(
     l2 = params.L2
     d1 = params.d1
 
-    # Step 1: Wrist position calculation
+    # Step 1: Wrist position calculation (with dynamic Cartesian Z-depth trim)
+    z_effective = z - params.z_depth_trim_mm
     r_w = r - l3 * math.cos(phi_rad)
-    z_w = z - l3 * math.sin(phi_rad)
+    z_w = z_effective - l3 * math.sin(phi_rad)
 
     # Offset from shoulder joint (r=0, z=d1)
     r_prime = r_w
@@ -323,21 +345,22 @@ def _solve_ik_internal(
 
     # Step 6: Convert angles to theoretical servo ticks using configured zero-references
     dir_mult = params.direction_multipliers or {i: 1 for i in range(1, 7)}
+    centers = params.nominal_center_ticks or {i: 500 for i in range(1, 7)}
 
-    # Motor 6: Base Yaw (500 = center = configured base_zero_deg)
-    tick_6 = int(round(500 + dir_mult.get(6, 1) * (theta - params.base_zero_deg) * TICKS_PER_DEG))
+    # Motor 6: Base Yaw (dynamic center = configured base_zero_deg)
+    tick_6 = int(round(centers.get(6, 500) + dir_mult.get(6, 1) * (theta - params.base_zero_deg) * TICKS_PER_DEG))
 
-    # Motor 5: Shoulder Pitch (configured zero angle, 90° upright at 500 ticks)
+    # Motor 5: Shoulder Pitch (configured zero angle, 90° upright at center tick)
     # Tilting forward toward horizontal decreases theta_shoulder_deg and increases ticks
-    tick_5 = int(round(500 + dir_mult.get(5, 1) * (params.shoulder_zero_deg - theta_shoulder_deg) * TICKS_PER_DEG))
+    tick_5 = int(round(centers.get(5, 500) + dir_mult.get(5, 1) * (params.shoulder_zero_deg - theta_shoulder_deg) * TICKS_PER_DEG))
 
-    # Motor 4: Elbow Pitch (configured zero interior angle, 180° collinear at 500 ticks)
+    # Motor 4: Elbow Pitch (configured zero interior angle, 180° collinear at center tick)
     # Folding forward decreases interior angle alpha3_deg and decreases ticks
-    tick_4 = int(round(500 - dir_mult.get(4, 1) * (params.elbow_zero_deg - alpha3_deg) * TICKS_PER_DEG))
+    tick_4 = int(round(centers.get(4, 500) - dir_mult.get(4, 1) * (params.elbow_zero_deg - alpha3_deg) * TICKS_PER_DEG))
 
-    # Motor 3: Wrist Pitch (configured zero relative angle, 0° collinear at 500 ticks)
+    # Motor 3: Wrist Pitch (configured zero relative angle, 0° collinear at center tick)
     # Pitching downward relative to forearm decreases theta_wrist_rel_deg and increases ticks
-    tick_3 = int(round(500 - dir_mult.get(3, 1) * (theta_wrist_rel_deg - params.wrist_zero_deg) * TICKS_PER_DEG))
+    tick_3 = int(round(centers.get(3, 500) - dir_mult.get(3, 1) * (theta_wrist_rel_deg - params.wrist_zero_deg) * TICKS_PER_DEG))
 
     # Motor 2: Wrist Roll
     tick_2 = roll_tick
@@ -407,24 +430,25 @@ def solve_fk(
     d1 = p.d1
 
     dir_mult = p.direction_multipliers or {i: 1 for i in range(1, 7)}
+    centers = p.nominal_center_ticks or {i: 500 for i in range(1, 7)}
 
     # Base Yaw
-    theta = p.base_zero_deg + dir_mult.get(6, 1) * (tick_6 - 500) * DEG_PER_TICK
+    theta = p.base_zero_deg + dir_mult.get(6, 1) * (tick_6 - centers.get(6, 500)) * DEG_PER_TICK
 
-    # Shoulder (500 ticks is upright 90°, increasing ticks tilts forward toward 0°)
-    theta_shoulder_deg = p.shoulder_zero_deg - dir_mult.get(5, 1) * (tick_5 - 500) * DEG_PER_TICK
+    # Shoulder (configured upright zero angle, increasing ticks tilts forward toward 0°)
+    theta_shoulder_deg = p.shoulder_zero_deg - dir_mult.get(5, 1) * (tick_5 - centers.get(5, 500)) * DEG_PER_TICK
     theta_shoulder_rad = math.radians(theta_shoulder_deg)
 
-    # Elbow (500 ticks is collinear 180°, decreasing ticks folds forward)
-    alpha3_deg = p.elbow_zero_deg + dir_mult.get(4, 1) * (tick_4 - 500) * DEG_PER_TICK
+    # Elbow (configured collinear 180°, decreasing ticks folds forward)
+    alpha3_deg = p.elbow_zero_deg + dir_mult.get(4, 1) * (tick_4 - centers.get(4, 500)) * DEG_PER_TICK
     theta_elbow_bend_deg = 180.0 - alpha3_deg
 
     # Forearm angle
     theta_forearm_deg = theta_shoulder_deg - theta_elbow_bend_deg
     theta_forearm_rad = math.radians(theta_forearm_deg)
 
-    # Wrist pitch (500 ticks is collinear 0°, increasing ticks tilts downward)
-    theta_wrist_rel_deg = p.wrist_zero_deg - dir_mult.get(3, 1) * (tick_3 - 500) * DEG_PER_TICK
+    # Wrist pitch (configured collinear 0°, increasing ticks tilts downward)
+    theta_wrist_rel_deg = p.wrist_zero_deg - dir_mult.get(3, 1) * (tick_3 - centers.get(3, 500)) * DEG_PER_TICK
     phi = theta_forearm_deg + theta_wrist_rel_deg
     phi_rad = math.radians(phi)
 
@@ -436,7 +460,7 @@ def solve_fk(
     z_wrist = z_elbow + l2 * math.sin(theta_forearm_rad)
 
     r_tip = r_wrist + l3 * math.cos(phi_rad)
-    z_tip = z_wrist + l3 * math.sin(phi_rad)
+    z_tip = z_wrist + l3 * math.sin(phi_rad) + p.z_depth_trim_mm
 
     return ArmPose(r=r_tip, theta=theta, z=z_tip, phi=phi)
 

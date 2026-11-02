@@ -166,3 +166,54 @@ def test_telemetry_drift_analysis():
         assert "joint_metrics" in stats
         assert "recommendations" in stats
         assert len(stats["recommendations"]) > 0
+
+
+def test_dynamic_nominal_centers_and_z_trim():
+    """Verify dynamic nominal_center_ticks and Cartesian z_depth_trim_mm parameters."""
+    cfg = "config/dual_xarm_hardware.yaml"
+    params2 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_2")
+
+    # Verify nominal center ticks loaded dynamically from YAML
+    assert hasattr(params2, "nominal_center_ticks")
+    assert params2.nominal_center_ticks[4] == 500
+    assert hasattr(params2, "z_depth_trim_mm")
+    assert params2.z_depth_trim_mm == 0.0
+
+    # Test Z-trim adjustment effect: positive trim compensates for elevated arm
+    p_untrimmed = KinematicParameters(z_depth_trim_mm=0.0)
+    p_trimmed = KinematicParameters(z_depth_trim_mm=5.0)
+
+    sol_untrimmed = solve_ik(r=220.0, theta=0.0, z=50.0, params=p_untrimmed)
+    sol_trimmed = solve_ik(r=220.0, theta=0.0, z=50.0, params=p_trimmed)
+    assert sol_untrimmed.success
+    assert sol_trimmed.success
+
+    # With +5mm trim, target is internally solved at z=55mm, so pitch ticks will be higher
+    assert sol_trimmed.ticks[5] != sol_untrimmed.ticks[5]
+
+    # Verify FK roundtrip under Z-trim
+    fk = solve_fk(
+        sol_trimmed.ticks[6],
+        sol_trimmed.ticks[5],
+        sol_trimmed.ticks[4],
+        sol_trimmed.ticks[3],
+        params=p_trimmed,
+    )
+    assert abs(fk.z - 50.0) < 1.0, f"FK Z roundtrip with trim failed: got {fk.z}, expected 50.0"
+
+
+def test_dynamic_max_deviation_guardrail():
+    """Verify that excessive servo deviations are clamped to max_deviation_ticks."""
+    # Set max_deviation_ticks = 25
+    devs = {1: 10, 4: 50, 5: -40}  # Motor 4 is +50 (>25), Motor 5 is -40 (<-25)
+    driver = XArmDriver(port="/dev/null", deviations=devs, max_deviation_ticks=25)
+
+    # Motor 1 (+10) is within [-25, 25] -> 500 + 10 = 510
+    assert driver.apply_deviations_and_limits(1, 500) == 510
+
+    # Motor 4 (+50) exceeds +25 -> clamped to +25 -> 500 + 25 = 525
+    assert driver.apply_deviations_and_limits(4, 500) == 525
+
+    # Motor 5 (-40) exceeds -25 -> clamped to -25 -> 500 - 25 = 475
+    assert driver.apply_deviations_and_limits(5, 500) == 475
+
