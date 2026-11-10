@@ -186,12 +186,14 @@ Sem-5-mini-project/
 │
 ├── config/                         # Unified Configuration YAMLs
 │   ├── camera_calibration.yaml     # Overhead camera intrinsics & ArUco corner coordinates
+│   ├── colors.yaml                 # Calibrated HSV color bands & morphology thresholds
 │   └── dual_xarm_hardware.yaml     # Unified link lengths, mounting origins, joint limits, centers & 4 color compartments
 │
 ├── docker/                         # Docker & Hardware Pass-Through Scripts
 │   ├── Dockerfile                  # ROS 2 Humble base image with OpenCV, serial & GUI support
-│   ├── build.sh                    # Container build script
-│   └── run.sh                      # Hardware passthrough container runner
+│   ├── build.sh                    # Host UID/GID matching build script
+│   ├── run.sh                      # Hardware passthrough container runner
+│   └── entrypoint.sh               # Environment overlay auto-source entrypoint
 │
 ├── docs/                           # Stepping-Stone & System Documentation
 │   ├── README.md                   # Documentation Index & Architecture Map
@@ -214,7 +216,8 @@ Sem-5-mini-project/
 │       └── sorting_arm/            # Hardware driver node, analytical polar IK, trajectory & coordinator
 │           ├── launch/
 │           │   ├── xarm_driver.launch.py
-│           │   └── dual_xarm.launch.py
+│           │   ├── dual_xarm.launch.py
+│           │   └── vision_sorting.launch.py # Vision perception & autonomous sorter launch
 │           ├── sorting_arm/
 │           │   ├── direct_test.py      # Standalone USB HID/serial driver test
 │           │   ├── driver_node.py      # ROS 2 hardware driver node with E-Stop
@@ -222,35 +225,37 @@ Sem-5-mini-project/
 │           │   ├── kinematics.py       # Closed-form analytical polar IK solver
 │           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
 │           │   ├── trajectory.py       # Quintic polynomial minimum-jerk trajectory generator
+│           │   ├── vision_node.py      # ROS 2 camera capture & ArUco perception node
+│           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator
 │           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
 │           ├── test/
-│           │   ├── run_tests.py        # Standalone offline simulation test suite
-│           │   └── test_calibration_and_features.py # 18 verification unit tests
+│           │   ├── run_tests.py        # Standalone offline simulation test suite (20 unit tests)
+│           │   ├── test_calibration_and_features.py # Hardware & driver unit tests
+│           │   ├── test_kinematics.py  # 11 analytical polar IK verification tests
+│           │   └── test_vision_pipeline.py # 6 ArUco homography & color detection tests
 │           ├── package.xml
 │           ├── setup.cfg
 │           └── setup.py
 │
 ├── tools/                          # Utility & Calibration Tools (RUN IN VENV OR DOCKER)
+│   ├── autonomous_pick_and_place.py # End-to-end vision-guided autonomous sorting bridge
 │   ├── pick_and_place_test.py      # Trajectory test with closed-loop verification
 │   ├── telemetry_logger.py         # Sub-millimeter drift analysis & repeatability logger
 │   └── web_config/                 # Real-time Web Configuration & Calibration Tool
 │       ├── server.py               # Dynamic port auto-detect HTTP & REST API server (:8000)
 │       └── index.html              # Interactive browser dashboard
 │
-├── .devcontainer/                 # VS Code Dev Container configuration
+├── vision/                         # Pure OpenCV Perception & Calibration Package
+│   ├── __init__.py                 # Package initializer
+│   ├── arena_vision_pipeline.py    # Core 4-point ArUco homography & HSV segmentation pipeline
+│   ├── calibrate_camera.py         # Interactive checkerboard lens intrinsic calibration
+│   ├── test_aruco_warp.py          # ArUco marker detection & metric grid verification
+│   └── tune_hsv.py                 # Real-time 6-trackbar HSV threshold calibration GUI
+│
+├── .devcontainer/                  # VS Code Dev Container configuration
+│   └── devcontainer.json           # 1-click isolated ROS 2 environment
 ├── requirements.txt                # Python host virtual environment dependencies
 └── setup_venv.sh                   # One-click host Python virtual environment setup
-│   └── devcontainer.json           # 1-click isolated ROS 2 environment
-│
-├── docker/                         # Project-Level Docker Environment
-│   ├── Dockerfile                  # Multi-arch (x86_64 / arm64) ROS 2 Humble image
-│   ├── build.sh                    # Host UID/GID matching build script
-│   ├── run.sh                      # Launch script with Intel GPU, GUI, & hardware pass-through
-│   └── entrypoint.sh               # Environment overlay auto-source entrypoint
-│
-├── DOCKER_GUIDE.md                 # Complete Docker & ROS 2 Humble user manual
-├── README.md                       # Project landing page & documentation
-└── requirements.txt                # Python dependencies
 ```
 
 ---
@@ -300,9 +305,9 @@ ros2 launch sorting_arm xarm_driver.launch.py
 # 4. Or run interactive polar teleoperation node
 ros2 run sorting_arm polar_teleop_node
 
-# (Future Full Pipeline — Phase 3+):
-# ros2 launch sorting_vision vision.launch.py
-# ros2 launch sorting_scheduler system.launch.py
+# (Full Autonomous Vision-Guided Sorting Pipeline):
+ros2 launch sorting_arm dual_xarm.launch.py
+ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true
 ```
 
 ---
@@ -332,11 +337,13 @@ python3 tools/web_config/server.py
 
 #### 3. Run Standalone Tests & Motion Test Suite
 ```bash
-# Run 18 offline simulation unit tests
+# Run 20 offline simulation unit tests (no hardware required)
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
 
+# Run 6 automated computer vision & ArUco homography tests
+pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+
 # Run comprehensive 13-motion single-arm trajectory test suite
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 1
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
 
 # Run 12-motion cooperative dual-arm test suite
@@ -344,6 +351,21 @@ PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm
 
 # Run sub-millimeter telemetry drift logger
 python3 tools/telemetry_logger.py --scan
+```
+
+#### 4. Run Computer Vision Tools & Autonomous Sorting Bridge
+```bash
+# Test 4-point ArUco planar homography & metric grid (press 'l' lock, 'g' grid, 's' save)
+python3 vision/test_aruco_warp.py --synthetic  # or --device /dev/video0
+
+# Tune real-time HSV color thresholds interactively (keys 1:Red, 2:Green, 3:Blue, 4:Yellow, 's' save)
+python3 vision/tune_hsv.py --synthetic         # or --device /dev/video0
+
+# Calibrate overhead camera intrinsics with 9x6 checkerboard
+python3 vision/calibrate_camera.py --synthetic # or --device /dev/video0
+
+# Run vision-guided autonomous pick-and-place bridge (Phase 1 + Phase 2 merge)
+python3 tools/autonomous_pick_and_place.py --arm xarm_2 --synthetic --dry-run
 ```
 
 For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and 📄 [**`docs/08_servo_limits_and_calibration_guide.md`**](docs/08_servo_limits_and_calibration_guide.md).
@@ -371,7 +393,8 @@ For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and
 - [x] **Stepping Stone 8**: Servo Limits, Calibration & Z-Trim Web Guide (`docs/08_servo_limits_and_calibration_guide.md`)
 - [x] **Phase 0**: Direct USB Hardware Bringup, xArm App Calibration & Reach Testing
 - [x] **Phase 1**: Kinematics, Driver, Calibration & 13-Motion Multi-Distance Test Suite (`ros2_ws/src/sorting_arm/`) — **✅ COMPLETE**
-- [ ] **Phase 2**: Camera Calibration, ArUco Homography & HSV Color Detection Pipeline (`camera_node` & `vision_node`) — **⏳ IN PROGRESS**
-- [ ] **Phase 3**: Multi-Arm Synchronization, Midline Spatial Mutex & Trajectory Coordination (`scheduler_node`)
-- [ ] **Phase 4**: Full Integrated Workcell Demonstration & High-Speed Multi-Block Sorting
+- [x] **Phase 2**: Camera Calibration, ArUco Metric Homography & HSV Segmentation (`vision/` & `vision_node`) — **✅ COMPLETE**
+- [ ] **Phase 3**: Single-Arm Autonomous Sorting & Live Verification (Gate 3) — **⏳ NEXT**
+- [ ] **Phase 4**: Multi-Arm Spatial Mutex Synchronization & High-Speed Multi-Block Sorting
+
 

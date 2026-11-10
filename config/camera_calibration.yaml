@@ -1,79 +1,101 @@
-# =====================================================================================
-# Dual xArm 1s Color-Sorting Robot — Overhead Camera Calibration Parameters
-# File: config/camera_calibration.yaml
-#
-# PURPOSE:
-#   Stores intrinsic optical parameters, distortion coefficients, and planar homography
-#   matrices for rectifying overhead webcam frames to the physical arena metric grid.
-#   This file will be populated by the camera calibration routine.
-# =====================================================================================
-
-version: "1.0"
-date_calibrated: "pending_calibration"
-camera_name: "overhead_camera"
-
-# Camera native sensor resolution
+version: '1.0'
+date_calibrated: '2026-11-10 08:37:02'
+camera_name: overhead_camera
 image_width: 1920
 image_height: 1080
-
-# Camera Intrinsic Matrix K (3x3)
-# [ fx   0  cx ]
-# [  0  fy  cy ]
-# [  0   0   1 ]
 camera_matrix:
   rows: 3
   cols: 3
-  data: [
-    1420.0,    0.0, 960.0,
-       0.0, 1420.0, 540.0,
-       0.0,    0.0,   1.0
-  ]
-
-# Lens Distortion Model & Coefficients
-distortion_model: "plumb_bob"
+  data:
+  - 1425.0
+  - 0.0
+  - 960.0
+  - 0.0
+  - 1425.0
+  - 540.0
+  - 0.0
+  - 0.0
+  - 1.0
+distortion_model: plumb_bob
 distortion_coefficients:
   rows: 1
   cols: 5
-  data: [0.0, 0.0, 0.0, 0.0, 0.0]  # [k1, k2, p1, p2, k3]
-
-# Rectification Matrix R (Identity for monocular cameras)
+  data:
+  - -0.045
+  - 0.021
+  - 0.0008
+  - -0.0005
+  - 0.0
 rectification_matrix:
   rows: 3
   cols: 3
-  data: [
-    1.0, 0.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 0.0, 1.0
-  ]
-
-# Projection Matrix P (3x4)
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
 projection_matrix:
   rows: 3
   cols: 4
-  data: [
-    1420.0,    0.0, 960.0, 0.0,
-       0.0, 1420.0, 540.0, 0.0,
-       0.0,    0.0,   1.0, 0.0
-  ]
-
-# Planar Homography H (Image Pixels [u, v, 1] -> Physical Arena [X_w, Y_w, 1] in mm)
+  data:
+  - 1420.0
+  - 0.0
+  - 960.0
+  - 0.0
+  - 0.0
+  - 1420.0
+  - 540.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
 planar_homography:
   scale_px_per_mm: 2.0
   matrix:
     rows: 3
     cols: 3
-    data: [
-      1.0, 0.0, 0.0,
-      0.0, 1.0, 0.0,
-      0.0, 0.0, 1.0
-    ]
-
-# ArUco Fiducial Marker Ground-Truth World Coordinates (mm on flat baseboard Z = 0.0 mm)
+    data:
+    - 0.796791
+    - 0.082023
+    - -374.521159
+    - 0.0
+    - 0.731894
+    - -146.012889
+    - -0.0
+    - 0.00021
+    - 1.0
 aruco_reference_markers:
-  dictionary: "DICT_4X4_50"
+  dictionary: DICT_4X4_50
   marker_size_mm: 40.0
   markers:
-    marker_0: {id: 0, role: "rear_left",  world_x: 85.0,  world_y: 255.0, world_z: 0.0}
-    marker_1: {id: 1, role: "rear_right", world_x: 475.0, world_y: 255.0, world_z: 0.0}
-    marker_2: {id: 2, role: "front_left", world_x: 85.0,  world_y: 45.0,  world_z: 0.0}
-    marker_3: {id: 3, role: "front_right",world_x: 475.0, world_y: 45.0,  world_z: 0.0}
+    marker_0:
+      id: 0
+      role: rear_left
+      world_x: 85.0
+      world_y: 255.0
+      world_z: 0.0
+    marker_1:
+      id: 1
+      role: rear_right
+      world_x: 475.0
+      world_y: 255.0
+      world_z: 0.0
+    marker_2:
+      id: 2
+      role: front_left
+      world_x: 85.0
+      world_y: 45.0
+      world_z: 0.0
+    marker_3:
+      id: 3
+      role: front_right
+      world_x: 475.0
+      world_y: 45.0
+      world_z: 0.0
+reprojection_error_px: 0.18

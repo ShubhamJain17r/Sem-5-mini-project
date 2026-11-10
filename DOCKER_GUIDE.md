@@ -279,6 +279,8 @@ chmod +x docker/*.sh
 | **Open another shell in container** | `docker exec -it xarm_sorting_env bash` | New Host Terminal Tab |
 | **Build ROS 2 packages** | `colcon build --symlink-install` | Inside Container (`/workspace/ros2_ws`) |
 | **Source workspace overlay** | `source install/setup.bash` | Inside Container (`/workspace/ros2_ws`) |
+| **Launch Dual xArm Drivers** | `ros2 launch sorting_arm dual_xarm.launch.py` | Inside Container |
+| **Launch Vision & Autonomous Sorter** | `ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true` | Inside Container |
 | **Run 3D Visualizer (RViz2)** | `rviz2` | Inside Container |
 | **Check connected cameras** | `v4l2-ctl --list-devices` | Inside Container |
 | **Check connected xArm ports** | `ls -l /dev/ttyUSB*` | Inside Container |

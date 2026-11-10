@@ -120,9 +120,15 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 **Hardware Required**: Overhead USB Webcam (Logitech C270 / C920), Boom Stand ($65\text{--}75\text{ cm}$), 4× ArUco markers ($DICT\_4X4\_50$), Checkerboard calibration sheet ($9\times 6$), $25\text{ mm}$ colored cubes.  
 **Reference Document**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md) (Stepping Stone 6).
 
-### Lab Action Checklist
-
-- [ ] **Camera Mounting & Hardware Exposure Lock**:
+- [x] **Software Perception Architecture & Automated Test Suite**:
+  - [x] Implement core 4-point ArUco homography & HSV segmentation pipeline (`vision/arena_vision_pipeline.py`).
+  - [x] Implement checkerboard camera calibration script (`vision/calibrate_camera.py`).
+  - [x] Implement ArUco verification & metric grid test utility (`vision/test_aruco_warp.py`).
+  - [x] Implement real-time 6-trackbar HSV color tuner GUI (`vision/tune_hsv.py`).
+  - [x] Implement vision-guided autonomous pick-and-place bridge (`tools/autonomous_pick_and_place.py`).
+  - [x] Implement ROS 2 perception and sorter nodes (`vision_node.py` and `autonomous_sorter_node.py`).
+  - [x] Verify offline mathematical and perception test suite (`test_vision_pipeline.py`, 6/6 passed).
+- [ ] **Camera Mounting & Hardware Exposure Lock (Lab Hardware)**:
   - [ ] Clamp boom stand at $65\text{--}75\text{ cm}$ height centered over right arena $(X = 550\text{ mm}, Y = 300\text{ mm})$.
   - [ ] Lock exposure and white balance in hardware via V4L2:
     ```bash
@@ -130,27 +136,23 @@ Because university coursework, laboratory access schedules, exams, and hardware 
     v4l2-ctl -d /dev/video0 -c white_balance_temperature_auto=0 -c white_balance_temperature=4500
     ```
 - [ ] **Intrinsic Camera Calibration (Lens Undistortion)**:
-  - [ ] Capture 20 images of $9\times 6$ checkerboard across varying sensor angles.
-  - [ ] Run `vision/calibrate_camera.py` to compute intrinsic matrix $K$ and distortion vector $D$.
-  - [ ] Save parameters to `config/camera_calibration.yaml`. Verify straight lines remain straight after `cv2.undistort()`.
+  - [ ] Capture 20 images of $9\times 6$ checkerboard across varying sensor angles (`python3 vision/calibrate_camera.py`).
+  - [ ] Compute intrinsic matrix $K$ and distortion vector $D$ and save to `config/camera_calibration.yaml`.
 - [ ] **4-Point Coplanar ArUco Homography**:
   - [ ] Fix Markers 0, 1, 2, 3 flat on the wooden baseboard at arena corners ($Z = 0.0\text{ mm}$).
-  - [ ] Run `vision/test_aruco_warp.py`. Confirm all 4 markers are detected with zero false IDs.
-  - [ ] Rectify arena image to a metric grid ($2.0\text{ px/mm} \implies 780 \times 580\text{ pixels}$).
-  - [ ] Confirm lateral flank trays and electronics area are cleanly segregated.
-  - [ ] Lock homography matrix $H$ in memory to eliminate camera boom vibration noise.
+  - [ ] Run `python3 vision/test_aruco_warp.py`. Confirm all 4 markers are detected and lock homography with `l`.
+  - [ ] Verify metric grid alignment against physical millimeter ruler ($\le 1.5\text{ mm}$ error).
+  - [ ] Save locked homography matrix $H$ with key `s`.
 - [ ] **HSV Color Threshold Tuning**:
-  - [ ] Run `vision/tune_hsv.py` with test cubes on the arena surface.
-  - [ ] Tune upper and lower bounds for Red (two masks across $0^\circ / 180^\circ$ boundary), Green, Blue, and Yellow.
-  - [ ] Save calibrated ranges to `config/colors.yaml`.
+  - [ ] Run `python3 vision/tune_hsv.py` with test cubes on the arena surface.
+  - [ ] Tune upper and lower bounds for Red, Green, Blue, and Yellow and save to `config/colors.yaml` with key `s`.
 - [ ] **Centroid Extraction & Spatial Accuracy Verification**:
   - [ ] Scatter 8 cubes at known millimeter locations on the arena.
-  - [ ] Compare OpenCV contour centroid $(X_{\text{vision}}, Y_{\text{vision}})$ against ruler ground truth.
-  - [ ] Verify maximum spatial localization error is strictly $< 2.0\text{ mm}$ across all 8 positions.
+  - [ ] Compare detected centroids against ground truth and verify spatial error $< 2.0\text{ mm}$.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 2 Exit Criteria (Prerequisites to Enter Phase 3)
-> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular.
+> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($780 \times 420\text{ px}$).
 > 2. Planar homography matrix locked at startup; zero pixel jitter when table vibrates.
 > 3. HSV color classification achieves $100\%$ accuracy on all 4 colors under laboratory ambient lighting.
 > 4. Physical cube localization error is $< 2.0\text{ mm}$ in Cartesian arena coordinates.

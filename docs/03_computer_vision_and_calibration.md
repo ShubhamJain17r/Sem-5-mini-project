@@ -77,13 +77,13 @@ The vision pipeline is built on **pure classical computer vision (OpenCV 4.x)** 
 ### 2.2 Optical Geometry & Coverage Verification
 
 The picking arena rectangle framed by the 4 ArUco markers measures:
-$$\text{Width } (X) = 730 - 360 = 370\text{ mm}, \quad \text{Height } (Y) = 545 - 55 = 490\text{ mm}$$
+$$\text{Width } (X) = 475 - 85 = 390\text{ mm}, \quad \text{Height } (Y) = 255 - 45 = 210\text{ mm}$$
 
 At a camera height of $H = 700\text{ mm}$ with a horizontal FOV of $\theta_H = 70.4^\circ$:
 $$\text{Coverage}_X = 2 \cdot H \cdot \tan\left(\frac{70.4^\circ}{2}\right) = 2 \cdot 700 \cdot \tan(35.2^\circ) \approx 2 \cdot 700 \cdot 0.705 = \mathbf{987\text{ mm}}$$
 $$\text{Coverage}_Y = \text{Coverage}_X \cdot \left(\frac{1080}{1920}\right) = 987 \cdot 0.5625 = \mathbf{555\text{ mm}}$$
 
-Because $\text{Coverage}_X (987\text{ mm}) > 370\text{ mm}$ and $\text{Coverage}_Y (555\text{ mm}) > 490\text{ mm}$, the entire arena and all 4 ArUco markers fit comfortably inside the camera sensor with a $\approx 30\text{ mm}$ outer margin.
+Because $\text{Coverage}_X (987\text{ mm}) > 390\text{ mm}$ and $\text{Coverage}_Y (555\text{ mm}) > 210\text{ mm}$, the entire arena and all 4 ArUco markers fit comfortably inside the camera sensor with substantial margin.
 
 ### 2.3 Lighting Lock & Exposure Control
 
@@ -256,7 +256,7 @@ Once a cube centroid $(\bar{u}, \bar{v})$ is identified in the rectified metric 
 
 ```text
                                         Rectified Origin (0, 0)
-                                        [World X = 360, Y = 545]
+                                        [World X = 85.0 mm, Y = 255.0 mm]
                                         ┌────────────────────────┐ ───> +u (Pixels)
                                         │                        │
                                         │      Cube (u_c, v_c)   │
@@ -270,9 +270,9 @@ Once a cube centroid $(\bar{u}, \bar{v})$ is identified in the rectified metric 
 
 ### 6.1 Transformation to World Coordinates $(X_w, Y_w)$
 
-Since rectified image $(0, 0)$ corresponds to $(X_w = 80\text{ mm}, Y_w = 420\text{ mm})$:
-$$X_w = 80.0 + \frac{\bar{u}}{\text{PPM}} = 80.0 + \frac{\bar{u}}{2.0}$$
-$$Y_w = 420.0 - \frac{\bar{v}}{\text{PPM}} = 420.0 - \frac{\bar{v}}{2.0}$$
+Since rectified image $(0, 0)$ corresponds to $(X_w = 85.0\text{ mm}, Y_w = 255.0\text{ mm})$:
+$$X_w = 85.0 + \frac{\bar{u}}{\text{PPM}} = 85.0 + \frac{\bar{u}}{2.0}$$
+$$Y_w = 255.0 - \frac{\bar{v}}{\text{PPM}} = 255.0 - \frac{\bar{v}}{2.0}$$
 
 ### 6.2 Transformation to Robot Polar Coordinates $(r, \theta, d_{\text{edge}})$
 
@@ -350,17 +350,17 @@ class ArenaVisionPipeline:
     def __init__(self, pixels_per_mm: float = 2.0):
         self.ppm = pixels_per_mm
 
-        # World coordinates of 4 ArUco markers (Raised Curb Z = +37 mm)
+        # World coordinates of 4 ArUco markers (Flat Baseboard Z = 0.0 mm)
         # IDs: 0 (Rear-Left), 1 (Rear-Right), 2 (Front-Left), 3 (Front-Right)
         self.world_corners = {
-            0: (80.0, 420.0),
-            1: (480.0, 420.0),
-            2: (105.0, 40.0),
-            3: (455.0, 40.0)
+            0: (85.0, 255.0),
+            1: (475.0, 255.0),
+            2: (85.0, 45.0),
+            3: (475.0, 45.0)
         }
 
-        self.rect_w = int((480.0 - 80.0) * self.ppm)  # 800 px
-        self.rect_h = int((420.0 - 40.0) * self.ppm)  # 760 px
+        self.rect_w = int((475.0 - 85.0) * self.ppm)  # 780 px
+        self.rect_h = int((255.0 - 45.0) * self.ppm)  # 420 px
 
         self.dst_pts = np.array([
             [0, 0],                     # ID 0 (Rear-Left)
@@ -499,22 +499,50 @@ class ArenaVisionPipeline:
 
 ## 8. Calibration Tooling & Verification Scripts
 
-The repository includes three standalone calibration utilities in the `vision/` directory:
+The repository includes standalone calibration utilities, autonomous execution bridges, and ROS 2 nodes:
 
 ### 8.1 `vision/calibrate_camera.py` (Intrinsic Lens Calibration)
 
-- Uses an $8 \times 6$ chessboard ($25\text{ mm}$ square size).
+- Uses a $9 \times 6$ checkerboard ($25\text{ mm}$ square size).
 - Solves camera intrinsic matrix $\mathbf{K}$ and radial/tangential distortion coefficients $[k_1, k_2, p_1, p_2, k_3]$.
-- Saves parameters to `config/camera_calibration.yaml` for undistortion before ArUco detection.
+- Features live GUI with corner overlay, `SPACE` sample capture, and `c` key to compute reprojection error and atomically save parameters to `config/camera_calibration.yaml`.
+- Includes `--synthetic` mode for headless CI/CD and offline verification.
 
 ### 8.2 `vision/tune_hsv.py` (Interactive HSV Tuner)
 
 - Real-time GUI with 6 trackbars (`H_min`, `H_max`, `S_min`, `S_max`, `V_min`, `V_max`).
+- Keys `1` (Red), `2` (Green), `3` (Blue), `4` (Yellow) to switch active tuning target.
 - Displays live side-by-side feed: Original Warped Arena vs. Active Color Mask.
 - Allows exporting tuned thresholds directly into `config/colors.yaml` with one keypress (`s`).
 
-### 8.3 `vision/test_aruco_warp.py` (Metric Accuracy Verification)
+### 8.3 `vision/test_aruco_warp.py` (Metric Accuracy Verification & Homography Lock)
 
-- Captures live frame, detects the 4 arena ArUco markers, and applies the homography warp.
-- Overlays a metric millimeter grid lines at $50\text{ mm}$ intervals.
-- The operator places a ruler on the silicone mat between markers; accuracy is verified if the ruler scale matches the grid within $\pm 1.5\text{ mm}$.
+- Captures live frame, detects the 4 arena ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3), and applies the homography warp ($780 \times 420\text{ px}$ at $2.0\text{ px/mm}$).
+- Press `l` to **lock/freeze** the homography matrix $H$ in memory, completely eliminating camera boom vibration jitter.
+- Press `g` to display the $50\text{ mm}$ metric grid lines. The operator places a ruler on the arena surface to verify accuracy ($\le 1.5\text{ mm}$ error).
+- Press `s` to atomically save the homography matrix to `config/camera_calibration.yaml`.
+
+### 8.4 `tools/autonomous_pick_and_place.py` (Phase 1 + Phase 2 Autonomous Bridge)
+
+- Merges analytical polar inverse kinematics with computer vision localization.
+- Enforces **Nearest-First radial ordering** to eliminate forearm collision plowing.
+- Automatically routes cubes into dedicated 2×2 flank tray drop compartments by color (Red, Green, Blue, Yellow).
+- Supports `--dry-run`, `--synthetic`, and `--single-shot` modes for safe testing.
+
+### 8.5 ROS 2 Perception Nodes & Launch Architecture
+
+- **`vision_node`**: Captures V4L2 video, rectifies arena, segments cubes, and publishes `/vision/detected_objects` (JSON array of world & polar coordinates) and `/vision/annotated_image`.
+- **`autonomous_sorter_node`**: Subscribes to `/vision/detected_objects`, maintains pick queues, requests IK trajectories, and drives hardware.
+- **Launch Command**:
+  ```bash
+  ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true
+  ```
+
+### 8.6 Automated Perception Test Suite
+
+- Located at [`ros2_ws/src/sorting_arm/test/test_vision_pipeline.py`](file:///home/shubham/Projects/Sem-5-mini-project/ros2_ws/src/sorting_arm/test/test_vision_pipeline.py).
+- 6 comprehensive unit tests verifying camera calibration loading, ArUco corner ordering, synthetic frame warp dimensions ($780 \times 420$), HSV color segmentation, Nearest-First ordering, and the end-to-end IK bridge.
+- Run anytime via:
+  ```bash
+  pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+  ```

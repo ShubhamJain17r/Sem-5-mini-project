@@ -526,22 +526,20 @@ def get_compartment_target(
     arm_id: str = "xarm_1",
     config_path: str = "config/dual_xarm_hardware.yaml",
 ) -> Optional[Dict]:
-    """
-    Calculate world and arm-relative cylindrical coordinates for a color compartment.
+    # Automatically support both get_compartment_target("red", "xarm_2") and ("xarm_2", "red")
+    if color in ["xarm_1", "xarm_2", "arm_1", "arm_2"] and arm_id.lower() in ["red", "green", "blue", "yellow"]:
+        color, arm_id = arm_id, color
 
-    Returns dict with keys:
-      'color', 'world_xyz', 'rel_xyz', 'r', 'theta_deg', 'theta_world_deg', 'theta_arm_deg',
-      'z', 'drop_yaw_tick', 'ik_success', 'ik_ticks', 'ik_message', 'drop_pose_preset'.
-    """
     candidates = [
         config_path,
         os.path.join(os.getcwd(), config_path),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", config_path),
         os.path.join("/workspace", config_path),
     ]
     chosen = None
     for c in candidates:
         if os.path.exists(c):
-            chosen = c
+            chosen = os.path.abspath(c)
             break
 
     if not chosen:

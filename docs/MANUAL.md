@@ -73,9 +73,13 @@ Run these tests in your host `venv` (`source venv/bin/activate`) to verify arm m
 ### Step 1: Run Offline Test Suite (No Hardware Connection Required)
 Verify kinematics, safety clamps, and trajectory interpolation algorithms:
 ```bash
+# Run 20 kinematics, driver, and trajectory unit tests
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+
+# Run 6 automated computer vision & ArUco homography tests
+pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
 ```
-*Expected Result*: All 18 unit tests report `[PASS]` with 0 failures.
+*Expected Result*: All 26 unit tests report `[PASS]` with 0 failures.
 
 ### Step 2: Test Single Arm Motion & Gripper
 Test communication, upright reset pose, and claw opening/clamping:
@@ -179,6 +183,72 @@ Open **`http://localhost:8000`** in Google Chrome or any modern browser.
 
 ---
 
+## 📷 Phase 2: Computer Vision Calibration & Autonomous Sorting Bridge (Host venv)
+
+The vision system uses pure OpenCV to rectify the $390 \times 210\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid and classify colors.
+
+### Step 1: Camera Hardware Exposure & White Balance Lock
+Ambient lighting changes in a university lab cause fatal HSV color drift. Always disable auto-exposure and auto-white-balance before launching vision scripts:
+```bash
+# Lock fixed exposure time
+v4l2-ctl -d /dev/video0 -c exposure_auto=1 -c exposure_absolute=156
+
+# Lock fixed color temperature (4500K)
+v4l2-ctl -d /dev/video0 -c white_balance_temperature_auto=0 -c white_balance_temperature=4500
+```
+
+### Step 2: Intrinsic Lens Calibration (Undistortion)
+Compute camera matrix $K$ and plumb-bob distortion coefficients $D$ using a $9 \times 6$ checkerboard:
+```bash
+# Live camera calibration:
+python3 vision/calibrate_camera.py --device /dev/video0
+
+# Or offline synthetic test:
+python3 vision/calibrate_camera.py --synthetic
+```
+- Controls: Hold checkerboard, press `SPACE` to record sample (collect $\ge 15$ samples), press `c` to compute and atomically update `config/camera_calibration.yaml`.
+
+### Step 3: 4-Point ArUco Planar Homography & Metric Rectification
+Detect 4 arena corner ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3) and warp the picking arena to $780 \times 420\text{ px}$:
+```bash
+# Live verification:
+python3 vision/test_aruco_warp.py --device /dev/video0
+
+# Or offline synthetic verification:
+python3 vision/test_aruco_warp.py --synthetic
+```
+- Controls:
+  - Press `l` to **lock/freeze** the homography matrix $H$ (eliminates camera vibration and arm sweep occlusion).
+  - Press `g` to display the $50\text{ mm}$ metric grid and place a physical millimeter ruler on the mat to verify coordinate alignment.
+  - Press `s` to save the homography matrix to `config/camera_calibration.yaml`.
+
+### Step 4: Interactive HSV Color Segmentation Tuner
+Calibrate upper and lower color bounds under current lab lighting:
+```bash
+# Live tuner:
+python3 vision/tune_hsv.py --device /dev/video0
+
+# Or offline synthetic tuner:
+python3 vision/tune_hsv.py --synthetic
+```
+- Controls: Keys `1` (Red), `2` (Green), `3` (Blue), `4` (Yellow) to switch active color. Adjust the 6 trackbars until cubes are cleanly masked. Press `s` to export directly to `config/colors.yaml`.
+
+### Step 5: Autonomous Vision-Guided Sorting Bridge (Phase 1 + Phase 2 Merge)
+Executes end-to-end vision localization, Nearest-First queue ordering, and closed-form IK pick-and-place into lateral 2×2 flank trays:
+```bash
+# Offline simulation / dry-run (no hardware required):
+python3 tools/autonomous_pick_and_place.py --arm xarm_2 --synthetic --dry-run
+python3 tools/autonomous_pick_and_place.py --arm xarm_1 --synthetic --dry-run
+
+# Single-shot pick of the nearest cube:
+python3 tools/autonomous_pick_and_place.py --arm xarm_2 --device /dev/video0 --port auto --single-shot
+
+# Full continuous sorting run:
+python3 tools/autonomous_pick_and_place.py --arm xarm_2 --device /dev/video0 --port auto
+```
+
+---
+
 ## 🤖 Phase 3: Operating with ROS 2 in Docker (Docker Only)
 
 All ROS 2 nodes, drivers, and coordinate arbiters run inside the Docker container.
@@ -197,13 +267,25 @@ This single launch file starts:
 2. `/xarm_2/xarm_driver_node`: Hardware driver for xArm 2 (`/xarm_2/joint_commands`, `/xarm_2/joint_states`).
 3. `/dual_arm_coordinator`: Real-time forward kinematics tracking, proximity alert, and spatial mutex arbiter for the shared central midline ($X_w \in [240\text{ mm}, 320\text{ mm}]$).
 
-### Step 3: Inspect Real-Time ROS 2 Feedback
+### Step 3: Launch Vision Perception & Autonomous Sorting Coordinator
+In a second terminal, launch the vision perception pipeline and autonomous sorter:
+```bash
+./docker/run.sh ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true
+```
+This launch file starts:
+1. `/vision_node`: Acquires frames from `/dev/video0`, computes 4-point ArUco planar homography, segments Red/Green/Blue/Yellow cubes, and publishes real-time telemetry to `/vision/detected_objects` and debug images to `/vision/annotated_image`.
+2. `/autonomous_sorter_node`: Subscribes to detected objects, enforces Nearest-First picking order, solves analytical IK, and coordinates pick-and-place into lateral 2×2 flank trays.
+
+### Step 4: Inspect Real-Time ROS 2 Feedback
 In a separate terminal, open a shell inside the running container:
 ```bash
 ./docker/run.sh bash
 ```
-Inspect joint states:
+Inspect telemetry:
 ```bash
+# Echo live detected cubes (JSON world & polar coordinates)
+ros2 topic echo /vision/detected_objects
+
 # Echo live joint feedback for Arm 1
 ros2 topic echo /xarm_1/joint_states
 
