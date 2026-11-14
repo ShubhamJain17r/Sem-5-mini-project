@@ -373,7 +373,6 @@ For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and
 
 ## 👨‍💻 Project Team
 
-- **Dhruv Arora**
 - **Shubham Jain**
 - **Karan Pal**
 
