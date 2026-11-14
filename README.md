@@ -6,13 +6,13 @@ An autonomous dual-arm robotic sorting system powered by **ROS 2 Humble**, **Ope
 
 ## 📸 System Architecture & Visual Renders
 
-![Realistic 3D Perspective Render of Dual xArm Workcell](docs/assets/workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Dual xArm Workcell](docs/assets/images/workcell_perspective_render.jpg)
 
-![Dual xArm Workcell Multi-View Engineering Blueprint](docs/assets/workcell_multiview_blueprint.jpg)
+![Dual xArm Workcell Multi-View Engineering Blueprint](docs/assets/images/workcell_multiview_blueprint.jpg)
 
-![High-Precision 1:1 Chart Paper Drafting Layout](docs/assets/chartpaper_drafting_sheet.png)
+![High-Precision 1:1 Chart Paper Drafting Layout](docs/assets/images/chartpaper_drafting_sheet.png)
 
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/assets/tray_3d_print_cad.png)
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/assets/images/tray_3d_print_cad.png)
 
 ---
 
@@ -37,7 +37,7 @@ This project automates color-based object sorting using computer vision, inverse
    - 4 matte vinyl ArUco stickers applied directly flat to the wooden board at the four corners of the arena ($Y = 255\text{ mm}$ and $Y = 45\text{ mm}$).
    - Because markers are strictly coplanar with the arena floor and cube bases, planar homography produces zero elevation perspective distortion.
 6. **Minimal 3D Printing (< 85 g Total Filament)**:
-   - Only two small $2\times 2$ quadrant sorting trays are 3D-printed; overhead camera uses a standard clamp-on desktop boom arm ($H \approx 700\text{ mm}$).
+   - Only two small $2\times 2$ quadrant sorting trays are 3D-printed; overhead camera uses a welded scrap aluminum door stand ($700\times 400\text{ mm}$) with a 10" LED ring light and phone holder.
 
 ---
 
@@ -90,7 +90,7 @@ This project automates color-based object sorting using computer vision, inverse
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
 | **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics bay)                  |
-| **Camera**          | Overhead USB webcam (Logitech C270 / C920) on clamp-on desktop scissor boom @ $65\text{--}70\text{ cm}$ nadir   |
+| **Camera**          | Overhead camera with Invicto 10" LED ring light on welded scrap aluminum stand ($700\times 400\text{ mm}$) @ 65 cm nadir |
 | **Baseboard**       | Single store-cut MDF board ($560\text{ mm} \times 520\text{ mm} \times 18\text{ mm}$, zero woodworking cuts)   |
 | **Picking Arena**   | Flat rectangular surface ($Z = 0.0\text{ mm}$, $400\times 220\text{ mm}$) with $8\text{--}10\text{ mm}$ foam tape border|
 | **Collection Bins** | 2× 3D-printed 2×2 sorting trays ($80\times 80\times 35\text{ mm}$) on flanks at $(50, 360)$ and $(510, 360)$   |
@@ -173,9 +173,8 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 
 ### Technical Drawings & Schematics
 
-- 🖼️ [`docs/assets/design.png`](docs/assets/design.png): High-resolution architectural diagram showing 4-tile modular base, V-configuration dual arms, flank drop wells, Central Rear Wedge Bay, and chamfered hexagonal arena.
-- 🖼️ [`docs/assets/pcb module.webp`](docs/assets/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
-- 🖼️ [`docs/assets/xArm demensions.png`](docs/assets/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
+- 🖼️ [`docs/assets/images/pcb module.webp`](docs/assets/images/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
+- 🖼️ [`docs/assets/images/xArm demensions.png`](docs/assets/images/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
 
 ---
 

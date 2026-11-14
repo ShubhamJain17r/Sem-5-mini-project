@@ -27,7 +27,13 @@ for p in [repo_root, sorting_arm_pkg]:
 
 import cv2
 import numpy as np
-import pytest
+try:
+    import pytest
+    fixture = pytest.fixture
+except ImportError:
+    def fixture(fn):
+        return fn
+
 from sorting_arm.kinematics import (
     KinematicParameters,
     get_compartment_target,
@@ -39,14 +45,20 @@ from vision.arena_vision_pipeline import ArenaVisionPipeline, DetectedCube
 from vision.test_aruco_warp import generate_synthetic_arena_frame
 
 
-@pytest.fixture
-def pipeline():
+def get_pipeline():
     config_dir = os.path.join(repo_root, "config")
     return ArenaVisionPipeline(config_dir=config_dir, scale_px_per_mm=2.0)
 
 
-def test_metric_coordinate_mapping(pipeline):
+@fixture
+def pipeline():
+    return get_pipeline()
+
+
+def test_metric_coordinate_mapping(pipeline=None):
     """Test mathematical accuracy of pixel_to_world and world_to_pixel mappings."""
+    if pipeline is None:
+        pipeline = get_pipeline()
     # Marker 0: Rear-Left (85.0, 255.0) -> (u=0, v=0)
     x0, y0, _ = pipeline.pixel_to_world(0.0, 0.0)
     assert abs(x0 - 85.0) < 0.1
@@ -75,8 +87,10 @@ def test_metric_coordinate_mapping(pipeline):
         assert abs(v_back - test_v) <= 1
 
 
-def test_arm_polar_transformation(pipeline):
+def test_arm_polar_transformation(pipeline=None):
     """Test transformation from global world coordinates (Xw, Yw) to arm polar frames (r, theta)."""
+    if pipeline is None:
+        pipeline = get_pipeline()
     # Test point along xArm 2 nominal heading (-70° world)
     # xArm 2 base is at (390, 360).
     # Heading -70° corresponds to dx = R * cos(-70°), dy = R * sin(-70°)
@@ -100,8 +114,10 @@ def test_arm_polar_transformation(pipeline):
     assert abs(th1_calc - 0.0) < 0.5, f"Expected 0.0 deg along heading, got {th1_calc}"
 
 
-def test_aruco_detection_and_synthetic_homography(pipeline):
+def test_aruco_detection_and_synthetic_homography(pipeline=None):
     """Test 4-point ArUco marker detection and perspective warp on synthetic arena frame."""
+    if pipeline is None:
+        pipeline = get_pipeline()
     frame = generate_synthetic_arena_frame(1920, 1080)
     corners, ids = pipeline.detect_aruco_markers(frame)
 
@@ -121,8 +137,10 @@ def test_aruco_detection_and_synthetic_homography(pipeline):
     assert warped.shape == (pipeline.rect_h, pipeline.rect_w, 3)
 
 
-def test_color_segmentation_and_cube_detection(pipeline):
+def test_color_segmentation_and_cube_detection(pipeline=None):
     """Test detection of colored cubes, centroid coordinates, and territory assignment."""
+    if pipeline is None:
+        pipeline = get_pipeline()
     frame = generate_synthetic_arena_frame(1920, 1080)
     pipeline.calibrate_homography(frame)
     warped, annotated, cubes = pipeline.process_frame(frame, draw_grid=True)
@@ -197,4 +215,14 @@ def test_phase1_phase2_ik_bridge():
 
 
 if __name__ == "__main__":
-    pytest.main(["-v", __file__])
+    try:
+        import pytest
+        pytest.main(["-v", __file__])
+    except ImportError:
+        test_metric_coordinate_mapping()
+        test_arm_polar_transformation()
+        test_aruco_detection_and_synthetic_homography()
+        test_color_segmentation_and_cube_detection()
+        test_nearest_first_queue_sorting()
+        test_phase1_phase2_ik_bridge()
+        print("All 6 vision pipeline tests passed successfully!")
