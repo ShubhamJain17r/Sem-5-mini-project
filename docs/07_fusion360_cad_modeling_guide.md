@@ -16,7 +16,7 @@ All coordinates, reach envelopes, and optical configurations remain 100% mathema
 ### 1.1 Complete Workcell 3D CAD Prototype
 Below is the realistic 3D CAD render of the ultra-simplified robotic workcell:
 
-![Complete 3D CAD Render of Simplified Workcell](assets/workcell_flat_overview.png)
+![Complete 3D CAD Render of Simplified Workcell](assets/images/workcell_flat_overview.png)
 
 ### 1.2 Layout Schematic
 
@@ -76,11 +76,11 @@ Below is the realistic 3D CAD render of the ultra-simplified robotic workcell:
 
 Below is the technical dimensional blueprint for the single flat wooden baseboard ($560.0\text{ mm} \times 520.0\text{ mm} \times 18.0\text{ mm}$), showing pencil layout lines, arm positions, arena boundaries, and drop tray locations:
 
-![Wooden Baseboard Dimensional Technical Blueprint](assets/wood_platform_blueprint.png)
+![Wooden Baseboard Dimensional Technical Blueprint](assets/images/wood_platform_blueprint.png)
 
-![High-Precision 1:1 Chart Paper Drafting Layout](assets/chartpaper_drafting_sheet.png)
+![High-Precision 1:1 Chart Paper Drafting Layout](assets/images/chartpaper_drafting_sheet.png)
 
-![Dual xArm Workcell Multi-View Engineering Blueprint](assets/workcell_multiview_blueprint.jpg)
+![Dual xArm Workcell Multi-View Engineering Blueprint](assets/images/workcell_multiview_blueprint.jpg)
 
 | Component | Design Implementation | Engineering Rationale |
 | :--- | :--- | :--- |
@@ -89,7 +89,7 @@ Below is the technical dimensional blueprint for the single flat wooden baseboar
 | **Arena Retaining Curb** | Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ high) | Peels and sticks in 2 minutes. Soft barrier stops cubes from rolling away and won't jam the claw. |
 | **Arm Mounting** | Bolted flat to board ($Z = 0$), pre-rotated at $\pm 35.0^\circ$ | Eliminates 3D-printed wedges. Flat mounting maximizes horizontal reach ($320\text{ mm}$) and rigidity. |
 | **Color Sorting Trays**| Two 3D-printed $2\times 2$ quadrant bins ($80\times 80\times 35\text{ mm}$) on flanks | Dedicated 4-slot sorting (Red, Green, Blue, Yellow) for each arm. Sits at $r = 120\text{ mm}$ ($70^\circ$ swing). |
-| **Overhead Camera Stand**| Standard clamp-on desktop webcam boom arm ($12 on Amazon) | Clamps directly to the rear edge. Zero 3D printing, zero drilling, instant height adjustment to $700\text{ mm}$. |
+| **Overhead Camera Stand**| Welded scrap aluminum door stand ($700\text{ mm} \times 400\text{ mm}$) | Rigid, zero wobble. 1/4"-20 tip bolt mounts Invicto 10" LED ring light + phone holder nadir over arena. |
 | **ArUco Calibration** | 4 matte vinyl stickers applied flat on the board corners ($Z = 0$) | Coplanar with the arena floor and cube bottoms—mathematically ideal for OpenCV planar homography. |
 | **Electronics & Wiring**| SBC & buck regulators mounted on board with adhesive PCB standoffs | Accessible USB/HDMI ports, flat wire routing with stick-on wire clips. Zero under-deck routing. |
 | **Sorting Cubes** | 1-inch ($25.4\text{ mm}$) unfinished wooden craft blocks | Natural $15\text{ g}$ mass prevents claw skidding. Spray-painted with ultra-matte Red, Green, Blue, Yellow. |
@@ -98,9 +98,9 @@ Below is the technical dimensional blueprint for the single flat wooden baseboar
 
 ## 3. Minimal 3D Printing: Only the 2× Color Trays
 
-In this ultra-simplified design, your 3D printer only needs to print **two small $2\times 2$ sorting trays**:
+In this ultra-simplified design, your 3D printer only needs to print **two small $2\times 2$ sorting trays** (`cad/models/sorting_tray_2x2.stl`):
 
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/tray_3d_print_cad.png)
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/images/tray_3d_print_cad.png)
 
 ```text
              TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
@@ -136,12 +136,12 @@ In this ultra-simplified design, your 3D printer only needs to print **two small
 ```mermaid
 graph TD
     A["1. Place Pre-Cut Board on Desk (560x520 mm)"] --> B["2. Mark Coordinates with Pencil & Ruler"]
-    B --> C["3. Bolt xArm Baseplates Square to Board (170, 360 & 390, 360)"]
+    B --> C["3. Drill & Fasten xArm Baseplates (170, 360 & 390, 360)"]
     C --> D["4. Stick Foam Tape Perimeter Border (400x220 mm)"]
     D --> E["5. Press-Fit 4x ArUco Stickers at Arena Corners"]
     E --> F["6. Place 2x2 Color Sorting Trays on Flanks (50, 360 & 510, 360)"]
-    F --> G["7. Clamp Overhead Webcam Boom Arm to Rear Edge (280, 520)"]
-    G --> H["8. Mount SBC in Rear Bay (Y = 440..500 mm)"]
+    F --> G["7. Mount Welded Scrap Aluminum Stand & 10-Inch Ring Light"]
+    G --> H["8. Mount SBC & Electronics in Rear Bay (Y = 440..500 mm)"]
 ```
 
 ### Step 1: Baseboard Preparation (Zero Tools)
@@ -158,11 +158,13 @@ graph TD
    - Front edge: $Y = 40\text{ mm}$, Rear edge: $Y = 260\text{ mm}$ (Depth: $220\text{ mm}$)
    - *Clearance*: Note that the arena stops at $Y = 260\text{ mm}$, providing a safe $+13.0\text{ mm}$ wood buffer before reaching the robot metal baseplate ($Y = 283\text{ mm}$).
 
-### Step 3: Fasten the Robotic Arms
+### Step 3: Drill & Fasten the Robotic Arms
 1. Align the metal baseplates of xArm 1 and xArm 2 **square with the board edges** ($0^\circ$ physical rotation):
    - **xArm 1**: Center at $(170, 360)$. Mounting holes ($127\times 143\text{ mm}$): $X \in \{106.5, 233.5\}$, $Y \in \{288.5, 431.5\}$.
    - **xArm 2**: Center at $(390, 360)$. Mounting holes ($127\times 143\text{ mm}$): $X \in \{326.5, 453.5\}$, $Y \in \{288.5, 431.5\}$.
-2. Fasten the baseplates directly to the wooden board using four #8 $\times$ 3/4" (or M4) wood screws with washers per arm.
+2. **Drilling the Mounting Holes**:
+   - **Wood Screw Method (Recommended)**: Use a **3.0 mm (1/8") drill bit** to drill 8 pilot holes to a depth of **12–14 mm** (wrap painter's tape around the bit at 13 mm as a depth stop so you don't punch through the 18 mm board). Fasten using eight #8 (4.0 mm) $\times$ 16–20 mm wood screws with M4 flat washers.
+   - **Through-Bolt Method**: Use a **4.0 mm or 4.5 mm drill bit** to drill 8 holes completely through the 18 mm board. Fasten using M4 $\times$ 25–30 mm machine bolts with M4 washers and hex nuts on the underside.
 3. Motor 6 (turntable) handles the inward bisector angles electronically ($-110^\circ$ for Arm 1, $-70^\circ$ for Arm 2).
 4. The arms are now rigidly grounded at $Z = 0$ with zero flex, zero wobble, and clear lateral clearance to the flank trays ($+10.0\text{ mm}$).
 
@@ -184,17 +186,26 @@ graph TD
 ### Step 6: Position the 2×2 Color Sorting Trays
 1. Place the 3D-printed Left Tray at $(X = 50\text{ mm}, Y = 360\text{ mm})$ directly beside Arm 1.
 2. Place the Right Tray at $(X = 510\text{ mm}, Y = 360\text{ mm})$ directly beside Arm 2.
-3. Fasten them with double-sided foam mounting tape or one small wood screw.
+3. Fasten them with double-sided foam mounting tape (zero drilling required).
 4. Color Slot Mapping:
    - Rear-Outer: **Red**
    - Rear-Inner: **Green**
    - Front-Outer: **Blue**
    - Front-Inner: **Yellow**
 
-### Step 7: Clamp the Overhead Camera
-1. Clamp your **desktop webcam scissor boom arm** to the rear edge of the baseboard at $(X = 280\text{ mm}, Y = 510\text{ mm})$.
-2. Position the Logitech C270 / C920 webcam centered over $(X = 280\text{ mm}, Y = 200\text{ mm})$ at a height of **$H = 650\text{--}700\text{ mm}$** pointing straight down (nadir angle).
-3. Lock the boom arm tension knobs.
+### Step 7: Fabricate & Mount Scrap Aluminum Stand & 10" Ring Light
+1. **Cut the Aluminum Profiles**: From scrap aluminum door tube/pipe, cut:
+   - **Vertical Upright**: **$700\text{ mm}$** (70 cm)
+   - **Horizontal Cantilever**: **$400\text{ mm}$** (40 cm)
+2. **Weld Joint**: Weld the two sections together at a rigid **$90^\circ$ angle**.
+3. **Drill Camera Tip Hole**: Drill a **$6.5\text{ mm} (1/4")$ hole** vertically through the horizontal cantilever pipe $15\text{ mm}$ from the front tip. Pass a standard **1/4"-20 UNC bolt** ($1/2"$ or $3/4"$ length) pointing downward and secure with a hex nut and washer.
+4. **Anchor Upright to Baseboard**: Position the vertical post upright at the rear center of the board $(X = 280\text{ mm}, Y = 510\text{--}520\text{ mm})$. Fasten with 2× heavy-duty corner brackets:
+   - Into board: Drill 3.0 mm pilot holes for wood screws (or 5.0 mm through-holes for M5 bolts).
+   - Into aluminum: Drill 4.2 mm holes for pop-rivets or 5.0 mm holes for M5 screws.
+5. **Mount Ring Light & Camera**:
+   - Screw the **Invicto 10" Ring Light's mini ball head** onto the 1/4"-20 tip bolt.
+   - Adjust the ball head so the ring light sits horizontally, illuminating directly downwards onto the arena.
+   - Clamp the camera / smartphone into the ring light's central flexible holder, centered over $(X = 280\text{ mm}, Y = 150\text{ mm})$ at an elevation of **$H \approx 650\text{ mm}$** pointing straight down (nadir).
 
 ### Step 8: Mount Electronics & Route Cables
 1. Stick 4× adhesive nylon PCB standoffs on the rear section of the board ($Y \approx 440\text{ mm}$).
@@ -206,7 +217,7 @@ graph TD
 
 ## 5. Sorting Cubes Preparation
 
-* **Sourcing**: Buy a 20-pack of **1-inch ($25.4\text{ mm}$) unfinished hardwood craft cubes** from Amazon or a craft store (~$4).
+* **Sourcing**: Buy a 20-pack of **1-inch ($25.4\text{ mm}$) unfinished hardwood craft cubes** from Amazon or a craft store (~₹400 / $4).
 * **Mass**: They naturally weigh **$14\text{--}16\text{ g}$**, perfectly matching the physics model in [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md).
 * **Finishing**:
   1. Sand faces lightly with 220-grit sandpaper.
@@ -218,17 +229,19 @@ graph TD
 
 ## 6. Complete Hardware & Cost Breakdown
 
+See [**`docs/arena_bill_of_materials.md`**](arena_bill_of_materials.md) for the master 1-page procurement spreadsheet.
+
 | Item Description | Source | Estimated Cost |
 | :--- | :---: | :---: |
-| 1× $18\text{ mm}$ (or $12\text{ mm}$) MDF Board ($560\times 520\text{ mm}$, store cut) | Hardware Store / Timber Merchant | $12.00 |
-| 1× Desktop Clamp-On Webcam Scissor Boom Arm | Amazon | $12.00 |
-| 1× Roll of Self-Adhesive Foam Weatherstripping Tape ($8\text{--}10\text{ mm}$) | Hardware Store / Amazon | $4.00 |
-| 1× Pack of 1-inch Wooden Craft Cubes (20 pcs) | Amazon / Craft Store | $4.00 |
-| 1× Sheet of Matte Vinyl Sticker Paper (for ArUco) | Office Supplies / Amazon | $3.00 |
-| 1× Small spool of PLA+ filament (need only ~85 g for 2 trays) | 3D Printer Stock | ~$3.00 |
-| 1× Pack of adhesive PCB standoffs & cable clips | Amazon | $4.00 |
-| 1× Set of small wood screws (#8 $\times$ 3/4") & M4 washers | Hardware Store | $2.00 |
-| **TOTAL COST OF WORKCELL** | — | **$\approx \$44.00$** |
+| 1× $18\text{ mm}$ (or $12\text{ mm}$) MDF Board ($560\times 520\text{ mm}$, store cut) | Hardware Store / Timber Merchant | ₹1,000 (~$12.00) |
+| 1× Scrap Aluminum Door Stand (cut $700+400\text{ mm}$, welded 90°) + 2 Brackets | Scrap Aluminum Fabricator | ₹300 (~$3.50) |
+| 1× Invicto 10" LED Ring Light with Ball Head & Phone Holder | Amazon | ₹249 (~$3.00) |
+| 1× Roll of Self-Adhesive Foam Weatherstripping Tape ($8\text{--}10\text{ mm}$) | Hardware Store / Amazon | ₹150 (~$1.80) |
+| 1× Pack of 1-inch Wooden Craft Cubes (20 pcs) + 4 Spray Paint Cans | Craft Store / Amazon | ₹400 (~$4.80) |
+| 1× Sheet of Matte Vinyl Sticker Paper (for ArUco) | Office Supplies / Amazon | ₹100 (~$1.20) |
+| 1× Small spool of PLA+ filament (need only ~85 g for 2 trays) | 3D Printer Stock | ₹150 (~$1.80) |
+| 1× Set of Fasteners (wood screws, M4 washers, 1/4"-20 bolt/nut, PCB clips) | Hardware Store | ₹100 (~$1.20) |
+| **TOTAL COST OF WORKCELL** | — | **$\approx$ ₹2,449 (~$29.30)** |
 
 ---
 

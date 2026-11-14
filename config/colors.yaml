@@ -1,0 +1,75 @@
+# =====================================================================================
+# Dual xArm 1s Color-Sorting Robot — HSV Color Classification & Filtering Config
+# File: config/colors.yaml
+#
+# PURPOSE:
+#   Defines HSV color segmentation threshold bands and morphological filtering parameters
+#   for identifying 25mm colored wooden craft blocks on the rectified arena plane.
+#   Can be tuned interactively in real time using: python3 vision/tune_hsv.py
+# =====================================================================================
+
+version: "1.0"
+
+# Color HSV Threshold Bands
+# OpenCV HSV scales: H in [0, 180], S in [0, 255], V in [0, 255]
+colors:
+  red:
+    name: "Red"
+    bgr_display: [0, 0, 255]
+    bands:
+      # Sub-band 1: Lower red hue near 0°
+      - h_min: 0
+        h_max: 10
+        s_min: 120
+        s_max: 255
+        v_min: 70
+        v_max: 255
+      # Sub-band 2: Upper red hue near 180°
+      - h_min: 170
+        h_max: 180
+        s_min: 120
+        s_max: 255
+        v_min: 70
+        v_max: 255
+
+  green:
+    name: "Green"
+    bgr_display: [0, 255, 0]
+    bands:
+      - h_min: 38
+        h_max: 85
+        s_min: 100
+        s_max: 255
+        v_min: 60
+        v_max: 255
+
+  blue:
+    name: "Blue"
+    bgr_display: [255, 0, 0]
+    bands:
+      - h_min: 98
+        h_max: 130
+        s_min: 120
+        s_max: 255
+        v_min: 60
+        v_max: 255
+
+  yellow:
+    name: "Yellow"
+    bgr_display: [0, 255, 255]
+    bands:
+      - h_min: 20
+        h_max: 36
+        s_min: 120
+        s_max: 255
+        v_min: 100
+        v_max: 255
+
+# Morphological noise removal & contour filtering parameters
+morphology:
+  kernel_size: 5                    # 5x5 elliptical structuring element
+  open_iterations: 1                # Erode then dilate to remove noise specks
+  close_iterations: 2               # Dilate then erode to fill interior voids
+  min_area_px: 1400                 # Min contour area (nominal 2500 px² at 2.0 px/mm)
+  max_area_px: 3800                 # Max contour area
+  max_aspect_ratio: 1.45            # Filter out non-square contours

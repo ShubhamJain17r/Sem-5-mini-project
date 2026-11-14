@@ -8,11 +8,11 @@ This document details the complete mechanical construction, spatial dimensions, 
 
 The entire workcell is organized on a single, continuous, store-cut **flat wooden baseboard** ($18\text{ mm}$ or $12\text{ mm}$ MDF / shelving board) with a compact footprint of **$560.0\text{ mm} \text{ (Width)} \times 520.0\text{ mm} \text{ (Depth)}$**:
 
-![Realistic 3D Perspective Render of Dual xArm Workcell](assets/workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Dual xArm Workcell](assets/images/workcell_perspective_render.jpg)
 
-![Dual xArm Workcell Multi-View Blueprint](assets/workcell_multiview_blueprint.jpg)
+![Dual xArm Workcell Multi-View Blueprint](assets/images/workcell_multiview_blueprint.jpg)
 
-![High-Precision 1:1 Chart Paper Drafting Layout](assets/chartpaper_drafting_sheet.png)
+![High-Precision 1:1 Chart Paper Drafting Layout](assets/images/chartpaper_drafting_sheet.png)
 
 ```text
   Y (Depth: 520 mm)
@@ -60,7 +60,7 @@ The entire workcell is organized on a single, continuous, store-cut **flat woode
 
 Instead of mounting the two arms along a single collinear axis that created an overly elongated strip with severe reach limits, the two xArm 1s manipulators are mounted in an **inward-angled V-configuration** symmetric about the workcell midline ($X = 280.0\text{ mm}$):
 
-![Wooden Baseboard Dimensional Technical Blueprint](assets/wood_platform_blueprint.png)
+![Wooden Baseboard Dimensional Technical Blueprint](assets/images/wood_platform_blueprint.png)
 
 | Manipulator | Base Center $(X, Y)$ | Mounting Elevation | Nominal Heading ($\theta_{\text{nom}}$) | Operating Role |
 | :--- | :---: | :---: | :---: | :--- |
@@ -83,7 +83,7 @@ Instead of mounting the two arms along a single collinear axis that created an o
 
 ### 2.1 Kinematic Spacing & Overlap Verification
 - **Center-to-Center Base Spacing**: $S = 390.0 - 170.0 = \mathbf{220.0\text{ mm}}$ along $X$.
-- **Baseplate Dimensions**: $140.0\text{ mm} \text{ (Width)} \times 154.0\text{ mm} \text{ (Length)}$ ([`docs/assets/xArm demensions.png`](assets/xArm%20demensions.png)).
+- **Baseplate Dimensions**: $140.0\text{ mm} \text{ (Width)} \times 154.0\text{ mm} \text{ (Length)}$ ([`docs/assets/images/xArm demensions.png`](assets/images/xArm%20demensions.png)).
 - **Clearance Between Arm Bases**: With $220.0\text{ mm}$ center spacing and $140.0\text{ mm}$ base width:
   $$\text{Gap}_{\text{bases}} = 220.0 - 140.0 = \mathbf{80.0\text{ mm}}$$
   Provides generous clearance preventing link collisions while keeping the shared workcell compact.
@@ -127,7 +127,7 @@ By setting the rear arena boundary to $Y = 260.0\text{ mm}$:
 ### 4.1 Minimal 3D Printing (< 85 g Total Filament)
 Only two small parts in the entire workcell require 3D printing: two identical **2×2 quadrant color sorting trays**:
 
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/tray_3d_print_cad.png)
+![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/images/tray_3d_print_cad.png)
 
 ```text
              TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
@@ -163,10 +163,14 @@ By placing the collection bins on the **immediate lateral flanks** of each arm b
 
 ## 5. Optical Framing & Planar ArUco Fiducials
 
-### 5.1 Overhead Camera Mounting
-- **Scissor Boom Arm**: Standard desktop clamp-on webcam boom arm clamped directly to the rear edge of the baseboard at $(X = 280.0\text{ mm}, Y = 520\text{ mm})$.
-- **Camera Position**: Logitech C270 / C920 centered nadir over $(X = 280.0\text{ mm}, Y = 150.0\text{ mm})$ at an elevation of **$H = 650\text{--}700\text{ mm}$**.
-- **Field of View**: Encloses the complete $400\times 220\text{ mm}$ picking arena, the 4 fiducials, and both flank trays.
+### 5.1 Overhead Camera & Ring Light Mounting
+- **Welded Scrap Aluminum Stand**: Fabricated from scrap aluminum door profiles welded at $90^\circ$:
+  - **Vertical Upright**: $700.0\text{ mm}$ length, anchored to the rear baseboard center at $(X = 280.0\text{ mm}, Y = 520.0\text{ mm})$ via two heavy-duty L-brackets.
+  - **Horizontal Cantilever**: $400.0\text{ mm}$ length extending forward along $-Y$, reaching directly over $(X = 280.0\text{ mm}, Y = 150.0\text{ mm})$.
+  - **Tip Mounting Hardware**: A **1/4"-20 UNC bolt** ($1/2"$ or $3/4"$ length) through a $6.5\text{ mm}$ hole at the front tip.
+- **Invicto 10" Dimmable LED Ring Light**: Attached directly to the 1/4"-20 tip bolt via its included mini ball head. Tilted horizontally facing nadir downward to provide uniform, shadow-free illumination across the arena.
+- **Camera Mount**: USB webcam (or smartphone) clipped inside the ring light's central flexible gooseneck holder, oriented nadir downward over $(X = 280.0\text{ mm}, Y = 150.0\text{ mm})$ at an elevation of **$H = 650\text{--}700\text{ mm}$**.
+- **Field of View**: Encloses the complete $400\times 220\text{ mm}$ picking arena, the 4 fiducials, and both flank trays with $>300\text{ mm}$ of clear overhead arm clearance.
 
 ### 5.2 Coplanar Board-Mounted ArUco Fiducials
 4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) printed at $30.0\text{ mm} \times 30.0\text{ mm}$ on matte vinyl sticker paper are applied directly flat to the wooden board at the four corners of the arena:

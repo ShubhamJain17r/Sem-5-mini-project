@@ -20,9 +20,10 @@ docs/
 │   └── ../DOCKER_GUIDE.md                            # Comprehensive Docker & Hardware Pass-Through User Manual
 │
 ├── 🏗️ Physical & Spatial Architecture
+│   ├── arena_bill_of_materials.md                     # Master BOM, Hardware Checklist, Fasteners & Drill Bits
 │   ├── 01_arena_and_layout.md                         # Stepping Stone 1: Arena Construction, Layout & Dimensions
 │   ├── 07_fusion360_cad_modeling_guide.md             # Stepping Stone 7: Physical Workcell Fabrication & Assembly Guide
-│   └── assets/                                        # CAD Renders, Blueprints, Diagrams & Photographs
+│   └── assets/                                        # Blueprints & diagrams in assets/images/ & assets/aruco_markers/
 │
 ├── 📐 Kinematics, Grasping & Control
 │   └── 02_kinematics_and_grasp_planning.md            # Stepping Stone 2: Analytical IK, Roll Control & 5-Phase Trajectory

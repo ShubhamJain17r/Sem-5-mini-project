@@ -16,7 +16,7 @@ import os
 import shutil
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 import urllib.parse
 
 # Ensure workspace packages can be imported
