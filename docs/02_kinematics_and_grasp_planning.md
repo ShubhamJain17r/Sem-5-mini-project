@@ -1,4 +1,4 @@
-# Stepping Stone 2: Kinematics, Dynamics & Grasp Planning — Dual xArm 1s
+# Stepping Stone 2: Kinematics, Dynamics & Grasp Planning — Single xArm 1S
 
 ---
 
@@ -254,7 +254,7 @@ Direct point-to-point joint jumps cause severe mechanical overshoot, gear tooth 
 | **3. Grasp Clamping**            | Closes Motor 6 until target PWM or load resistance threshold                                                  | Motors 1–5 hold position stiffness. Motor 6 drives until jaw width reaches $\approx 25\text{ mm}$.                              |               $300\text{ ms}$                |
 | **4. Tactile Verification**      | Read servo position feedback register                                                                         | If position $< 10\text{ mm}$ (empty grip) or $> 35\text{ mm}$ (jam): Abort & re-attempt. If $20\text{--}30\text{ mm}$: Success. |                $50\text{ ms}$                |
 | **5. Vertical Ascent & Retract** | Lifts vertically by $+40\text{ mm}$, retracts radially by $-50\text{ mm}$                                     | Motors 2 and 3 lift load; ensures claw clears surrounding cubes and barriers.                                                   |               $500\text{ ms}$                |
-| **6. 180° Drop Swing**           | Arm tucks into compact pose ($r \approx 130\text{ mm}$) and swings $\approx 180^\circ$ left to collection box | Low moment of inertia $I = \sum m r^2$ minimizes dynamic torque load on Motor 1.                                                |               $1000\text{ ms}$               |
+| **6. 90° Drop Swing**            | Arm tucks into compact pose ($r \approx 130\text{ mm}$) and swings $\approx 90^\circ$ clockwise to Left Flank tray | Low moment of inertia $I = \sum m r^2$ minimizes dynamic torque load on Motor 1.                                                |               $800\text{ ms}$                |
 
 ---
 

@@ -77,13 +77,13 @@ The vision pipeline is built on **pure classical computer vision (OpenCV 4.x)** 
 ### 2.2 Optical Geometry & Coverage Verification
 
 The picking arena rectangle framed by the 4 ArUco markers measures:
-$$\text{Width } (X) = 475 - 85 = 390\text{ mm}, \quad \text{Height } (Y) = 255 - 45 = 210\text{ mm}$$
+$$\text{Width } (X) = 330 - 70 = 260\text{ mm}, \quad \text{Height } (Y) = 180 - 40 = 140\text{ mm}$$
 
 At a camera height of $H = 700\text{ mm}$ with a horizontal FOV of $\theta_H = 70.4^\circ$:
 $$\text{Coverage}_X = 2 \cdot H \cdot \tan\left(\frac{70.4^\circ}{2}\right) = 2 \cdot 700 \cdot \tan(35.2^\circ) \approx 2 \cdot 700 \cdot 0.705 = \mathbf{987\text{ mm}}$$
 $$\text{Coverage}_Y = \text{Coverage}_X \cdot \left(\frac{1080}{1920}\right) = 987 \cdot 0.5625 = \mathbf{555\text{ mm}}$$
 
-Because $\text{Coverage}_X (987\text{ mm}) > 390\text{ mm}$ and $\text{Coverage}_Y (555\text{ mm}) > 210\text{ mm}$, the entire arena and all 4 ArUco markers fit comfortably inside the camera sensor with substantial margin.
+Because $\text{Coverage}_X (987\text{ mm}) > 260\text{ mm}$ and $\text{Coverage}_Y (555\text{ mm}) > 140\text{ mm}$, the entire arena, all 4 ArUco markers, and the Left Flank tray fit comfortably inside the camera sensor with substantial margin.
 
 ### 2.3 Lighting Lock & Exposure Control
 
@@ -103,6 +103,68 @@ v4l2-ctl -d /dev/video0 -c gain=32
 v4l2-ctl -d /dev/video0 -c brightness=128
 ```
 
+### 2.4 Interactive Camera Centering & Optical Tilt Alignment (`align_camera.py`)
+
+When mounting the overhead camera on its boom stand, slight mechanical tilts (pitch, roll, yaw) or off-center positioning inevitably occur. Uncalibrated tilt introduces keystoning distortion that degrades homography resolution uniformity. To ensure the camera is perpendicular and physically centered before running the workcell, the pre-flight alignment utility [`vision/align_camera.py`](file:///home/shubham/Projects/Sem-5-mini-project/vision/align_camera.py) provides an interactive real-time Heads-Up Display (HUD):
+
+```text
+ ┌────────────────────────────────────────────────────────┐
+ │ [Camera Alignment Tool]  STATUS: PERFECTLY ALIGNED     │
+ │                                                        │
+ │        [P0] ─────────────────────── [P1]               │
+ │          \ \                       / /                 │
+ │           \  \       (Ca)        /  /                  │
+ │            \   \   Cyan 'x'    /   /                   │
+ │             \    \     │     /    /                    │
+ │              \     \   │   /     /                     │
+ │               \      \ │ /      /                      │
+ │                \      (Cc)     /                       │
+ │                 \  Yellow '+' /                        │
+ │                  \           /                         │
+ │                   \         /                          │
+ │                    \       /                           │
+ │                  [P2] ─── [P3]                         │
+ │                                                        │
+ │ Centering: ΔX = -0.8 mm, ΔY = +1.1 mm (≤ 5.0 mm OK)    │
+ │ Tilt: Roll = 0.2° (≤ 1.0° OK) | Pitch Ratio = 1.008    │
+ └────────────────────────────────────────────────────────┘
+```
+
+#### 1. Geometric Arena Center via Diagonal Intersection
+The geometric center of the arena $C_a = (x_a, y_a)$ is derived from the projective intersection of the two diagonals connecting opposite ArUco marker centers $(P_0 \leftrightarrow P_3)$ and $(P_1 \leftrightarrow P_2)$:
+$$P(t) = P_0 + t(P_3 - P_0), \quad Q(u) = P_1 + u(P_2 - P_1)$$
+Solving the $2\times 2$ linear system via Cramer's rule:
+$$t = \frac{(P_1 - P_0) \times (P_2 - P_1)}{(P_3 - P_0) \times (P_2 - P_1)} \implies C_a = P_0 + t(P_3 - P_0)$$
+Because projective collinearity and intersection points are preserved under central projection, this intersection represents the true physical center of the four markers regardless of perspective distortion.
+
+#### 2. Optical Center & Centering Offsets
+The optical principal center $C_c = (x_c, y_c)$ is taken from the camera intrinsic matrix $(c_x, c_y)$ (scaled to current resolution) or frame center $(w/2, h/2)$. The centering offsets are computed as:
+$$\Delta x_{\text{px}} = x_a - x_c, \quad \Delta y_{\text{px}} = y_a - y_c$$
+$$\Delta x_{\text{mm}} = \frac{\Delta x_{\text{px}}}{S}, \quad \Delta y_{\text{mm}} = \frac{\Delta y_{\text{px}}}{S}$$
+where $S = 2.0\text{ px/mm}$ (scaled to frame resolution). The alignment target is $|\Delta x_{\text{mm}}| \le 5.0\text{ mm}$ and $|\Delta y_{\text{mm}}| \le 5.0\text{ mm}$.
+
+#### 3. Tilt & Keystoning Detection
+- **Roll Tilt ($\theta_{\text{roll}}$)**: Derived from the average horizontal slope of the top and bottom marker edges:
+  $$\theta_{\text{roll}} = \frac{1}{2}\left[\operatorname{atan2}(y_1 - y_0, x_1 - x_0) + \operatorname{atan2}(y_3 - y_2, x_3 - x_2)\right]$$
+  Target: $|\theta_{\text{roll}}| \le 1.0^\circ$.
+- **Pitch Keystoning Ratio ($R_{\text{pitch}}$)**: Ratio of the top arena width to the bottom arena width:
+  $$R_{\text{pitch}} = \frac{\|P_1 - P_0\|}{\|P_3 - P_2\|}$$
+  If $R_{\text{pitch}} < 0.96$, the top edge appears narrower, indicating the camera is pitched backward; if $R_{\text{pitch}} > 1.04$, the camera is pitched forward. Target: $0.96 \le R_{\text{pitch}} \le 1.04$.
+- **Yaw Keystoning Ratio ($R_{\text{yaw}}$)**: Ratio of the left arena height to the right arena height:
+  $$R_{\text{yaw}} = \frac{\|P_2 - P_0\|}{\|P_3 - P_1\|}$$
+  Target: $0.96 \le R_{\text{yaw}} \le 1.04$.
+
+#### 4. Execution & Alignment Report
+Launch the live alignment tool before tightening the camera stand clamp:
+```bash
+# Live interactive HUD:
+python3 vision/align_camera.py --device /dev/video0
+
+# Headless synthetic verification (saves config/camera_alignment.json):
+python3 vision/align_camera.py --synthetic --save-report --headless
+```
+Pressing **'s'** captures a high-resolution snapshot in `data/camera_alignment_snapshot.png` and exports alignment verification metrics to `config/camera_alignment.json`.
+
 ---
 
 ## 3. Planar Homography & ArUco Metric Rectification
@@ -113,25 +175,25 @@ Four ArUco markers from the `DICT_4X4_50` dictionary are permanently mounted fla
 
 ```text
   Y (mm)
-   255 ┌─────────────────────────────────────────────────────────────┐
+   180 ┌─────────────────────────────────────────────────────────────┐
        │ [ArUco #0] (Rear-Left)              [ArUco #1] (Rear-Right) │
-       │ (85, 255)                           (475, 255)              │
+       │ (70, 180)                           (330, 180)              │
        │                                                             │
        │                    FLAT PICKING ARENA                       │
        │                    (Z = 0.0 mm Plane)                       │
        │                                                             │
        │ [ArUco #2] (Front-Left)             [ArUco #3] (Front-Right)│
-    45 │ (85, 45)                            (475, 45)               │
+    40 │ (70, 40)                            (330, 40)               │
        └─────────────────────────────────────────────────────────────┘
-       85                                                          475 ───> X (mm)
+       70                                                          330 ───> X (mm)
 ```
 
-| Marker ID |           Placement Role           |  World Coordinate $(X_w, Y_w)$   |  Physical Elevation   |
-| :-------: | :--------------------------------: | :------------------------------: | :-------------------: |
-| **ID 0**  | Rear-Left Arena Corner             | $(85.0\text{ mm}, 255.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
-| **ID 1**  | Rear-Right Arena Corner            | $(475.0\text{ mm}, 255.0\text{ mm})$| $Z = 0.0\text{ mm}$   |
-| **ID 2**  | Front-Left Arena Corner            | $(85.0\text{ mm}, 45.0\text{ mm})$  | $Z = 0.0\text{ mm}$   |
-| **ID 3**  | Front-Right Arena Corner           | $(475.0\text{ mm}, 45.0\text{ mm})$ | $Z = 0.0\text{ mm}$   |
+| Marker ID |           Placement Role           |  World Coordinate $(X_w, Y_w)$   |  Physical Elevation   |  Rectified Pixel $(u, v)$ |
+| :-------: | :--------------------------------: | :------------------------------: | :-------------------: | :-----------------------: |
+| **ID 0**  | Rear-Left Arena Corner             | $(70.0\text{ mm}, 180.0\text{ mm})$ | $Z = 0.0\text{ mm}$   | $(0, 0)$                  |
+| **ID 1**  | Rear-Right Arena Corner            | $(330.0\text{ mm}, 180.0\text{ mm})$| $Z = 0.0\text{ mm}$   | $(520, 0)$                |
+| **ID 2**  | Front-Left Arena Corner            | $(70.0\text{ mm}, 40.0\text{ mm})$  | $Z = 0.0\text{ mm}$   | $(0, 280)$                |
+| **ID 3**  | Front-Right Arena Corner           | $(330.0\text{ mm}, 40.0\text{ mm})$ | $Z = 0.0\text{ mm}$   | $(520, 280)$              |
 
 > [!CRITICAL]
 > **Strict Coplanarity with Table Surface**: All 4 markers share the exact same physical elevation as the table and arena floor ($Z = 0.0\text{ mm}$). Because the markers are coplanar with the bottom faces of the cubes, planar homography maps image pixels directly to metric world coordinates with zero perspective altitude distortion! Markers are printed on **matte vinyl/paper sticker sheets** to eliminate specular LED reflection.
@@ -151,15 +213,15 @@ Given 4 pairs of non-collinear corresponding points $(u_i, v_i) \leftrightarrow 
 
 We define a canonical rectified image grid with a scale of **$\text{PPM} = 2.0\text{ pixels/mm}$** ($1\text{ pixel} = 0.5\text{ mm}$):
 
-- **Rectified Width**: $W_{\text{rect}} = (475 - 85) \times 2.0 = \mathbf{780\text{ pixels}}$
-- **Rectified Height**: $H_{\text{rect}} = (255 - 45) \times 2.0 = \mathbf{420\text{ pixels}}$
+- **Rectified Width**: $W_{\text{rect}} = (330 - 70) \times 2.0 = \mathbf{520\text{ pixels}}$
+- **Rectified Height**: $H_{\text{rect}} = (180 - 40) \times 2.0 = \mathbf{280\text{ pixels}}$
 
 The target destination points for the warp are:
 
 - $\mathbf{p}'_0 = (0, 0)$ (ID 0: Rear-Left)
-- $\mathbf{p}'_1 = (W_{\text{rect}}, 0) = (780, 0)$ (ID 1: Rear-Right)
-- $\mathbf{p}'_2 = (0, H_{\text{rect}}) = (0, 420)$ (ID 2: Front-Left)
-- $\mathbf{p}'_3 = (W_{\text{rect}}, H_{\text{rect}}) = (780, 420)$ (ID 3: Front-Right)
+- $\mathbf{p}'_1 = (W_{\text{rect}}, 0) = (520, 0)$ (ID 1: Rear-Right)
+- $\mathbf{p}'_2 = (0, H_{\text{rect}}) = (0, 280)$ (ID 2: Front-Left)
+- $\mathbf{p}'_3 = (W_{\text{rect}}, H_{\text{rect}}) = (520, 280)$ (ID 3: Front-Right)
 
 ---
 
@@ -256,7 +318,7 @@ Once a cube centroid $(\bar{u}, \bar{v})$ is identified in the rectified metric 
 
 ```text
                                         Rectified Origin (0, 0)
-                                        [World X = 85.0 mm, Y = 255.0 mm]
+                                        [World X = 70.0 mm, Y = 180.0 mm]
                                         ┌────────────────────────┐ ───> +u (Pixels)
                                         │                        │
                                         │      Cube (u_c, v_c)   │
@@ -270,36 +332,30 @@ Once a cube centroid $(\bar{u}, \bar{v})$ is identified in the rectified metric 
 
 ### 6.1 Transformation to World Coordinates $(X_w, Y_w)$
 
-Since rectified image $(0, 0)$ corresponds to $(X_w = 85.0\text{ mm}, Y_w = 255.0\text{ mm})$:
-$$X_w = 85.0 + \frac{\bar{u}}{\text{PPM}} = 85.0 + \frac{\bar{u}}{2.0}$$
-$$Y_w = 255.0 - \frac{\bar{v}}{\text{PPM}} = 255.0 - \frac{\bar{v}}{2.0}$$
+Since rectified image $(0, 0)$ corresponds to $(X_w = 70.0\text{ mm}, Y_w = 180.0\text{ mm})$:
+$$X_w = 70.0 + \frac{\bar{u}}{\text{PPM}} = 70.0 + \frac{\bar{u}}{2.0}$$
+$$Y_w = 180.0 - \frac{\bar{v}}{\text{PPM}} = 180.0 - \frac{\bar{v}}{2.0}$$
 
-### 6.2 Transformation to Robot Polar Coordinates $(r, \theta, d_{\text{edge}})$
+### 6.2 Transformation to Robot Polar Coordinates $(r, \theta)$
 
-The two arms are mounted in an inward-angled V-configuration ($S = 220\text{ mm}$ spacing):
+The single xArm 1S is centered at $(X_{\text{base}} = 200.0\text{ mm}, Y_{\text{base}} = 280.0\text{ mm})$, with a nominal South heading $\theta_{\text{nom}} = -90.0^\circ$ (pointing along $-Y$ directly into the picking arena):
 
-- **Arm 1 (Left Arm)**: Center at $(X_1 = 170.0\text{ mm}, Y_1 = 360.0\text{ mm})$, nominal heading $\theta_{\text{nom}, 1} = +35.0^\circ$
-- **Arm 2 (Right Arm)**: Center at $(X_2 = 390.0\text{ mm}, Y_2 = 360.0\text{ mm})$, nominal heading $\theta_{\text{nom}, 2} = -35.0^\circ$
+$$\Delta X = X_w - 200.0\text{ mm}$$
+$$\Delta Y = Y_w - 280.0\text{ mm}$$
 
-For target arm $i \in \{1, 2\}$:
-$$\Delta X_i = X_w - X_i$$
-$$\Delta Y_i = Y_w - Y_i$$
+The radial distance $r$ and global azimuth angle $\theta_{\text{world}}$ relative to the arm's base are:
+$$r = \sqrt{(\Delta X)^2 + (\Delta Y)^2}$$
+$$\theta_{\text{world}} = \text{atan2}(\Delta Y, \Delta X)$$
 
-The radial distance $r_i$ and global azimuth angle $\theta_{\text{world}, i}$ relative to the arm's base are:
-$$r_i = \sqrt{(\Delta X_i)^2 + (\Delta Y_i)^2}$$
-$$\theta_{\text{world}, i} = \text{atan2}(\Delta Y_i, \Delta X_i)$$
-
-The arm-relative azimuth $\theta_{\text{arm}, i}$ normalized to $[-180^\circ, +180^\circ]$ is:
-$$\theta_{\text{arm}, i} = \theta_{\text{world}, i} - \theta_{\text{nom}, i}$$
-
-The physical distance from the outer flat edge of the baseplate ($70\text{ mm}$ offset) is:
-$$d_{\text{edge}, i} = r_i - 70.0\text{ mm}$$
+The arm-relative azimuth $\theta_{\text{arm}}$ normalized to $[-180^\circ, +180^\circ]$ is:
+$$\theta_{\text{arm}} = \theta_{\text{world}} - (-90.0^\circ) = \theta_{\text{world}} + 90.0^\circ$$
 
 ### 6.3 Boundary Sanity Filter
 
-The detection is published **only if it satisfies the physical arena bounds**:
-$$120.0\text{ mm} \le r_i \le 320.0\text{ mm} \iff 50.0\text{ mm} \le d_{\text{edge}, i} \le 250.0\text{ mm}$$
-$$X_w \ge 410.0\text{ mm} \quad (\text{clears baseplate rim})$$
+The detection is accepted **only if it satisfies the physical reach limits**:
+$$110.0\text{ mm} \le r \le 300.0\text{ mm}$$
+$$X_w \in [70.0, 330.0\text{ mm}], \quad Y_w \in [40.0, 180.0\text{ mm}]$$
+All valid detected cubes are assigned to `xarm_1`.
 
 ---
 
@@ -535,7 +591,7 @@ The repository includes standalone calibration utilities, autonomous execution b
 - **`autonomous_sorter_node`**: Subscribes to `/vision/detected_objects`, maintains pick queues, requests IK trajectories, and drives hardware.
 - **Launch Command**:
   ```bash
-  ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true
+  ros2 launch sorting_arm xarm.launch.py auto_start:=true
   ```
 
 ### 8.6 Automated Perception Test Suite

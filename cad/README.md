@@ -1,4 +1,4 @@
-# 3D CAD & Fabrication Models — Dual xArm 1s
+# 3D CAD & Fabrication Models — Single xArm 1S
 
 This directory is organized into dedicated subdirectories so scripts and models are strictly separated:
 
@@ -18,7 +18,7 @@ cad/
 
 | Component | STEP File | STL File | Description |
 | :--- | :--- | :--- | :--- |
-| **2×2 Color Sorting Tray** | [`models/sorting_tray_2x2.step`](models/sorting_tray_2x2.step) | [`models/sorting_tray_2x2.stl`](models/sorting_tray_2x2.stl) | 4-compartment collection bin for Red, Green, Blue, Yellow blocks (2 units required) |
+| **2×2 Color Sorting Tray** | [`models/sorting_tray_2x2.step`](models/sorting_tray_2x2.step) | [`models/sorting_tray_2x2.stl`](models/sorting_tray_2x2.stl) | 4-compartment collection bin for Red, Green, Blue, Yellow blocks (1 unit required on Left Flank) |
 
 > [!NOTE]
 > **Camera Stand Fabrication**: The overhead camera and 10" ring light mount uses a workshop-welded **scrap aluminum door profile** ($700\text{ mm}$ vertical $\times 400\text{ mm}$ horizontal) with a standard **1/4"-20 UNC** tip bolt, eliminating the need for bulky 3D-printed camera brackets.
@@ -34,8 +34,8 @@ cad/
 - **Walls / Perimeters**: 3 walls.
 - **Infill**: 15% Grid or Gyroid.
 - **Supports**: **Zero supports needed (100% support-free)**.
-- **Print Time**: $\approx 45\text{ minutes}$ per tray ($\approx 1.5\text{ hours}$ for both units).
-- **Filament Mass**: $\approx 42\text{ g}$ per unit (**$< 85\text{ g}$ total**).
+- **Print Time**: $\approx 45\text{ minutes}$ (only 1 unit needed).
+- **Filament Mass**: $\approx 42\text{ g}$ total (**$< 45\text{ g}$**).
 
 ---
 

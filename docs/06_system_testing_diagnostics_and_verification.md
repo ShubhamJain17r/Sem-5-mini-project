@@ -171,7 +171,7 @@ Standard commercial webcams (such as the Logitech C270 / C920) feature wide-angl
     └─────────────────────────┘             └───────-~~~~~~~~~-───────┘
 ```
 
-At the outer boundary corners ($X = 730\text{ mm}, Y = 55\text{ mm}$), uncorrected radial distortion can displace the perceived cube centroid by up to **$8.5\text{ mm}$**, exceeding the allowable claw capture tolerance.
+At the outer boundary corners ($X = 330.0\text{ mm}, Y = 40.0\text{ mm}$), uncorrected radial distortion can displace the perceived cube centroid by up to **$8.5\text{ mm}$**, exceeding the allowable claw capture tolerance.
 
 ### 4.1 Calibration & Undistortion Pipeline
 
@@ -210,8 +210,8 @@ To prevent table and boom vibration (caused by rapid servo accelerations) from c
     ┌──────────────────────────────────────────────────────────┐
     │                 SCHEDULER WATCHDOG SUITE                 │
     ├──────────────────────────────────────────────────────────┤
-    │ 1. Mutex Timeout Watchdog (5.0 seconds max hold)         │
-    │    - Automatically revokes mutex if an arm stalls.       │
+    │ 1. Trajectory Execution Watchdog (5.0s max per segment)  │
+    │    - Automatically aborts trajectory if an arm stalls.   │
     ├──────────────────────────────────────────────────────────┤
     │ 2. Serial Heartbeat Watchdog (500 ms loss threshold)     │
     │    - Halts computation graph if UART line drops.         │
@@ -224,7 +224,7 @@ To prevent table and boom vibration (caused by rapid servo accelerations) from c
 
 | Watchdog / Fault | Trigger Condition | System Reaction | Recovery Action |
 | :--- | :--- | :--- | :--- |
-| **Mutex Lockout** | Arm holds crossover zone $> 5.0\text{ s}$ without releasing. | Forces mutex release; transitions faulting arm to `ERROR_STALL`. | Healthy arm continues sorting its dedicated zone; faulted arm homes. |
+| **Trajectory Stall** | Arm trajectory execution exceeds $> 5.0\text{ s}$ timeout. | Aborts current motion; transitions manipulator to `ERROR_STALL`. | Unloads motor torque, returns to safe Home pose, and re-scans arena. |
 | **Serial Disconnect** | Controller stops responding to status queries for $> 500\text{ ms}$. | Sets `ArmStatus.is_busy = False`, halts task dispatch. | Node attempts automatic serial reconnection (`/dev/ttyUSB0`) up to 3 times. |
 | **Voltage Brownout** | Bus voltage drops below $6.2\text{ V}$ during joint acceleration. | Limits maximum trajectory acceleration profile by 40%. | Logs power warning to dashboard; prompts inspection of 7.4V PSU. |
 | **Thermal Protection** | Servo internal thermistor exceeds $65^\circ\text{C}$. | Arm returns immediately to compact tucked Home pose. | Arm remains idle in tucked configuration until temperature drops below $50^\circ\text{C}$. |

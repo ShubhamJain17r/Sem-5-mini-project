@@ -1,6 +1,6 @@
-# Dual xArm 1S — Operator Manual & Debugging Guide
+# Single xArm 1S — Operator Manual & Debugging Guide
 
-Comprehensive operational manual for running, testing, calibrating, and troubleshooting the Dual xArm 1S color-sorting robotic workcell.
+Comprehensive operational manual for running, testing, calibrating, and troubleshooting the Single xArm 1S color-sorting robotic workcell.
 
 ---
 
@@ -11,7 +11,7 @@ To ensure 100% reproducibility and prevent package conflicts:
 | Environment | Purpose | Permitted Operations |
 | :--- | :--- | :--- |
 | **Host Python `venv`** | Python scripts, web config, telemetry, standalone direct tests | `python3 tools/web_config/server.py`<br>`python3 tools/telemetry_logger.py`<br>`python3 ros2_ws/src/sorting_arm/sorting_arm/*.py`<br>`python3 ros2_ws/src/sorting_arm/test/run_tests.py` |
-| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations | `colcon build`<br>`ros2 launch sorting_arm dual_xarm.launch.py`<br>`ros2 topic echo`<br>`ros2 service call` |
+| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations | `colcon build`<br>`ros2 launch sorting_arm xarm.launch.py`<br>`ros2 topic echo`<br>`ros2 service call` |
 
 > [!IMPORTANT]
 > **ROS 2 commands must NEVER be run directly on the host.**  
@@ -52,11 +52,10 @@ Verify container execution and hardware pass-through:
 ## 🔌 Hardware Pre-Flight & Wiring Verification
 
 Before powering on or executing motion commands:
-1. **Power Supply**: Ensure both arms receive clean 7.4V (5A per arm) from the dual buck regulator hub. Check that common star ground is bonded.
-2. **Controller Switch**: Flip the power toggle switch on each xArm base controller to **ON** (blue LED illuminates).
-3. **USB Connections**:
-   - `xArm 1` (Left/West arm): Connects to `/dev/ttyUSB0` (or first detected HID/serial node).
-   - `xArm 2` (Right/East arm): Connects to `/dev/ttyUSB1` (or second detected HID/serial node).
+1. **Power Supply**: Ensure the arm receives clean 7.4V (5A) from the dedicated buck regulator. Check that common star ground with host SBC/PC is bonded.
+2. **Controller Switch**: Flip the power toggle switch on the xArm base controller to **ON** (blue LED illuminates).
+3. **USB Connection**:
+   - `xArm 1`: Connects to `/dev/ttyUSB0` (or first detected HID/serial node).
 4. **USB Permissions (Host)**:
    Ensure your host user belongs to the `dialout` and `plugdev` groups:
    ```bash
@@ -76,7 +75,7 @@ Verify kinematics, safety clamps, and trajectory interpolation algorithms:
 # Run 20 kinematics, driver, and trajectory unit tests
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
 
-# Run 6 automated computer vision & ArUco homography tests
+# Run automated computer vision & ArUco homography tests
 pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
 ```
 *Expected Result*: All 26 unit tests report `[PASS]` with 0 failures.
@@ -84,61 +83,37 @@ pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
 ### Step 2: Test Single Arm Motion & Gripper
 Test communication, upright reset pose, and claw opening/clamping:
 ```bash
-# Test xArm 1
+# Test xArm 1 (auto-detects port)
 python3 ros2_ws/src/sorting_arm/sorting_arm/direct_test.py --arm xarm_1 --port auto
-
-# Test xArm 2 (with aligned polarity)
-python3 ros2_ws/src/sorting_arm/sorting_arm/direct_test.py --arm xarm_2 --port auto
 ```
 
-### Step 3: Comprehensive Multi-Motion Test Suite (13 Single / 12 Dual Motions)
-Execute calibrated single-arm motions or dual-arm cooperative routines:
+### Step 3: Comprehensive Multi-Motion Test Suite
+Execute calibrated single-arm motions across the workspace:
 ```bash
-# Execute ALL 13 single-arm motions sequentially on xArm 1
+# Execute ALL single-arm motions sequentially on xArm 1
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
 
-# Execute ALL 13 single-arm motions sequentially on xArm 2
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_2 --all
-
 # Execute individual motion by ID (1 to 13):
-# Motion 5: Standard Mid-Range Pick & Place (R=220mm, θ=0°, Z=12.5mm)
+# Motion 5: Standard Mid-Range Pick & Place (R=200mm, θ=0°, Z=12.5mm)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 5
 
-# Motion 6: Near-Field Shallow Pick (R=165mm, θ=0°, Z=12.5mm)
+# Motion 6: Near-Field Shallow Pick (R=150mm, θ=0°, Z=12.5mm)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 6
 
-# Motion 7: Extended Far-Reach Pick (R=275mm, θ=0°, Z=12.5mm)
+# Motion 7: Extended Far-Reach Pick (R=260mm, θ=0°, Z=12.5mm)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 7
 
-# Motion 8: Left-Quadrant Flank Diagonal Pick (R=210mm, θ=-30° West)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 8
-
-# Motion 9: Right-Quadrant Midline Diagonal Pick (R=210mm, θ=+30° East)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 9
-
-# Motion 10: Far-Corner Radial Sweep (R=265mm, θ=-25° to +25°, Z=20mm)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 10
-
-# Motion 11: Multi-Altitude Standoff Staircase (Z=150 -> 90 -> 40 -> 12.5mm)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 11
-
-# Motion 12: Continuous 3-Point Tabletop Rapid Touch (West -> Center -> East)
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 12
-
-# Motion 13: 4-Color Flank Sorting Box Tour (Red -> Green -> Blue -> Yellow)
+# Motion 13: 4-Color Left Flank Sorting Box Tour (Red -> Green -> Blue -> Yellow)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 13
-
-# Execute ALL 12 dual-arm cooperative motions sequentially
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --all
 ```
 
 ### Step 4: 5-Phase Pick-and-Place with Trajectory Smoothing & Stall Detection
 Execute a full pick cycle with minimum-jerk polynomial interpolation and closed-loop position verification:
 ```bash
 python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py \
-    --arm xarm_2 \
+    --arm xarm_1 \
     --color red \
-    --r 220.0 \
+    --r 200.0 \
     --theta 0.0 \
     --z 12.5
 ```
@@ -161,7 +136,7 @@ python3 tools/web_config/server.py 8000
 Open **`http://localhost:8000`** in Google Chrome or any modern browser.
 
 ### 2. Tabular Motor Configuration Editor
-- **Live Table**: Displays Motor 1 to 6 for both `xArm 1` and `xArm 2`:
+- **Live Table**: Displays Motor 1 to 6 for `xArm 1`:
   - `Min (ticks / deg)` and `Max (ticks / deg)`: Physical travel safety clamps with real-time physical degree conversions ($0.24^\circ/\text{tick}$).
   - `Center (ticks / deg)`: 90° upright center position (nominal ~500 ticks / $120.0^\circ$).
   - `Dev`: Volatile mechanical horn trim offset in ticks ($\text{hardware\_ticks} = \text{theoretical\_ticks} + \text{dev}$).
@@ -170,22 +145,22 @@ Open **`http://localhost:8000`** in Google Chrome or any modern browser.
   - `Err`: Current tracking error in ticks ($T_{\text{actual}} - T_{\text{target}}$).
   - `Z-Trim (mm)`: Dynamic Cartesian tabletop height trim in card header to compensate for base mounting/suction cup differences.
 - **Inline Editing**: Modify values directly in the table. Degree labels update in real time as numbers are typed.
-- **Atomic Save**: Click **"Save Configuration to YAML"** in the top-right corner. The server validates parameters, writes atomically to `dual_xarm_hardware.yaml`, and creates automatic `.bak` backup files.
+- **Atomic Save**: Click **"Save Configuration to YAML"** in the top-right corner. The server validates parameters, writes atomically to `xarm_hardware.yaml`, and creates automatic `.bak` backup files.
 - 📖 **Comprehensive Step-by-Step Tuning Guide**: Refer to [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md) for full procedural instructions on finding mechanical limits safely and preventing gear stalls.
 
 ### 3. Dynamic Hotplug Port Detection & Manual Controls
 - **System Devices Bar**: The header displays all USB HID and Serial devices discovered by Linux in real-time.
-- **Connect / Disconnect Toggle**: If an arm is plugged in after starting the server, click **"Connect"** on its card to bind and connect immediately, or rely on the 1.5s background auto-reconnect loop.
-- **Emergency Stop Button**: Clicking the red **"Emergency Stop (Torque Cut)"** button dispatches packet `0x14` to instantly unload torque on all 12 motors.
+- **Connect / Disconnect Toggle**: If the arm is plugged in after starting the server, click **"Connect"** on its card to bind and connect immediately, or rely on the 1.5s background auto-reconnect loop.
+- **Emergency Stop Button**: Clicking the red **"Emergency Stop (Torque Cut)"** button dispatches packet `0x14` to instantly unload torque on all 6 motors.
 
 ### 4. Automated Potentiometer Drift Telemetry
-- Click **"Run Immediate Telemetry Scan"** on Tab 3 to query all 12 joints, append records to `data/telemetry_drift_log.csv`, and review repeatability statistics.
+- Click **"Run Immediate Telemetry Scan"** on Tab 3 to query all 6 joints, append records to `data/telemetry_drift_log.csv`, and review repeatability statistics.
 
 ---
 
 ## 📷 Phase 2: Computer Vision Calibration & Autonomous Sorting Bridge (Host venv)
 
-The vision system uses pure OpenCV to rectify the $390 \times 210\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid and classify colors.
+The vision system uses pure OpenCV to rectify the $260 \times 140\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid ($520 \times 280\text{ px}$) and classify colors.
 
 ### Step 1: Camera Hardware Exposure & White Balance Lock
 Ambient lighting changes in a university lab cause fatal HSV color drift. Always disable auto-exposure and auto-white-balance before launching vision scripts:
@@ -196,6 +171,20 @@ v4l2-ctl -d /dev/video0 -c exposure_auto=1 -c exposure_absolute=156
 # Lock fixed color temperature (4500K)
 v4l2-ctl -d /dev/video0 -c white_balance_temperature_auto=0 -c white_balance_temperature=4500
 ```
+
+### Step 1.5: Camera Centering & Optical Leveling (`align_camera.py`)
+Ensure the overhead camera is physically perpendicular and centered over the arena before tightening the boom clamp:
+```bash
+# Live interactive HUD:
+python3 vision/align_camera.py --device /dev/video0
+
+# Or offline synthetic verification:
+python3 vision/align_camera.py --synthetic --save-report
+```
+- **HUD Guidance**: Follow on-screen prompts (`PAN LEFT/RIGHT`, `PAN FORWARD/BACK`, `TILT UP/DOWN`, `ROTATE CW/CCW`).
+- Align the **Cyan arena center 'x'** (projective diagonal intersection of ArUco markers 0, 1, 2, 3) with the **Yellow optical center '+'**.
+- Verify centering error is $\le 5.0\text{ mm}$, roll tilt is $\le 1.0^\circ$, and pitch/yaw keystoning ratios are within $[0.96, 1.04]$.
+- Press **'s'** to save alignment verification to `config/camera_alignment.json` and a snapshot to `data/camera_alignment_snapshot.png`.
 
 ### Step 2: Intrinsic Lens Calibration (Undistortion)
 Compute camera matrix $K$ and plumb-bob distortion coefficients $D$ using a $9 \times 6$ checkerboard:
@@ -209,7 +198,7 @@ python3 vision/calibrate_camera.py --synthetic
 - Controls: Hold checkerboard, press `SPACE` to record sample (collect $\ge 15$ samples), press `c` to compute and atomically update `config/camera_calibration.yaml`.
 
 ### Step 3: 4-Point ArUco Planar Homography & Metric Rectification
-Detect 4 arena corner ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3) and warp the picking arena to $780 \times 420\text{ px}$:
+Detect 4 arena corner ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3) at $(70, 180), (330, 180), (70, 40), (330, 40)$ and warp the picking arena to $520 \times 280\text{ px}$:
 ```bash
 # Live verification:
 python3 vision/test_aruco_warp.py --device /dev/video0
@@ -234,49 +223,41 @@ python3 vision/tune_hsv.py --synthetic
 - Controls: Keys `1` (Red), `2` (Green), `3` (Blue), `4` (Yellow) to switch active color. Adjust the 6 trackbars until cubes are cleanly masked. Press `s` to export directly to `config/colors.yaml`.
 
 ### Step 5: Autonomous Vision-Guided Sorting Bridge (Phase 1 + Phase 2 Merge)
-Executes end-to-end vision localization, Nearest-First queue ordering, and closed-form IK pick-and-place into lateral 2×2 flank trays:
+Executes end-to-end vision localization, Nearest-First queue ordering, and closed-form IK pick-and-place into the Left Flank 2×2 tray:
 ```bash
 # Offline simulation / dry-run (no hardware required):
-python3 tools/autonomous_pick_and_place.py --arm xarm_2 --synthetic --dry-run
 python3 tools/autonomous_pick_and_place.py --arm xarm_1 --synthetic --dry-run
 
 # Single-shot pick of the nearest cube:
-python3 tools/autonomous_pick_and_place.py --arm xarm_2 --device /dev/video0 --port auto --single-shot
+python3 tools/autonomous_pick_and_place.py --arm xarm_1 --device /dev/video0 --port auto --single-shot
 
 # Full continuous sorting run:
-python3 tools/autonomous_pick_and_place.py --arm xarm_2 --device /dev/video0 --port auto
+python3 tools/autonomous_pick_and_place.py --arm xarm_1 --device /dev/video0 --port auto
 ```
 
 ---
 
 ## 🤖 Phase 3: Operating with ROS 2 in Docker (Docker Only)
 
-All ROS 2 nodes, drivers, and coordinate arbiters run inside the Docker container.
+All ROS 2 nodes, drivers, and coordinate pipelines run inside the Docker container.
 
 ### Step 1: Build the ROS 2 Workspace in Docker
 ```bash
 ./docker/run.sh bash -c "cd /workspace/ros2_ws && colcon build --symlink-install"
 ```
 
-### Step 2: Launch Simultaneous Dual-Arm Drivers & Spatial Coordinator
+### Step 2: Launch Complete Single-Arm Sorting Workcell
 ```bash
-./docker/run.sh ros2 launch sorting_arm dual_xarm.launch.py
+./docker/run.sh ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
-This single launch file starts:
-1. `/xarm_1/xarm_driver_node`: Hardware driver for xArm 1 (`/xarm_1/joint_commands`, `/xarm_1/joint_states`).
-2. `/xarm_2/xarm_driver_node`: Hardware driver for xArm 2 (`/xarm_2/joint_commands`, `/xarm_2/joint_states`).
-3. `/dual_arm_coordinator`: Real-time forward kinematics tracking, proximity alert, and spatial mutex arbiter for the shared central midline ($X_w \in [240\text{ mm}, 320\text{ mm}]$).
+This primary launch file starts:
+1. `driver_node`: Hardware driver for xArm 1 (`/joint_commands`, `/joint_states`).
+2. `vision_node`: Acquires frames from `/dev/video0`, computes 4-point ArUco homography warp, segments Red/Green/Blue/Yellow cubes, and publishes to `/vision/detected_objects` and `/vision/annotated_image`.
+3. `autonomous_sorter`: Subscribes to detected objects, enforces Nearest-First picking order, solves analytical IK, and coordinates pick-and-place into the Left Flank 2×2 tray.
 
-### Step 3: Launch Vision Perception & Autonomous Sorting Coordinator
-In a second terminal, launch the vision perception pipeline and autonomous sorter:
-```bash
-./docker/run.sh ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true
-```
-This launch file starts:
-1. `/vision_node`: Acquires frames from `/dev/video0`, computes 4-point ArUco planar homography, segments Red/Green/Blue/Yellow cubes, and publishes real-time telemetry to `/vision/detected_objects` and debug images to `/vision/annotated_image`.
-2. `/autonomous_sorter_node`: Subscribes to detected objects, enforces Nearest-First picking order, solves analytical IK, and coordinates pick-and-place into lateral 2×2 flank trays.
+*(For perception-only testing without driving physical hardware, use `ros2 launch sorting_arm vision_sorting.launch.py dry_run:=true`).*
 
-### Step 4: Inspect Real-Time ROS 2 Feedback
+### Step 3: Inspect Real-Time ROS 2 Feedback
 In a separate terminal, open a shell inside the running container:
 ```bash
 ./docker/run.sh bash
@@ -286,34 +267,21 @@ Inspect telemetry:
 # Echo live detected cubes (JSON world & polar coordinates)
 ros2 topic echo /vision/detected_objects
 
-# Echo live joint feedback for Arm 1
-ros2 topic echo /xarm_1/joint_states
+# Echo live joint feedback for xArm 1
+ros2 topic echo /joint_states
 
-# Echo live joint feedback for Arm 2
-ros2 topic echo /xarm_2/joint_states
-
-# Monitor shared midline corridor lock status and arm end-effector coordinates
-ros2 topic echo /dual_arm/corridor_status
+# Echo live autonomous sorter status
+ros2 topic echo /arm_status
 ```
 
-### Step 4: Spatial Mutex Service Arbitration
-When an arm approaches the shared midline picking zone ($X \approx 280\text{ mm}$), it requests corridor priority:
-```bash
-# Arm 1 requests corridor lock
-ros2 service call /dual_arm/request_corridor_arm1 std_srvs/srv/Trigger
-
-# Arm 1 releases corridor lock once clear
-ros2 service call /dual_arm/release_corridor_arm1 std_srvs/srv/Trigger
-```
-
-### Step 5: ROS 2 Emergency Stop & Re-Enable
+### Step 4: ROS 2 Emergency Stop & Re-Enable
 Trigger instantaneous motor torque cutoff via ROS 2 services:
 ```bash
-# E-Stop Arm 1
-ros2 service call /xarm_1/emergency_stop std_srvs/srv/Trigger
+# E-Stop xArm 1
+ros2 service call /xarm_driver_node/emergency_stop std_srvs/srv/Trigger
 
-# Clear E-Stop and re-enable Arm 1
-ros2 service call /xarm_1/re_enable std_srvs/srv/Trigger
+# Clear E-Stop and re-enable xArm 1
+ros2 service call /xarm_driver_node/re_enable std_srvs/srv/Trigger
 ```
 
 ---
@@ -327,10 +295,10 @@ To maintain sub-millimeter tabletop picking repeatability without manual paper l
 source venv/bin/activate
 
 # Execute a single multi-joint scan and append to data/telemetry_drift_log.csv:
-python3 tools/telemetry_logger.py --scan
+python3 tools/telemetry_logger.py --scan --arm xarm_1
 
 # Perform 5 consecutive scans sampled 2 seconds apart:
-python3 tools/telemetry_logger.py --samples 5 --interval 2.0
+python3 tools/telemetry_logger.py --samples 5 --interval 2.0 --arm xarm_1
 
 # Print existing historical statistics and maintenance alerts:
 python3 tools/telemetry_logger.py --stats-only
@@ -346,7 +314,7 @@ python3 tools/telemetry_logger.py --stats-only
   | Condition | Diagnostic Meaning | Corrective Action |
   | :--- | :--- | :--- |
   | $\sigma > 3.0\text{ ticks}$ | Joint mechanical backlash / loose horn spline | Tighten M3 center lock screw on servo horn |
-  | $|\mu| > 5.0\text{ ticks}$ | Systematic mechanical drift or settling | Recalibrate zero position in xArm PC App or update `dual_xarm_hardware.yaml` |
+  | $|\mu| > 5.0\text{ ticks}$ | Systematic mechanical drift or settling | Recalibrate zero position in xArm PC App or update `xarm_hardware.yaml` |
   | Every 500 cycles / 7 days | Routine scheduled verification | Run 10-sample telemetry scan and inspect CSV drift slope |
 
 ---
@@ -357,9 +325,9 @@ python3 tools/telemetry_logger.py --stats-only
 | :--- | :--- | :--- |
 | **`No xArm device detected on USB HID or Serial interfaces`** | Controller powered off, loose USB cable, or unmapped device node. | 1. Verify 7.4V power switch on arm base is ON.<br>2. Run `ls /dev/ttyUSB* /dev/hidraw*` to confirm device appears.<br>3. Check `dmesg \| tail -n 20` for USB disconnects. |
 | **`Permission denied: '/dev/ttyUSB0'` or `'/dev/hidraw*'`** | Current Linux user lacks read/write rights to serial/HID device nodes. | Run `sudo usermod -aG dialout,plugdev $USER` then log out and log back in, or run `sudo chmod 666 /dev/ttyUSB* /dev/hidraw*`. |
-| **`STALL / OBSTRUCTION DETECTED! Emergency torque cutoff triggered`** | Joint tracking error remained $> 10\text{ ticks}$ after timeout (mechanical collision, stuck claw, or low voltage). | 1. Inspect physical arm for obstacle or cable entanglement.<br>2. Check 7.4V buck hub output voltage under load (voltage dip below 6.5V causes motor stall).<br>3. Reset via web UI or call `re_enable` service. |
+| **`STALL / OBSTRUCTION DETECTED! Emergency torque cutoff triggered`** | Joint tracking error remained $> 10\text{ ticks}$ after timeout (mechanical collision, stuck claw, or low voltage). | 1. Inspect physical arm for obstacle or cable entanglement.<br>2. Check 7.4V buck regulator output voltage under load (voltage dip below 6.5V causes motor stall).<br>3. Reset via web UI or call `re_enable` service. |
 | **`Port busy / [Errno 16] Device or resource busy`** | Another process (e.g. ROS 2 driver node or xArm PC App) is already holding the serial port. | Kill existing process holding port: `fuser -k /dev/ttyUSB0` or disconnect from the web tool before launching ROS 2. |
-| **`IK Failed: Target unreachable`** | Requested coordinate lies outside reachable envelope or behind shoulder. | Bounded safe reach is $R \in [130\text{ mm}, 320\text{ mm}]$ and $Z \ge 10.0\text{ mm}$. Ensure target coordinates remain within the $400\times 220\text{ mm}$ arena floor. |
+| **`IK Failed: Target unreachable`** | Requested coordinate lies outside reachable envelope or behind shoulder. | Bounded safe reach is $R \in [100\text{ mm}, 280\text{ mm}]$ and $Z \ge 10.0\text{ mm}$. Ensure target coordinates remain within the $260\times 140\text{ mm}$ arena floor ($X \in [70, 330], Y \in [40, 180]$). |
 | **Web Config Server reports `Offline (Sim)`** | Server started before USB cable was connected. | Click **"Connect"** button on the arm card, or wait for the 1.5s auto-reconnect cycle to detect the port. |
 | **Docker: `cannot connect to X server`** | Host X11 access control is blocking Docker GUI. | Run `xhost +local:root` on your host terminal before launching `./docker/run.sh`. |
 | **Arm jerky or sudden torque spikes** | Open-loop commanding with discrete step jumps. | Ensure trajectory interpolation is active (`smooth: True` in `PickAndPlaceCommander` or using `generate_joint_trajectory()`). |

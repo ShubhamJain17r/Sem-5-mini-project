@@ -10,7 +10,7 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ```text
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ Phase 0: Actuation Baseline & Servo Zeroing (Arduino Hardware Bringup) │
+    │ Phase 0: Actuation Baseline & Servo Zeroing (Hardware Bringup)         │
     └───────────────────────────────────┬────────────────────────────────────┘
                                         ▼ [Gate 0: Zero Mechanical Deviation & Limits Mapped]
     ┌────────────────────────────────────────────────────────────────────────┐
@@ -22,31 +22,30 @@ Because university coursework, laboratory access schedules, exams, and hardware 
     └───────────────────────────────────┬────────────────────────────────────┘
                                         ▼ [Gate 2: Sub-2mm Centroid Localization & Clean HSV]
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ Phase 3: Single-Arm Autonomous Pick-and-Place (Complete MVP System)    │
+    │ Phase 3: Single-Arm Autonomous Pick-and-Place (Complete Workcell MVP)  │
     └───────────────────────────────────┬────────────────────────────────────┘
                                         ▼ [Gate 3: >= 90% Autonomous Sort Rate on 8 Cubes]
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ Phase 4: Dual-Arm Mutex Coordination & Pipelined Load Balancing        │
+    │ Phase 4: Full Workcell Assembly, Web Diagnostics & Continuous Benchmark│
     └───────────────────────────────────┬────────────────────────────────────┘
-                                        ▼ [Gate 4: Dual Arms Sorting Concurrently with Zero Deadlock]
+                                        ▼ [Gate 4: 100% Reliable Continuous Sorting & Telemetry]
 ```
 
 ---
 
 ## 📋 Phase 0: Actuation Baseline, Servo Zeroing & Hardware Bringup
 
-**Primary Focus**: Immediate single-arm physical verification, removing mechanical assembly deviations, testing servo limits, and establishing analog jog control via Arduino Uno R4 WiFi before introducing software complexity.  
-**Hardware Required**: 1× xArm 1s, Arduino Uno R4 WiFi, 7.4V / 5A DC power supply, Joystick, Potentiometer, Pushbutton, LEDs, common ground jumper wires.  
+**Primary Focus**: Immediate single-arm physical verification, removing mechanical assembly deviations, testing servo limits, and establishing direct control before introducing ROS 2 complexity.  
+**Hardware Required**: 1× xArm 1s, 7.4V / 5A DC power supply, host PC / USB connection.  
 **Reference Document**: [`docs/05_hardware_bringup_and_firmware_control.md`](05_hardware_bringup_and_firmware_control.md) (Stepping Stone 5).
 
 ### Lab Action Checklist
 
-- [ ] **Power Isolation & Shared Ground Check**:
+- [ ] **Power Supply & Ground Check**:
   - [ ] Connect external 7.4V DC supply to xArm base power terminal. Measure voltage with DMM ($7.4\text{V} \pm 0.3\text{V}$).
-  - [ ] Connect Arduino Uno R4 `GND` to xArm controller `GND`.
-  - [ ] Verify Arduino is powered safely via USB from laptop (never feed 7.4V into Arduino 5V pin!).
+  - [ ] Check common star ground between power supply and controller.
 - [ ] **Manufacturer Baseline Test via xArm App (20 Minutes Max)**:
-  - [ ] Connect xArm to PC or smartphone via official Hiwonder/LewanSoul software.
+  - [ ] Connect xArm to PC via official Hiwonder/LewanSoul software.
   - [ ] Verify all 6 servos respond to manual slider commands.
   - [ ] Check for abnormal gear clicking, binding, or excessive heat.
 - [x] **Mechanical Deviation Zeroing & EEPROM Hardware Calibration**:
@@ -54,29 +53,28 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [x] Open official Hiwonder xArm PC App and reset arm to nominal midpoint ($500\text{ ticks}$).
   - [x] Align joints collinearly / upright (Motor 6 Base, Motor 5 Shoulder, Motor 4 Elbow, Motor 3 Wrist Pitch, Motor 2 Wrist Roll, Motor 1 Claw).
   - [x] Trim deviations using xArm PC App sliders and write permanently into servo EEPROM registers.
-  - [x] Record travel limits and nominal centers into unified `config/dual_xarm_hardware.yaml`.
+  - [x] Record travel limits and nominal centers into unified `config/xarm_hardware.yaml`.
 - [x] **Direct Python / USB Driver Teleoperation & Reach Test**:
   - [x] Implement direct USB communication (`direct_test.py` and `xarm_protocol.py`).
   - [x] Motor mapping verified: Motor 1 (Claw), Motor 2 (Roll), Motor 3 (Wrist Pitch), Motor 4 (Elbow), Motor 5 (Shoulder), Motor 6 (Base).
-  - [x] Multi-step Pick-and-Place reach test successfully validated across 120° base yaw swing.
+  - [x] Multi-step Pick-and-Place reach test successfully validated across workspace.
 - [x] **Claw Grip Characterization (Software Grasp Discrimination)**:
   - [x] Measure position ticks across physical claw travel:
     - xArm 1: Open ($60\text{ mm}$) @ $228\text{ ticks}$, Half-Open ($40\text{ mm}$) @ $501\text{ ticks}$, $25\text{ mm}$ Cube Grasp @ $610\text{ ticks}$, Closed Empty ($0\text{ mm}$) @ $791\text{ ticks}$.
-    - xArm 2: Open ($60\text{ mm}$) @ $234\text{ ticks}$, Half-Open ($40\text{ mm}$) @ $498\text{ ticks}$, $25\text{ mm}$ Cube Grasp @ $602\text{ ticks}$, Closed Empty ($0\text{ mm}$) @ $776\text{ ticks}$.
   - [x] Confirm clear discrimination separation gap ($> 170\text{ ticks}$) between $25\text{ mm}$ cube grasp and empty closed state.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 0 Exit Criteria (Prerequisites to Enter Phase 1)
-> 1. Motor deviations for all 6 servos measured, eliminated in EEPROM, and recorded in unified hardware configuration.
+> 1. Motor deviations for all 6 servos measured, eliminated in EEPROM, and recorded in unified hardware configuration (`config/xarm_hardware.yaml`).
 > 2. Direct USB driver reliably jogs all 6 joints over USB HID / Serial with zero packet dropouts.
-> 3. Base servo swing verified to stay within $\approx 205^\circ \le 240^\circ$ without hitting mechanical stops.
-> 4. Motor 6 position readback reliably distinguishes an empty claw from a clamped object.
+> 3. Base servo swing verified to stay within safe tick envelope without hitting mechanical stops.
+> 4. Motor 1 position readback reliably distinguishes an empty claw from a clamped object.
 
 ---
 
 ## 📋 Phase 1: Single-Arm ROS 2 Driver & Analytical IK Integration (✅ COMPLETE)
 
-**Primary Focus**: Migrating control from Arduino to the laptop/PC ROS 2 environment; implementing closed-form analytical inverse kinematics; verifying sub-3 mm Cartesian positioning and expanding motion coverage across 13 test routines.  
+**Primary Focus**: Migrating control to the ROS 2 environment; implementing closed-form analytical inverse kinematics; verifying sub-3 mm Cartesian positioning and expanding motion coverage.  
 **Hardware Required**: 1× xArm 1s, Laptop with Ubuntu 22.04 + ROS 2 Humble, USB-to-UART cable (`/dev/ttyUSB0`), physical ruler, millimeter graph sheet.  
 **Reference Document**: [`docs/02_kinematics_and_grasp_planning.md`](02_kinematics_and_grasp_planning.md) (Stepping Stone 2), [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) (Stepping Stone 4), & [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md) (Stepping Stone 8).
 
@@ -94,30 +92,29 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [x] Add near-field wrist pitch safe heuristics and 4-compartment target resolver (`get_compartment_target`).
   - [x] Verify reachability and mathematical roundtrip consistency via automated unit test suite (`ros2_ws/src/sorting_arm/test/test_kinematics.py`).
 - [x] **Physical Cartesian Positioning Accuracy Test**:
-  - [x] Command arm to discrete grid points via ROS 2 CLI and standalone motion suite (`motion_test_suite.py`).
-  - [x] Verified 13 single-arm motions and 12 dual-arm cooperative routines sequentially via `--all`.
-  - [x] Confirmed grasp repeatability across near ($R=165\text{ mm}$), mid ($R=220\text{ mm}$), and extended far ($R=275\text{ mm}$) envelopes.
+  - [x] Command arm to discrete grid points via standalone motion suite (`motion_test_suite.py`).
+  - [x] Verified single-arm motion test routines sequentially via `--all`.
+  - [x] Confirmed grasp repeatability across near ($R=150\text{ mm}$), mid ($R=200\text{ mm}$), and extended far ($R=260\text{ mm}$) envelopes.
 - [x] **Dynamic Tabletop Depth & Base Tilt Compensation (`z_depth_trim_mm`)**:
-  - [x] Analyzed vacuum suction cup cantilever deflection vs rigid baseboard mounting.
-  - [x] Added dynamic Cartesian tabletop depth trim parameter (`z_depth_trim_mm`) in `KinematicParameters` and `dual_xarm_hardware.yaml`.
-  - [x] Unified servo parameters into `dual_xarm_hardware.yaml`, eliminating the separate volatile calibration file and double-offsetting bugs.
+  - [x] Added dynamic Cartesian tabletop depth trim parameter (`z_depth_trim_mm`) in `KinematicParameters` and `xarm_hardware.yaml`.
+  - [x] Unified servo parameters into `xarm_hardware.yaml`, eliminating separate volatile calibration files.
 - [x] **Expanded Trajectory Execution**:
-  - [x] Verified full 13-motion sequence: Transit $\to$ Multi-Standoff $\to$ Near/Mid/Far Picks $\to$ Diagonal Corner Sweeps $\to$ Flank Tray Tour.
+  - [x] Verified full sequence: Transit $\to$ Multi-Standoff $\to$ Near/Mid/Far Picks $\to$ Flank Tray Tour.
   - [x] Verified smooth minimum-jerk acceleration profiles and zero gear stall.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 1 Exit Criteria (Passed ✅ - Proceeding to Phase 2)
-> 1. ROS 2 node controls single xArm 1s reliably over USB serial without communication stalls.
-> 2. Analytical IK solver executes in $< 0.1\text{ ms}$ on laptop CPU.
-> 3. Measured physical tip positioning error is $\le 3.0\text{ mm}$ in $(X, Y)$ and $\le 2.0\text{ mm}$ in $Z$ across the entire operating radius ($R = 120\text{--}320\text{ mm}$).
-> 4. Expanded 13-motion test suite executes smoothly without tipping or jerking the baseplate.
+> 1. ROS 2 driver controls single xArm 1s reliably over USB serial without communication stalls.
+> 2. Analytical IK solver executes in $< 0.1\text{ ms}$ on CPU.
+> 3. Measured physical tip positioning error is $\le 3.0\text{ mm}$ in $(X, Y)$ and $\le 2.0\text{ mm}$ in $Z$ across the operating radius ($R = 100\text{--}280\text{ mm}$).
+> 4. Single-arm motion test suite executes smoothly without tipping or jerking the baseplate.
 
 ---
 
 ## 📋 Phase 2: Monocular Vision, Lens Undistortion & Arena Rectification
 
-**Primary Focus**: Setting up overhead boom camera; executing intrinsic lens calibration; tuning robust HSV segmentation; calculating planar homography exclusively framing the elevated arena.  
-**Hardware Required**: Overhead USB Webcam (Logitech C270 / C920), Boom Stand ($65\text{--}75\text{ cm}$), 4× ArUco markers ($DICT\_4X4\_50$), Checkerboard calibration sheet ($9\times 6$), $25\text{ mm}$ colored cubes.  
+**Primary Focus**: Setting up overhead boom camera; executing intrinsic lens calibration; tuning robust HSV segmentation; calculating planar homography framing the active picking arena ($260\times 140\text{ mm}$).  
+**Hardware Required**: Overhead USB Webcam (Logitech C270 / C920), Scrap aluminum stand ($H \approx 650\text{ mm}$), 4× ArUco markers ($DICT\_4X4\_50$), Checkerboard calibration sheet ($9\times 6$), $25\text{ mm}$ colored cubes.  
 **Reference Document**: [`docs/03_computer_vision_and_calibration.md`](03_computer_vision_and_calibration.md) (Stepping Stone 3) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md) (Stepping Stone 6).
 
 - [x] **Software Perception Architecture & Automated Test Suite**:
@@ -129,7 +126,7 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [x] Implement ROS 2 perception and sorter nodes (`vision_node.py` and `autonomous_sorter_node.py`).
   - [x] Verify offline mathematical and perception test suite (`test_vision_pipeline.py`, 6/6 passed).
 - [ ] **Camera Mounting & Hardware Exposure Lock (Lab Hardware)**:
-  - [ ] Clamp boom stand at $65\text{--}75\text{ cm}$ height centered over right arena $(X = 550\text{ mm}, Y = 300\text{ mm})$.
+  - [ ] Anchor aluminum stand at rear center $(X = 200\text{ mm}, Y = 400\text{ mm})$ with camera nadir over arena center $(X = 200\text{ mm}, Y = 110\text{ mm})$ at $H \approx 650\text{ mm}$.
   - [ ] Lock exposure and white balance in hardware via V4L2:
     ```bash
     v4l2-ctl -d /dev/video0 -c exposure_auto=1 -c exposure_absolute=156
@@ -139,7 +136,7 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Capture 20 images of $9\times 6$ checkerboard across varying sensor angles (`python3 vision/calibrate_camera.py`).
   - [ ] Compute intrinsic matrix $K$ and distortion vector $D$ and save to `config/camera_calibration.yaml`.
 - [ ] **4-Point Coplanar ArUco Homography**:
-  - [ ] Fix Markers 0, 1, 2, 3 flat on the wooden baseboard at arena corners ($Z = 0.0\text{ mm}$).
+  - [ ] Fix Markers 0, 1, 2, 3 flat on the wooden baseboard at arena corners: $(70, 180), (330, 180), (70, 40), (330, 40)$ ($Z = 0.0\text{ mm}$).
   - [ ] Run `python3 vision/test_aruco_warp.py`. Confirm all 4 markers are detected and lock homography with `l`.
   - [ ] Verify metric grid alignment against physical millimeter ruler ($\le 1.5\text{ mm}$ error).
   - [ ] Save locked homography matrix $H$ with key `s`.
@@ -152,35 +149,35 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 > [!IMPORTANT]
 > ### 🏁 Gate 2 Exit Criteria (Prerequisites to Enter Phase 3)
-> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($780 \times 420\text{ px}$).
+> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($520 \times 280\text{ px}$ at $2.0\text{ px/mm}$).
 > 2. Planar homography matrix locked at startup; zero pixel jitter when table vibrates.
 > 3. HSV color classification achieves $100\%$ accuracy on all 4 colors under laboratory ambient lighting.
 > 4. Physical cube localization error is $< 2.0\text{ mm}$ in Cartesian arena coordinates.
 
 ---
 
-## 📋 Phase 3: Single-Arm Autonomous Sorting (Standalone MVP)
+## 📋 Phase 3: Single-Arm Autonomous Sorting (Standalone Workcell MVP)
 
-**Primary Focus**: Closing the perception-action loop on one arm; verifying Nearest-First queue sorting and grip confirmation; achieving an independently gradable, fully functional autonomous sorting cell.  
-**Hardware Required**: Single calibrated xArm 1s, Camera setup, Flat arena with foam border, 2×2 Flank Tray, 8–12 colored craft cubes.  
+**Primary Focus**: Closing the perception-action loop on xArm 1; verifying Nearest-First queue sorting and grip confirmation; achieving an independently gradable, fully functional autonomous sorting cell.  
+**Hardware Required**: Single calibrated xArm 1s, Camera setup, Flat arena with foam border, 1× 2×2 Left Flank Tray, 8–12 colored craft cubes.  
 **Reference Document**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 
 ### Lab Action Checklist
 
 - [ ] **ROS 2 Vision-to-Arm Pipeline Integration**:
-  - [ ] Launch `camera_node`, `vision_node`, `scheduler_node`, and `arm2_node`.
-  - [ ] Verify `/detected_objects` topic publishes real-time cube lists.
+  - [ ] Launch complete system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
+  - [ ] Verify `/vision/detected_objects` topic publishes real-time cube lists.
 - [ ] **Nearest-First Corridor Collision Verification**:
-  - [ ] Place Cube B ($r = 280\text{ mm}$) directly behind Cube A ($r = 160\text{ mm}$) along the same radial line.
-  - [ ] Trigger pick cycle. Confirm `scheduler_node` prioritizes Cube A first.
-  - [ ] Verify arm picks Cube A, deposits in box, and then picks Cube B with zero forearm collision.
+  - [ ] Place Cube B ($r = 250\text{ mm}$) directly behind Cube A ($r = 140\text{ mm}$) along the same radial azimuth.
+  - [ ] Trigger pick cycle. Confirm `autonomous_sorter` prioritizes Cube A first.
+  - [ ] Verify arm picks Cube A, deposits in Left Flank tray, and then picks Cube B with zero forearm collision.
 - [ ] **Software Grip Confirmation Integration**:
   - [ ] Verify Motor 1 position feedback executes after clamping.
-  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss ($P < 220\text{ ticks}$), aborts the drop swing, and alerts scheduler.
+  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss ($P < 220\text{ ticks}$), aborts the drop swing, and alerts sorter.
 - [ ] **Multi-Color End-to-End Sorting Run**:
-  - [ ] Scatter 8 cubes (2 Red, 2 Green, 2 Blue, 2 Yellow) across the arm's reach sector.
+  - [ ] Scatter 8 cubes (2 Red, 2 Green, 2 Blue, 2 Yellow) across the $260\times 140\text{ mm}$ arena.
   - [ ] Run autonomous sorting sequence without human intervention.
-  - [ ] Verify all 8 cubes are dropped cleanly into their dedicated color-coded tray compartments.
+  - [ ] Verify all 8 cubes are dropped cleanly into their dedicated color-coded tray compartments at $(50, 280)$.
   - [ ] Record total cycle time and individual pick-to-drop duration.
 
 > [!IMPORTANT]
@@ -192,39 +189,35 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ---
 
-## 📋 Phase 4: Dual-Arm Mutex Coordination & Load Balancing (Final Scaled System)
+## 📋 Phase 4: Full Workcell Assembly, Web Diagnostics & Continuous Benchmark
 
-**Primary Focus**: Integrating the second arm (`xarm_1`); mounting rear electronics; establishing spatial crossover mutex for the shared central zone; testing pipelined concurrency.  
-**Hardware Required**: 2× xArm 1s, Dual 7.4V/10A power hub, Jetson Orin Nano / RPi 5, Single Store-Cut Baseboard ($560 \times 520\text{ mm}$), 2× 3D-Printed 2×2 Flank Trays, 16–20 wooden cubes.  
-**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md), [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md), and [`docs/07_fusion360_cad_modeling_guide.md`](07_fusion360_cad_modeling_guide.md).
+**Primary Focus**: Final physical integration on the $400\times 400\text{ mm}$ baseboard; wiring management; web portal diagnostic tuning; long-term repeatability telemetry.  
+**Hardware Required**: 1× xArm 1s, Single 7.4V/5A power supply, Jetson Orin Nano / RPi 5, Pre-Cut MDF Baseboard ($400 \times 400\text{ mm}$), 1× 3D-Printed 2×2 Flank Tray, 16–20 wooden craft cubes.  
+**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md), [`docs/07_fusion360_cad_modeling_guide.md`](07_fusion360_cad_modeling_guide.md), and [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md).
 
 ### Lab Action Checklist
 
-- [ ] **Dual-Arm Mechanical & Electrical Workcell Assembly**:
-  - [ ] Place single pre-cut wooden baseboard ($560\times 520\text{ mm}$, $18\text{ mm}$ MDF) on workstation.
-  - [ ] Mount Arm 1 (Left @ $X = 170\text{ mm}, Y = 360\text{ mm}$) and Arm 2 (Right @ $X = 390\text{ mm}, Y = 360\text{ mm}$) flat to the board with wood screws.
-  - [ ] Apply self-adhesive foam weatherstripping tape to create $400\times 300\text{ mm}$ arena perimeter.
-  - [ ] Mount rear electronics: connect dual buck converters with common ground star point and route cables neatly with surface clips.
-  - [ ] Configure Linux udev rules to assign persistent symlinks: `/dev/xarm_arm1` and `/dev/xarm_arm2`.
-- [ ] **Spatial Crossover Mutex Testing in Simulation**:
-  - [ ] Inject synthetic target cubes in the central cooperative overlap zone ($X \in [220, 340\text{ mm}]$).
-  - [ ] Confirm `scheduler_node` grants `acquire_zone` service to one arm while cleanly queueing the other.
-  - [ ] Verify 5.0-second watchdog releases the zone if an arm fails.
-- [ ] **Zero-Contention Drop Verification**:
-  - [ ] Command Arm 1 to drop into Left Flank Tray 1 (~70° outward swing) while Arm 2 simultaneously drops into Right Flank Tray 2 (~70° outward swing).
-  - [ ] Confirm both drop trajectories execute simultaneously with zero physical collision and zero software blocking.
-- [ ] **Full Dual-Arm Continuous Sorting Benchmark**:
-  - [ ] Scatter 16–20 colored craft blocks across the rectangular arena.
-  - [ ] Launch full system: `ros2 launch sorting_scheduler system.launch.py`.
-  - [ ] Benchmark throughput: compare dual-arm sort time vs. single-arm baseline (target: $\ge 1.7\times$ speedup).
+- [ ] **Workcell Mechanical & Electrical Assembly**:
+  - [ ] Place single pre-cut wooden baseboard ($400\times 400\text{ mm}$, $18\text{ mm}$ MDF) on workstation.
+  - [ ] Mount xArm 1 centered at $(X = 200\text{ mm}, Y = 280\text{ mm})$ flat to the board with wood screws (heading $-90^\circ$ South).
+  - [ ] Mount single 2×2 sorting tray on left flank at $(X = 50\text{ mm}, Y = 280\text{ mm})$.
+  - [ ] Apply self-adhesive foam weatherstripping tape to create $260\times 140\text{ mm}$ arena perimeter.
+  - [ ] Mount rear electronics: connect single 7.4V/5A buck regulator with common ground star point and route cables neatly with surface clips.
+- [ ] **Web Portal & Drift Telemetry Verification**:
+  - [ ] Launch Web Config portal (`python3 tools/web_config/server.py 8000`).
+  - [ ] Verify live potentiometer polling on all 6 joints and validate E-stop responsiveness.
+  - [ ] Run automated telemetry scan (`python3 tools/telemetry_logger.py --scan --arm xarm_1`) and log baseline statistics.
+- [ ] **Full Continuous Sorting Benchmark**:
+  - [ ] Scatter 12 colored craft blocks across the rectangular arena.
+  - [ ] Launch full system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
   - [ ] Run 3 back-to-back sorting cycles without servo thermal cutoff or communication reset.
-- [ ] **Operator Dashboard & Final Polish**:
-  - [ ] Launch Web Dashboard / Foxglove Studio displaying live camera feed, arm states, and queue telemetry.
-  - [ ] Route and clip all wiring neatly.
+- [ ] **Final Polish & Operator Documentation**:
+  - [ ] Route and clip all wiring neatly with zero overhang.
+  - [ ] Capture high-resolution demo video and finalize project report.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 4 Exit Criteria (Final Project Complete)
-> 1. Both arms operate concurrently with zero physical collisions across 3 consecutive 16-cube runs.
-> 2. Spatial crossover mutex prevents contention in the shared midline zone with $100\%$ determinism.
-> 3. Simultaneous Left/Right flank drop motions operate with zero mechanical or software interference.
-> 4. High-resolution multi-angle demonstration video and final engineering project report prepared.
+> 1. Single arm autonomously sorts 12 cubes across 3 consecutive runs with 100% completion.
+> 2. Zero mechanical binding, zero cable snagging, and clean $90^\circ$ clockwise drop swings.
+> 3. Web portal and telemetry logging fully verified with repeatable sub-millimeter positioning accuracy.
+> 4. Demonstration video and engineering report finalized for submission.

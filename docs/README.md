@@ -1,7 +1,7 @@
 # 📚 Project Documentation & Engineering Specifications
-### Dual xArm 1s Color-Sorting Robot
+### Single xArm 1S Color-Sorting Robot
 
-Welcome to the engineering documentation suite for the autonomous dual-arm robotic sorting system. This directory contains detailed specifications covering mechanical layout, kinematics, computer vision, ROS 2 architecture, hardware bringup, and system testing.
+Welcome to the engineering documentation suite for the autonomous single-arm robotic sorting system. This directory contains detailed specifications covering mechanical layout, kinematics, computer vision, ROS 2 architecture, hardware bringup, and system testing.
 
 ---
 
@@ -54,10 +54,10 @@ docs/
 | :--- | :--- | :---: |
 | [**`MANUAL.md`**](MANUAL.md) | **End-to-End Operator Manual & Debugging Guide**: Python venv, Web Server, ROS 2 Docker workflow, and fault troubleshooting | ✅ Complete |
 | [**`00_docker_and_ros2_development_guide.md`**](00_docker_and_ros2_development_guide.md) | Docker workflow, hybrid VS Code editing, package creation, `colcon` build lifecycle, hardware mapping | ✅ Complete |
-| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | V-configuration dual xArm, Zero-Carpentry flat baseboard ($560\times 520\text{ mm}$), rectangular arena ($Z=0\text{ mm}$) with foam border, flank 2×2 sorting trays | ✅ Complete |
+| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | Central single xArm 1S, Zero-Carpentry flat baseboard ($400\times 400\text{ mm}$), rectangular arena ($Z=0\text{ mm}$) with foam border, Left Flank 2×2 sorting tray | ✅ Complete |
 | [**`02_kinematics_and_grasp_planning.md`**](02_kinematics_and_grasp_planning.md) | Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime wrist roll, radial approach, 5-phase trajectory | ✅ Complete |
 | [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$), exposure lock, HSV color segmentation, cube centroid extraction | ✅ Complete |
-| [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, single `arena_mutex` crossover arbitration, pipelined pick-and-place | ✅ Complete |
+| [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, Nearest-First radial sorting pipeline, autonomous pick-and-place | ✅ Complete |
 | [**`05_hardware_bringup_and_firmware_control.md`**](05_hardware_bringup_and_firmware_control.md) | Hiwonder 115200 baud binary packet framing, Arduino Uno R4 test bench, servo deviation zeroing | ✅ Complete |
 | [**`06_system_testing_diagnostics_and_verification.md`**](06_system_testing_diagnostics_and_verification.md) | Verification runbooks, empirical Z-sag compensation factor ($k_{\text{sag}} \approx 0.07$), claw grasp discrimination | ✅ Complete |
 | [**`07_fusion360_cad_modeling_guide.md`**](07_fusion360_cad_modeling_guide.md) | Zero-carpentry flat board build, 2×2 tray 3D print specs, technical blueprints & 2-hour assembly guide | ✅ Complete |
@@ -67,7 +67,7 @@ docs/
 ## 🚦 System Blueprints & Governance
 
 * [**`implementation_plan.md`**](implementation_plan.md): Executive summary of the entire physical, electrical, and computational architecture.
-* [**`roadmap.md`**](roadmap.md): Milestone-based Phase-Gate Checklist. Guides progression from Phase 0 (Arduino hardware bringup) through Phase 4 (dual-arm concurrent sorting).
+* [**`roadmap.md`**](roadmap.md): Milestone-based Phase-Gate Checklist. Guides progression from Phase 0 (Arduino hardware bringup) through Phase 3 (single-arm autonomous sorting).
 * [**`risks.md`**](risks.md): Complete failure mode and effects analysis (FMEA) covering 11 critical technical risks and engineering mitigations.
 
 ---

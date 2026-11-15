@@ -15,7 +15,7 @@ To maintain sub-millimeter tabletop picking repeatability without constantly mod
 
 ```text
  ┌────────────────────────────────────────────────────────┐
- │       config/dual_xarm_hardware.yaml (Static)          │
+ │       config/xarm_hardware.yaml (Static)               │
  │  - Link lengths (d1, L1, L2, L3)                       │
  │  - Safe travel clamps (min_tick, max_tick)             │
  │  - Calibrated joint centers (nominal_center_tick)      │
@@ -90,19 +90,19 @@ To calibrate limits on a joint without stripping gears or overheating motors:
    - If the stop reads `882 ticks`, enter `870` in the **Max** field.
 5. **Save to YAML**:
    - Click the green **"Save Configuration to YAML"** button in the header.
-   - The web server validates that $100 \le \text{Min} < \text{Max} \le 900$, writes atomically to `config/dual_xarm_hardware.yaml`, and creates an automated timestamped `.bak` backup.
+   - The web server validates that $100 \le \text{Min} < \text{Max} \le 900$, writes atomically to `config/xarm_hardware.yaml`, and creates an automated timestamped `.bak` backup.
 
 ---
 
 ## 🔧 Resolving Arm Depth Misalignment (`z_depth_trim_mm`)
 
-When operating the xArms on **temporary vacuum suction cups** before the stationary baseboard is installed:
-- Suction cup compression under cantilever arm reach ($R = 220\text{--}275\text{ mm}$) causes an unavoidable $1\text{--}3\text{ mm}$ base tilt.
-- Differences in suction pressure or tabletop flatness can cause xArm 2 to sit slightly above xArm 1 when reaching for objects.
+When operating the xArm on **temporary vacuum suction cups** or adapting to board thickness variations:
+- Suction cup compression under cantilever arm reach ($R = 150\text{--}280\text{ mm}$) causes an unavoidable $1\text{--}3\text{ mm}$ base tilt.
+- Variations in tabletop flatness can cause the gripper to reach slightly above or below ideal tabletop picking height.
 
 ### How to Tune `z_depth_trim_mm`:
-1. In the Web Portal under the target arm header (e.g. `xArm 2`), locate the **`Z-Trim`** field.
-2. If xArm 2 is hovering $2.0\text{ mm}$ too high above tabletop objects:
+1. In the Web Portal under the manipulator header (`xArm 1`), locate the **`Z-Trim`** field.
+2. If the arm is hovering $2.0\text{ mm}$ too high above tabletop objects:
    - Increase `Z-Trim` by `+2.0 mm`.
    - In inverse kinematics, `solve_ik()` calculates:
      $$Z_{\text{effective}} = Z_{\text{target}} - Z_{\text{trim}} = 12.5\text{ mm} - 2.0\text{ mm} = 10.5\text{ mm}$$
@@ -114,8 +114,8 @@ When operating the xArms on **temporary vacuum suction cups** before the station
 
 ## 🛡️ Dynamic Deviation Guardrails
 
-Deviation trims in `config/dual_xarm_hardware.yaml` must never exceed realistic mechanical tolerances:
-- **Max Deviation Threshold**: `config/dual_xarm_hardware.yaml` defines `max_deviation_ticks: 25`.
+Deviation trims in `config/xarm_hardware.yaml` must never exceed realistic mechanical tolerances:
+- **Max Deviation Threshold**: `config/xarm_hardware.yaml` defines `max_deviation_ticks: 25`.
 - **Driver Clamping**: If an operator accidentally enters `+45` ticks in the web portal or YAML, `XArmDriver.apply_deviations_and_limits()` automatically clamps the applied deviation to $\pm 25\text{ ticks}$ and outputs a terminal warning.
 - **Web Validation**: The web server rejects deviation payloads exceeding the configured threshold, preventing runaway joint divergence.
 
@@ -126,14 +126,11 @@ Deviation trims in `config/dual_xarm_hardware.yaml` must never exceed realistic 
 After updating limits or deviations in the web portal, verify full-envelope travel in Python:
 
 ```bash
-# Verify all 13 single-arm motions on xArm 1
+# Verify all single-arm motion test routines on xarm_1 (primary)
 PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
 
-# Verify all 13 single-arm motions on xArm 2
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_2 --all
-
-# Verify all 12 dual-arm cooperative motions
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --dual --all
+# Direct pick-and-place end-to-end integration test
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py
 ```
 
 *Expected Result*: All trajectories complete smoothly with zero IK boundary violations, zero gear buzzing, and perfect tabletop grasp depth.

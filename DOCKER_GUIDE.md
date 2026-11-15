@@ -1,5 +1,5 @@
 # 🐳 Complete Docker & ROS 2 Humble User Manual
-### Dual xArm 1s Color-Sorting Robot
+### Single xArm 1S Color-Sorting Robot
 
 ---
 
@@ -172,8 +172,8 @@ Expected output confirms:
    ros2 run v4l2_camera v4l2_camera_node --ros-args -p video_device:="/dev/video0"
    ```
 
-### 2. Dual xArm 1s Serial Controllers
-1. Plug the xArm USB-UART controllers into your laptop.
+### 2. Single xArm 1S Serial Controller
+1. Plug the xArm USB-UART controller into your laptop.
 2. Inside the container, check detected serial devices:
    ```bash
    ls -l /dev/ttyUSB* /dev/ttyACM*
@@ -279,8 +279,8 @@ chmod +x docker/*.sh
 | **Open another shell in container** | `docker exec -it xarm_sorting_env bash` | New Host Terminal Tab |
 | **Build ROS 2 packages** | `colcon build --symlink-install` | Inside Container (`/workspace/ros2_ws`) |
 | **Source workspace overlay** | `source install/setup.bash` | Inside Container (`/workspace/ros2_ws`) |
-| **Launch Dual xArm Drivers** | `ros2 launch sorting_arm dual_xarm.launch.py` | Inside Container |
-| **Launch Vision & Autonomous Sorter** | `ros2 launch sorting_arm vision_sorting.launch.py target_arm:=xarm_2 auto_start:=true` | Inside Container |
+| **Launch Single xArm 1S System** | `ros2 launch sorting_arm xarm.launch.py auto_start:=true` | Inside Container |
+| **Launch Driver Only** | `ros2 launch sorting_arm xarm_driver.launch.py` | Inside Container |
 | **Run 3D Visualizer (RViz2)** | `rviz2` | Inside Container |
 | **Check connected cameras** | `v4l2-ctl --list-devices` | Inside Container |
 | **Check connected xArm ports** | `ls -l /dev/ttyUSB*` | Inside Container |

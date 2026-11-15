@@ -35,7 +35,7 @@ The xArm 1s manipulators are driven by digital bus servos (**LX-15D**) interconn
 > - **Hardware Motor 4**: Elbow Pitch
 > - **Hardware Motor 5**: Shoulder Pitch
 > - **Hardware Motor 6**: Base Yaw
-> Both the unified configuration (`config/dual_xarm_hardware.yaml`), ROS 2 driver (`driver_node.py`), and test suite (`motion_test_suite.py`) strictly adhere to these official hardware IDs.
+> Both the unified configuration (`config/xarm_hardware.yaml`), ROS 2 driver (`driver_node.py`), and test suite (`motion_test_suite.py`) strictly adhere to these official hardware IDs.
 
 ### 1.1 Direct Controller UART & USB HID Protocol
 
@@ -155,7 +155,7 @@ Every hobby robotic arm experiences physical assembly tolerance errors: a servo 
    * Click **"Download Deviation" / "Save Deviation"** to write the offsets permanently into each bus servo's onboard EEPROM registers.
    * Note the min and max ticks for travel boundaries and the nominal center tick.
 6. **Save to Unified Hardware Configuration**:
-   * Record the verified min/max travel limits and nominal center ticks into `config/dual_xarm_hardware.yaml`.
+   * Record the verified min/max travel limits and nominal center ticks into `config/xarm_hardware.yaml`.
    * All subsequent ROS 2 nodes, kinematics solvers, and motion test suites read directly from this unified configuration!
 
 ---

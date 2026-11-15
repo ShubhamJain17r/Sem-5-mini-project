@@ -1,5 +1,5 @@
 # Stepping Stone 0: Docker & ROS 2 Humble Development Guide
-### Dual xArm 1s Color-Sorting Robot
+### Single xArm 1S Color-Sorting Robot
 
 ---
 
