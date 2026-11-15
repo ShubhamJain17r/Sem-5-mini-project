@@ -8,11 +8,9 @@ This document details the complete mechanical construction, spatial dimensions, 
 
 The entire workcell is organized on a single, continuous, store-cut **flat wooden baseboard** ($18\text{ mm}$ or $12\text{ mm}$ MDF / shelving board) with a compact footprint of **$400.0\text{ mm} \text{ (Width)} \times 400.0\text{ mm} \text{ (Depth)}$**:
 
-![Realistic 3D Perspective Render of Workcell](assets/images/workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Single xArm Workcell](assets/images/single_arm_setup.png)
 
-![Workcell Multi-View Blueprint](assets/images/workcell_multiview_blueprint.jpg)
-
-![High-Precision 1:1 Chart Paper Drafting Layout](assets/images/chartpaper_drafting_sheet.png)
+![Single xArm 1S Workcell Engineering Blueprint & Arena Layout](assets/images/arena_layout.png)
 
 ```text
   Y (Depth: 400 mm)
@@ -62,7 +60,7 @@ The entire workcell is organized on a single, continuous, store-cut **flat woode
 
 The single xArm 1S manipulator is mounted squarely in the rear-center of the baseboard, facing directly toward the picking arena:
 
-![Wooden Baseboard Dimensional Technical Blueprint](assets/images/wood_platform_blueprint.png)
+![Single xArm 1S Workcell Engineering Blueprint & Arena Layout](assets/images/arena_layout.png)
 
 | Manipulator | Base Center $(X, Y)$ | Mounting Elevation | Nominal Heading ($\theta_{\text{nom}}$) | Operating Role |
 | :--- | :---: | :---: | :---: | :--- |

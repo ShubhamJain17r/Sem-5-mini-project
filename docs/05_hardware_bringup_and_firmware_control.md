@@ -100,7 +100,7 @@ The secondary development UART header on the xArm base board (`RX TX GND`) inter
 > 2. **Strict Common Ground**: The Arduino `GND` **must** be connected directly to the xArm controller `GND`. Floating grounds cause floating UART logic levels and corrupt packets.
 > 3. **Logic Level Compatibility**: The Arduino Uno R4 WiFi features $5\text{V}$ tolerant I/O on `Serial1` (`Pin 0 = RX`, `Pin 1 = TX`), which natively mates with the xArm controller's $5\text{V}$ TTL UART header without requiring a logic level shifter.
 
-![xArm 1s Secondary Development Controller Board Pinout and Interfaces](pcb%20module.webp)
+![xArm 1s Secondary Development Controller Board Pinout and Interfaces](assets/images/pcb%20module.webp)
 
 ### 2.1 Test Bench Pinout Table (Arduino Uno R4 WiFi)
 

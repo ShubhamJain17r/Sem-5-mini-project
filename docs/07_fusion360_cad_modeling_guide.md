@@ -14,9 +14,7 @@ All coordinates, reach envelopes, and optical configurations remain 100% mathema
 ## 1. Visual Architecture Overview
 
 ### 1.1 Complete Workcell 3D CAD Prototype
-Below is the realistic 3D CAD render of the ultra-simplified robotic workcell:
-
-![Complete 3D CAD Render of Simplified Workcell](assets/images/workcell_flat_overview.png)
+![Realistic 3D Perspective Render of Single xArm Workcell](assets/images/single_arm_setup.png)
 
 ### 1.2 Layout Schematic
 
@@ -77,11 +75,7 @@ Below is the realistic 3D CAD render of the ultra-simplified robotic workcell:
 
 Below is the technical dimensional blueprint for the single flat wooden baseboard ($400.0\text{ mm} \times 400.0\text{ mm} \times 18.0\text{ mm}$), showing pencil layout lines, arm position, arena boundaries, and drop tray location:
 
-![Wooden Baseboard Dimensional Technical Blueprint](assets/images/wood_platform_blueprint.png)
-
-![High-Precision 1:1 Chart Paper Drafting Layout](assets/images/chartpaper_drafting_sheet.png)
-
-![Workcell Multi-View Engineering Blueprint](assets/images/workcell_multiview_blueprint.jpg)
+![Single xArm 1S Workcell Engineering Blueprint & Arena Layout](assets/images/arena_layout.png)
 
 | Component | Design Implementation | Engineering Rationale |
 | :--- | :--- | :--- |

@@ -6,11 +6,9 @@ An autonomous robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, an
 
 ## 📸 System Architecture & Visual Renders
 
-![Realistic 3D Perspective Render of Workcell](docs/assets/images/workcell_perspective_render.jpg)
+![Realistic 3D Perspective Render of Single xArm Workcell](docs/assets/images/single_arm_setup.png)
 
-![Workcell Multi-View Engineering Blueprint](docs/assets/images/workcell_multiview_blueprint.jpg)
-
-![High-Precision 1:1 Chart Paper Drafting Layout](docs/assets/images/chartpaper_drafting_sheet.png)
+![Single xArm 1S Workcell Engineering Blueprint & Arena Layout](docs/assets/images/arena_layout.png)
 
 ![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/assets/images/tray_3d_print_cad.png)
 
@@ -172,10 +170,10 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 - 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4) replacing rigid weekly schedules.
 - 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
 
-### Technical Drawings & Schematics
-
+- 🖼️ [`docs/assets/images/single_arm_setup.png`](docs/assets/images/single_arm_setup.png): 3D perspective studio render of the Single xArm 1S robotic workcell.
+- 🖼️ [`docs/assets/images/arena_layout.png`](docs/assets/images/arena_layout.png): 1:1 engineering blueprint and coordinate cheat-sheet for the 400×400mm baseboard.
 - 🖼️ [`docs/assets/images/pcb module.webp`](docs/assets/images/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
-- 🖼️ [`docs/assets/images/xArm demensions.png`](docs/assets/images/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1s.
+- 🖼️ [`docs/assets/images/xArm demensions.png`](docs/assets/images/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1S.
 
 ---
 
