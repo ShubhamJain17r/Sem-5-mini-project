@@ -3,10 +3,9 @@
 Comprehensive Motion Verification Test Suite for LewanSoul / Hiwonder xArm 1S.
 
 Provides 13 distinct single-arm motions (covering near, mid, far, diagonal West/East,
-corner sweeps, multi-altitude staircase, continuous 3-point touching, and 4-compartment flank tour)
-and 12 distinct cooperative motions when both arms are connected:
+corner sweeps, multi-altitude staircase, continuous 3-point touching, and 4-compartment flank tour):
 
-Single Arm Motions (xarm_1 / xarm_2):
+Single Arm Motions (xarm_1):
   1. Upright Reset & Claw Span Calibration (500-tick reset, 60mm open -> 25mm grip -> closed)
   2. Pure Cartesian Vertical Z-Plunge & Elevate (Z=120mm -> Z=25mm -> Z=120mm at constant R=220mm)
   3. Pure Cartesian Radial Reach Sweep (R=160mm -> R=275mm -> R=160mm at clearance Z=35mm)
@@ -20,20 +19,6 @@ Single Arm Motions (xarm_1 / xarm_2):
   11. Multi-Altitude Stepped Standoff Sequence (Z=150mm -> 90mm -> 40mm -> 12.5mm contact)
   12. Continuous 3-Point Tabletop Rapid Touch (Near-West -> Center -> Far-East without homing)
   13. Precision Flank 4-Color Compartment Tour (Red -> Green -> Blue -> Yellow compartments)
-
-Dual Arm Cooperative Motions (Both Connected):
-  1. Synchronized Homing & Claw Echo (Simultaneous upright reset & alternating gripper clicks)
-  2. Symmetrical Mirroring Sweep (Inward arena bow & outward flank tray sweep in mirror symmetry)
-  3. Partitioned Parallel Sorting (Arm 1 sorts West quadrant, Arm 2 sorts East quadrant concurrently)
-  4. Midline Mutex Arbitration (Collision avoidance in shared overlap zone X=280mm)
-  5. Midline Handover / Relay Transfer (Cross-quadrant handoff from Arm 1 to Arm 2 at midline)
-  6. Symmetrical Dual Far-Reach Sweep (Both arms extend forward to R=265mm simultaneously)
-  7. Alternating Near/Far Leapfrog Picking (Arm 1 near / Arm 2 far, then alternate)
-  8. Concurrent Dual Flank Drop Demonstration (Both arms swing outward to flank boxes in lockstep)
-  9. Symmetrical Dual Tabletop Proximity Inspection (Hovering over midline boundaries at Z=30mm)
-  10. Synchronized Vertical Z-Plunge & Elevate (Both arms plunge to Z=25mm in lockstep)
-  11. Symmetrical Cross-Diagonal Sweep (Coordinated cross-quadrant arena sweep)
-  12. Cooperative Emergency Stop & Recovery Sequence (Simulated safety cut and homing restore)
 """
 
 import argparse
@@ -89,7 +74,12 @@ class ArmController:
         self.arm_id = arm_id
         self.config_dir = config_dir
         self.port = port
-        self.hw_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
+        self.hw_yaml = os.path.join(config_dir, "xarm_hardware.yaml")
+        candidates = [self.hw_yaml, os.path.join(os.getcwd(), self.hw_yaml), os.path.join("/workspace", self.hw_yaml)]
+        for c in candidates:
+            if os.path.exists(c):
+                self.hw_yaml = c
+                break
 
         hw_cfg = load_yaml(self.hw_yaml)
         self.params = load_kinematic_parameters(self.hw_yaml, arm_id=self.arm_id)
@@ -109,9 +99,9 @@ class ArmController:
         hw_cfg = load_yaml(self.hw_yaml)
         arm_cfg = hw_cfg.get("manipulators", {}).get(self.arm_id, {})
         m1_cfg = arm_cfg.get("motors", {}).get("motor_1", {}).get("claw_span_mm", {})
-        self.claw_open = int(m1_cfg.get("fully_open", {}).get("tick", 228 if arm_id == "xarm_1" else 234))
-        self.claw_grip = int(m1_cfg.get("grip_cube_25mm", {}).get("tick", 610 if arm_id == "xarm_1" else 602))
-        self.claw_closed = int(m1_cfg.get("fully_closed_empty", {}).get("tick", 791 if arm_id == "xarm_1" else 785))
+        self.claw_open = int(m1_cfg.get("fully_open", {}).get("tick", 228))
+        self.claw_grip = int(m1_cfg.get("grip_cube_25mm", {}).get("tick", 610))
+        self.claw_closed = int(m1_cfg.get("fully_closed_empty", {}).get("tick", 791))
 
     def log(self, text: str):
         print(f"[{self.arm_id.upper()}] {text}")
@@ -198,7 +188,7 @@ def execute_pick_and_place(
 
     arm.log(f"Phase 5: Slewing to Flank Sorting Box (Target: {color.upper()})...")
     target_info = get_compartment_target(color, arm_id=arm.arm_id, config_path=arm.hw_yaml)
-    drop_yaw = target_info.get("drop_yaw_tick", 208 if arm.arm_id == "xarm_1" else 792) if target_info else 208
+    drop_yaw = target_info.get("drop_yaw_tick", 145) if target_info else 145
 
     preset = target_info.get("drop_pose_preset") if target_info else None
     if preset and len(preset) == 6:
@@ -214,8 +204,8 @@ def execute_pick_and_place(
         drop_pose = {
             1: arm.claw_grip,
             2: 500,
-            3: 830 if arm.arm_id == "xarm_1" else 170,
-            4: 160 if arm.arm_id == "xarm_1" else 840,
+            3: 830,
+            4: 160,
             5: 470,
             6: drop_yaw,
         }
@@ -465,310 +455,15 @@ def motion_single_13_flank_compartment_tour(arm: ArmController):
 
 
 # =====================================================================================
-# DUAL ARM COOPERATIVE MOTIONS (1 to 12)
-# =====================================================================================
-
-def motion_dual_1_synchronized_reset(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 1: Synchronized Homing & Alternating Claw Echo."""
-    print("\n--- [DUAL MOTION 1: Synchronized Upright Reset & Claw Echo] ---")
-    print("Both arms rising simultaneously to straight upright reset pose...")
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1500})
-    t1.start(); t2.start()
-    t1.join(); t2.join()
-    time.sleep(0.5)
-
-    print("xArm 1 clicks claw (open -> grip)...")
-    arm1.send_pose({1: arm1.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-    arm1.send_pose({1: arm1.claw_grip, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-
-    print("xArm 2 echo clicks claw (open -> grip)...")
-    arm2.send_pose({1: arm2.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-    arm2.send_pose({1: arm2.claw_grip, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-
-    print("Both returning to neutral upright...")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1000})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1000})
-    t1.start(); t2.start()
-    t1.join(); t2.join()
-    print(">>> Dual Motion 1 Complete! <<<\n")
-
-
-def motion_dual_2_symmetrical_mirror_sweep(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 2: Symmetrical Mirroring Sweep (Inward bow & Outward slew)."""
-    print("\n--- [DUAL MOTION 2: Symmetrical Mirroring Choreography] ---")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1200})
-    t1.start(); t2.start(); t1.join(); t2.join()
-
-    print("Step 1: Inward symmetrical bow toward arena center...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 220.0, "theta": 15.0, "z": 45.0, "move_time_ms": 1600})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 220.0, "theta": -15.0, "z": 45.0, "move_time_ms": 1600})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    print("Step 2: Outward symmetrical slew toward respective flank boxes...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 180.0, "theta": -35.0, "z": 60.0, "move_time_ms": 1600})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 180.0, "theta": 35.0, "z": 60.0, "move_time_ms": 1600})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    print("Step 3: Synchronous return to upright reset...")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1500})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 2 Complete! <<<\n")
-
-
-def motion_dual_3_partitioned_parallel_sort(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 3: Partitioned Parallel Sorting (Concurrent independent cycles)."""
-    print("\n--- [DUAL MOTION 3: Partitioned Parallel Sorting (Zero-Interference)] ---")
-    print("xArm 1 sorting RED in West quadrant | xArm 2 sorting GREEN in East quadrant...")
-
-    t1 = threading.Thread(target=motion_single_5_color_pick_and_place, args=(arm1, "red"))
-    t2 = threading.Thread(target=motion_single_5_color_pick_and_place, args=(arm2, "green"))
-
-    t1.start(); t2.start()
-    t1.join(); t2.join()
-    print(">>> Dual Motion 3 Complete! Concurrent throughput doubled! <<<\n")
-
-
-def motion_dual_4_midline_mutex_contention(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 4: Midline Mutex Arbitration (Collision avoidance in shared overlap zone)."""
-    print("\n--- [DUAL MOTION 4: Midline Mutex Arbitration Demo] ---")
-    print("Scenario: Cube lands on midline X=280mm. Both arms request pick mutex...")
-
-    midline_mutex = threading.Lock()
-
-    def arm1_task():
-        arm1.log("Requesting midline mutex...")
-        with midline_mutex:
-            arm1.log("[MUTEX ACQUIRED] Descending to pick midline cube...")
-            arm1.move_ik(r=200.0, theta=20.0, z=20.0, claw_tick=arm1.claw_grip, move_time_ms=1400)
-            time.sleep(0.6)
-            arm1.log("Cube secured. Clearing shared zone and slewing to Box 1...")
-            arm1.move_ik(r=160.0, theta=-30.0, z=60.0, claw_tick=arm1.claw_grip, move_time_ms=1400)
-            arm1.log("[MUTEX RELEASED]")
-        arm1.reset_pose(move_time_ms=1200)
-
-    def arm2_task():
-        time.sleep(0.1)
-        arm2.log("Requesting midline mutex...")
-        if not midline_mutex.acquire(blocking=False):
-            arm2.log("[MUTEX BLOCKED] Arm 1 active on midline! Holding in elevated Standoff Hover (Zw=165mm)...")
-            arm2.move_ik(r=180.0, theta=-20.0, z=90.0, claw_tick=arm2.claw_open, move_time_ms=1200)
-            with midline_mutex:
-                arm2.log("[MUTEX ACQUIRED] Midline is clear! Executing secondary task...")
-                arm2.move_ik(r=200.0, theta=0.0, z=30.0, claw_tick=arm2.claw_open, move_time_ms=1400)
-        arm2.reset_pose(move_time_ms=1200)
-
-    t1 = threading.Thread(target=arm1_task)
-    t2 = threading.Thread(target=arm2_task)
-    t1.start(); t2.start()
-    t1.join(); t2.join()
-    print(">>> Dual Motion 4 Complete! Contention handled safely with zero collision! <<<\n")
-
-
-def motion_dual_5_midline_handover(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 5: Midline Handover / Relay Transfer."""
-    print("\n--- [DUAL MOTION 5: Midline Handover / Relay Transfer] ---")
-    print("Both arms starting upright...")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1200})
-    t1.start(); t2.start(); t1.join(); t2.join()
-
-    arm1.log("Step 1: xArm 1 picks object in West quadrant...")
-    arm1.move_ik(r=220.0, theta=0.0, z=15.0, claw_tick=arm1.claw_grip, move_time_ms=1400)
-    time.sleep(0.3)
-
-    arm1.log("Step 2: xArm 1 presents object at central Midline Handover Waypoint (X=280mm, Z=60mm)...")
-    arm1.move_ik(r=190.0, theta=25.0, z=60.0, claw_tick=arm1.claw_grip, move_time_ms=1500)
-    time.sleep(0.3)
-
-    arm2.log("Step 3: xArm 2 approaches handover point and clamps onto object...")
-    arm2.move_ik(r=190.0, theta=-25.0, z=60.0, claw_tick=arm2.claw_open, move_time_ms=1400)
-    arm2.send_pose({1: arm2.claw_grip, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-    time.sleep(0.4)
-
-    arm1.log("Step 4: xArm 1 opens claw and retracts safely...")
-    arm1.send_pose({1: arm1.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-    arm1.move_ik(r=140.0, theta=0.0, z=90.0, claw_tick=arm1.claw_open, move_time_ms=1200)
-
-    arm2.log("Step 5: xArm 2 delivers object to Right Flank Box 2...")
-    arm2.move_ik(r=180.0, theta=35.0, z=55.0, claw_tick=arm2.claw_grip, move_time_ms=1500)
-    arm2.send_pose({1: arm2.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=600)
-
-    print("Step 6: Both arms returning to upright reset pose...")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1400})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1400})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 5 Complete! Midline relay transfer successful! <<<\n")
-
-
-def motion_dual_6_symmetrical_far_reach(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 6: Symmetrical Dual Far-Reach Sweep."""
-    print("\n--- [DUAL MOTION 6: Symmetrical Dual Far-Reach Sweep] ---")
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1200})
-    t1.start(); t2.start(); t1.join(); t2.join()
-
-    print("Extending both arms simultaneously to far reach (R=265mm, Z=40mm)...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 265.0, "theta": 0.0, "z": 40.0, "move_time_ms": 1600})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 265.0, "theta": 0.0, "z": 40.0, "move_time_ms": 1600})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    print("Retracting both arms simultaneously...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 160.0, "theta": 0.0, "z": 70.0, "move_time_ms": 1300})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 160.0, "theta": 0.0, "z": 70.0, "move_time_ms": 1300})
-    t1.start(); t2.start(); t1.join(); t2.join()
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1200})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 6 Complete! <<<\n")
-
-
-def motion_dual_7_alternating_leapfrog(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 7: Alternating Near/Far Leapfrog Picking."""
-    print("\n--- [DUAL MOTION 7: Alternating Near/Far Leapfrog Picking] ---")
-    print("Round 1: xArm 1 picks NEAR (R=170mm) while xArm 2 picks FAR (R=265mm)...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 170.0, "theta": -10.0, "z": 20.0, "move_time_ms": 1400})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 265.0, "theta": 10.0, "z": 20.0, "move_time_ms": 1400})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    print("Round 2: Leapfrog switch! xArm 1 extends FAR (R=265mm) while xArm 2 retracts NEAR (R=170mm)...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 265.0, "theta": -10.0, "z": 20.0, "move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 170.0, "theta": 10.0, "z": 20.0, "move_time_ms": 1500})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1300})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1300})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 7 Complete! <<<\n")
-
-
-def motion_dual_8_concurrent_flank_drop(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 8: Concurrent Dual Flank Drop Demonstration."""
-    print("\n--- [DUAL MOTION 8: Concurrent Dual Flank Drop Demonstration] ---")
-    print("Both arms swinging outward to their dedicated flank sorting boxes simultaneously...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 180.0, "theta": -45.0, "z": 55.0, "claw_tick": arm1.claw_open, "move_time_ms": 1600})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 180.0, "theta": 45.0, "z": 55.0, "claw_tick": arm2.claw_open, "move_time_ms": 1600})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.5)
-
-    print("Claw click demonstration at drop container...")
-    arm1.send_pose({1: arm1.claw_grip, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=400)
-    arm2.send_pose({1: arm2.claw_grip, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=400)
-    arm1.send_pose({1: arm1.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=400)
-    arm2.send_pose({1: arm2.claw_open, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}, move_time_ms=400)
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1400})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1400})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 8 Complete! <<<\n")
-
-
-def motion_dual_9_dual_tabletop_proximity(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 9: Cooperative Midline Proximity Inspection."""
-    print("\n--- [DUAL MOTION 9: Cooperative Midline Proximity Inspection] ---")
-    print("Hovering over midline boundaries (Z=30mm) with 60mm safe clearance buffer...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 205.0, "theta": 18.0, "z": 30.0, "move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 205.0, "theta": -18.0, "z": 30.0, "move_time_ms": 1500})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.6)
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1300})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1300})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 9 Complete! <<<\n")
-
-
-def motion_dual_10_synchronized_z_plunge(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 10: Synchronized Pure Cartesian Vertical Z-Plunge & Elevate."""
-    print("\n--- [DUAL MOTION 10: Synchronized Cartesian Vertical Z-Plunge] ---")
-    print("Both arms plunging to tabletop elevation (Z=25mm) in lockstep...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 220.0, "theta": 0.0, "z": 25.0, "move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 220.0, "theta": 0.0, "z": 25.0, "move_time_ms": 1500})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.5)
-
-    print("Both arms elevating back to high hover (Z=120mm)...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 220.0, "theta": 0.0, "z": 120.0, "move_time_ms": 1400})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 220.0, "theta": 0.0, "z": 120.0, "move_time_ms": 1400})
-    t1.start(); t2.start(); t1.join(); t2.join()
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1200})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 10 Complete! <<<\n")
-
-
-def motion_dual_11_cross_diagonal_sweep(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 11: Symmetrical Cross-Diagonal Arena Sweep."""
-    print("\n--- [DUAL MOTION 11: Symmetrical Cross-Diagonal Arena Sweep] ---")
-    print("Step 1: Arm 1 sweeps West flank while Arm 2 sweeps East flank...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 230.0, "theta": -30.0, "z": 45.0, "move_time_ms": 1500})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 230.0, "theta": 30.0, "z": 45.0, "move_time_ms": 1500})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    print("Step 2: Both arms sweep inward toward central arena...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 210.0, "theta": 10.0, "z": 45.0, "move_time_ms": 1600})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 210.0, "theta": -10.0, "z": 45.0, "move_time_ms": 1600})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    time.sleep(0.4)
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1300})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1300})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 11 Complete! <<<\n")
-
-
-def motion_dual_12_emergency_stop_recovery(arm1: ArmController, arm2: ArmController):
-    """Dual Motion 12: Cooperative Emergency Stop & Recovery Cycle Demonstration."""
-    print("\n--- [DUAL MOTION 12: Cooperative Emergency Stop & Recovery Demo] ---")
-    print("Dispatching synchronous motion...")
-    t1 = threading.Thread(target=arm1.move_ik, kwargs={"r": 200.0, "theta": 0.0, "z": 50.0, "move_time_ms": 1200})
-    t2 = threading.Thread(target=arm2.move_ik, kwargs={"r": 200.0, "theta": 0.0, "z": 50.0, "move_time_ms": 1200})
-    t1.start(); t2.start()
-    time.sleep(0.4)
-
-    print("SIMULATING EMERGENCY STOP: Cutting torque on both arms...")
-    if arm1.connected and arm1.driver:
-        arm1.driver.emergency_stop()
-    if arm2.connected and arm2.driver:
-        arm2.driver.emergency_stop()
-    t1.join(); t2.join()
-    time.sleep(0.6)
-
-    print("Re-enabling torque and restoring homing pose...")
-    if arm1.connected and arm1.driver:
-        arm1.driver.clear_emergency_stop()
-    if arm2.connected and arm2.driver:
-        arm2.driver.clear_emergency_stop()
-
-    t1 = threading.Thread(target=arm1.reset_pose, kwargs={"move_time_ms": 1400})
-    t2 = threading.Thread(target=arm2.reset_pose, kwargs={"move_time_ms": 1400})
-    t1.start(); t2.start(); t1.join(); t2.join()
-    print(">>> Dual Motion 12 Complete! Emergency stop and recovery validated! <<<\n")
-
-
-# =====================================================================================
 # MAIN CLI
 # =====================================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="xArm 1S Comprehensive Motion Verification Suite")
-    parser.add_argument("--arm", default="xarm_1", choices=["xarm_1", "xarm_2"], help="Target arm for single-arm motions")
-    parser.add_argument("--dual", action="store_true", help="Execute dual-arm cooperative motions")
+    parser = argparse.ArgumentParser(description="xArm 1S Single-Arm Comprehensive Motion Verification Suite")
+    parser.add_argument("--arm", default="xarm_1", help="Target manipulator ID (default: xarm_1)")
     parser.add_argument("--motion", type=int, choices=list(range(1, 14)), help="Motion ID (1 to 13)")
-    parser.add_argument("--all", action="store_true", help="Execute all motions sequentially")
-    parser.add_argument("--port", default="auto", help="Port for single arm, or port for xArm 1 in dual mode")
-    parser.add_argument("--port2", default="auto", help="Port for xArm 2 in dual mode")
+    parser.add_argument("--all", action="store_true", help="Execute all 13 motions sequentially")
+    parser.add_argument("--port", default="auto", help="Serial or HID port device (default: auto)")
     parser.add_argument("--color", default="red", choices=["red", "green", "blue", "yellow"], help="Target color for pick-and-place motions")
     args = parser.parse_args()
 
@@ -777,91 +472,39 @@ def main():
         print("\nPlease specify either --motion [1-13] or --all.")
         sys.exit(1)
 
-    # DUAL ARM MODE
-    if args.dual:
-        print("\n" + "=" * 70)
-        print("          DUAL XARM COOPERATIVE MOTION TEST SUITE (12 MOTIONS)")
-        print("=" * 70)
+    print("\n" + "=" * 70)
+    print(f"          SINGLE {args.arm.upper()} MOTION TEST SUITE (13 MOTIONS)")
+    print("=" * 70)
+    arm = ArmController(arm_id=args.arm, port=args.port)
 
-        devices = find_all_xarm_devices()
-        port1 = args.port
-        port2 = args.port2
+    single_dispatch = {
+        1: motion_single_1_reset_and_claw,
+        2: motion_single_2_vertical_z_plunge,
+        3: motion_single_3_radial_reach_sweep,
+        4: motion_single_4_azimuthal_arc_scan,
+        5: lambda a: motion_single_5_color_pick_and_place(a, color=args.color),
+        6: lambda a: motion_single_6_near_field_pick(a, color="green"),
+        7: lambda a: motion_single_7_extended_far_reach_pick(a, color="blue"),
+        8: lambda a: motion_single_8_diagonal_west_pick(a, color="red"),
+        9: lambda a: motion_single_9_diagonal_east_pick(a, color="yellow"),
+        10: motion_single_10_extreme_corner_sweep,
+        11: motion_single_11_multi_altitude_staircase,
+        12: motion_single_12_continuous_3point_touch,
+        13: motion_single_13_flank_compartment_tour,
+    }
 
-        if port1 == "auto" and len(devices) >= 1:
-            port1 = devices[0][0]
-        if port2 == "auto" and len(devices) >= 2:
-            port2 = devices[1][0]
-        elif port2 == "auto" and len(devices) == 1:
-            port2 = "/dev/null"
-
-        print(f"Assigning Interfaces: xarm_1 -> {port1} | xarm_2 -> {port2}")
-        arm1 = ArmController(arm_id="xarm_1", port=port1)
-        arm2 = ArmController(arm_id="xarm_2", port=port2)
-
-        dual_dispatch = {
-            1: motion_dual_1_synchronized_reset,
-            2: motion_dual_2_symmetrical_mirror_sweep,
-            3: motion_dual_3_partitioned_parallel_sort,
-            4: motion_dual_4_midline_mutex_contention,
-            5: motion_dual_5_midline_handover,
-            6: motion_dual_6_symmetrical_far_reach,
-            7: motion_dual_7_alternating_leapfrog,
-            8: motion_dual_8_concurrent_flank_drop,
-            9: motion_dual_9_dual_tabletop_proximity,
-            10: motion_dual_10_synchronized_z_plunge,
-            11: motion_dual_11_cross_diagonal_sweep,
-            12: motion_dual_12_emergency_stop_recovery,
-        }
-
-        try:
-            motions = [args.motion] if args.motion else list(range(1, 13))
-            for m in motions:
-                fn = dual_dispatch.get(m)
-                if fn:
-                    fn(arm1, arm2)
-                if arm1.connected or arm2.connected:
-                    time.sleep(1.0)
-                else:
-                    time.sleep(0.05)
-        finally:
-            arm1.close()
-            arm2.close()
-
-    # SINGLE ARM MODE
-    else:
-        print("\n" + "=" * 70)
-        print(f"          SINGLE {args.arm.upper()} MOTION TEST SUITE (13 MOTIONS)")
-        print("=" * 70)
-        arm = ArmController(arm_id=args.arm, port=args.port)
-
-        single_dispatch = {
-            1: motion_single_1_reset_and_claw,
-            2: motion_single_2_vertical_z_plunge,
-            3: motion_single_3_radial_reach_sweep,
-            4: motion_single_4_azimuthal_arc_scan,
-            5: lambda a: motion_single_5_color_pick_and_place(a, color=args.color),
-            6: lambda a: motion_single_6_near_field_pick(a, color="green"),
-            7: lambda a: motion_single_7_extended_far_reach_pick(a, color="blue"),
-            8: lambda a: motion_single_8_diagonal_west_pick(a, color="red"),
-            9: lambda a: motion_single_9_diagonal_east_pick(a, color="yellow"),
-            10: motion_single_10_extreme_corner_sweep,
-            11: motion_single_11_multi_altitude_staircase,
-            12: motion_single_12_continuous_3point_touch,
-            13: motion_single_13_flank_compartment_tour,
-        }
-
-        try:
-            motions = [args.motion] if args.motion else list(range(1, 14))
-            for m in motions:
-                fn = single_dispatch.get(m)
-                if fn:
-                    fn(arm)
-                if arm.connected:
-                    time.sleep(1.0)
-                else:
-                    time.sleep(0.05)
-        finally:
-            arm.close()
+    try:
+        motions = [args.motion] if args.motion else list(range(1, 14))
+        for m in motions:
+            fn = single_dispatch.get(m)
+            if fn:
+                fn(arm)
+            if arm.connected:
+                time.sleep(1.0)
+            else:
+                time.sleep(0.05)
+    finally:
+        arm.close()
 
 
 if __name__ == "__main__":

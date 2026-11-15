@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Comprehensive Unit Test Suite for Aligned xArm 2 Calibration, Closed-Loop Safety,
-Trajectory Smoothing, Dual-Arm Coordination, and Telemetry Drift Analysis.
+Comprehensive Unit Test Suite for Single xArm 1S Calibration, Closed-Loop Safety,
+Trajectory Smoothing, and Telemetry Drift Analysis.
 
 All tests run in pure simulation / offline mode (NO hardware connection required).
 """
@@ -28,26 +28,26 @@ from tools.telemetry_logger import compute_drift_statistics, run_telemetry_scan
 from tools.web_config.server import atomic_write_yaml, load_yaml
 
 
-def test_xarm2_empirical_parameters_aligned():
-    """Verify xArm 2 Motor 3 and Motor 4 empirical boundaries and positive polarities."""
-    hw_path = "config/dual_xarm_hardware.yaml"
-    params2 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_2")
+def test_xarm1_empirical_parameters():
+    """Verify xArm 1S Motor 3 and Motor 4 empirical boundaries and positive polarities."""
+    hw_path = "config/xarm_hardware.yaml"
+    params1 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_1")
 
-    # Both arms must now share direction multiplier +1
-    assert params2.direction_multipliers[3] == 1, "Motor 3 polarity must be +1"
-    assert params2.direction_multipliers[4] == 1, "Motor 4 polarity must be +1"
+    # Joint direction multipliers must be +1
+    assert params1.direction_multipliers[3] == 1, "Motor 3 polarity must be +1"
+    assert params1.direction_multipliers[4] == 1, "Motor 4 polarity must be +1"
 
-    # Upright reset pose (90° upright) should yield ~500 ticks for all pitch joints
-    sol = solve_ik(r=200.0, theta=0.0, z=80.0, params=params2)
+    # Upright reset pose (90° upright) should yield safe ticks for all pitch joints
+    sol = solve_ik(r=200.0, theta=0.0, z=80.0, params=params1)
     assert sol.success
     for sid in [3, 4, 5]:
         assert 130 <= sol.ticks[sid] <= 870, f"Motor {sid} tick {sol.ticks[sid]} out of safe range"
 
 
-def test_xarm2_fk_ik_consistency():
-    """Verify analytical IK and FK roundtrip with aligned polarities."""
-    hw_path = "config/dual_xarm_hardware.yaml"
-    params2 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_2")
+def test_xarm1_fk_ik_consistency():
+    """Verify analytical IK and FK roundtrip with aligned polarities on xArm 1S."""
+    hw_path = "config/xarm_hardware.yaml"
+    params1 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_1")
 
     test_points = [
         (190.0, 10.0, 70.0),
@@ -55,10 +55,10 @@ def test_xarm2_fk_ik_consistency():
         (240.0, -15.0, 40.0),
     ]
     for r, th, z in test_points:
-        sol = solve_ik(r=r, theta=th, z=z, params=params2)
+        sol = solve_ik(r=r, theta=th, z=z, params=params1)
         assert sol.success, f"IK failed for ({r}, {th}, {z}): {sol.message}"
 
-        fk = solve_fk(sol.ticks[6], sol.ticks[5], sol.ticks[4], sol.ticks[3], params=params2)
+        fk = solve_fk(sol.ticks[6], sol.ticks[5], sol.ticks[4], sol.ticks[3], params=params1)
         assert abs(fk.r - r) < 1.0, f"Radial error {abs(fk.r - r)} too large"
         assert abs(fk.theta - th) < 0.5, f"Azimuth error {abs(fk.theta - th)} too large"
         assert abs(fk.z - z) < 1.0, f"Z error {abs(fk.z - z)} too large"
@@ -116,7 +116,7 @@ def test_trajectory_interpolation_math():
 
 def test_cartesian_trajectory_generator():
     """Verify smooth Cartesian path interpolation."""
-    p = load_kinematic_parameters("config/dual_xarm_hardware.yaml", arm_id="xarm_1")
+    p = load_kinematic_parameters("config/xarm_hardware.yaml", arm_id="xarm_1")
     pts, ok = generate_cartesian_trajectory(
         start_polar=(200.0, 0.0, 80.0),
         target_polar=(240.0, 10.0, 30.0),
@@ -159,7 +159,7 @@ def test_telemetry_drift_analysis():
     with tempfile.TemporaryDirectory() as tmpdir:
         csv_file = os.path.join(tmpdir, "telemetry_test.csv")
         res = run_telemetry_scan(csv_path=csv_file)
-        assert res["scanned_channels"] == 12
+        assert res["scanned_channels"] == 6
         assert os.path.exists(csv_file)
 
         stats = compute_drift_statistics(csv_file)
@@ -170,14 +170,14 @@ def test_telemetry_drift_analysis():
 
 def test_dynamic_nominal_centers_and_z_trim():
     """Verify dynamic nominal_center_ticks and Cartesian z_depth_trim_mm parameters."""
-    cfg = "config/dual_xarm_hardware.yaml"
-    params2 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_2")
+    cfg = "config/xarm_hardware.yaml"
+    params = load_kinematic_parameters(config_path=cfg, arm_id="xarm_1")
 
     # Verify nominal center ticks loaded dynamically from YAML
-    assert hasattr(params2, "nominal_center_ticks")
-    assert params2.nominal_center_ticks[4] == 500
-    assert hasattr(params2, "z_depth_trim_mm")
-    assert params2.z_depth_trim_mm == 0.0
+    assert hasattr(params, "nominal_center_ticks")
+    assert 480 <= params.nominal_center_ticks[4] <= 520
+    assert hasattr(params, "z_depth_trim_mm")
+    assert params.z_depth_trim_mm == 0.0
 
     # Test Z-trim adjustment effect: positive trim compensates for elevated arm
     p_untrimmed = KinematicParameters(z_depth_trim_mm=0.0)

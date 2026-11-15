@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-ROS 2 Autonomous Sorting Master Node (Phase 1 & Phase 2 Integration).
+ROS 2 Autonomous Sorting Master Node (Single xArm 1S).
 
 Features:
   - Subscribes to /vision/detected_objects (JSON string from vision_node).
-  - Filters targets for active manipulator (xarm_1 or xarm_2).
+  - Filters targets for active manipulator (xarm_1).
   - Enforces Nearest-First pick queue (ascending target_r_mm).
   - Solves analytical closed-form IK for pick and color drop (2x2 flank tray).
   - Dispatches interpolated joint trajectories to /{arm_id}/joint_commands.
   - Monitors /{arm_id}/joint_states for closed-loop target arrival.
-  - Coordinates with dual-arm spatial mutex (/dual_arm/request_corridor_*) for central zone.
 """
 
 import json
@@ -42,7 +41,7 @@ class AutonomousSorterNode(Node):
         super().__init__("autonomous_sorter_node")
 
         # Declare parameters
-        self.declare_parameter("arm_id", "xarm_2")
+        self.declare_parameter("arm_id", "xarm_1")
         self.declare_parameter("config_dir", "config")
         self.declare_parameter("auto_start", False)
         self.declare_parameter("dry_run", False)
@@ -52,7 +51,7 @@ class AutonomousSorterNode(Node):
         self.auto_start = self.get_parameter("auto_start").get_parameter_value().bool_value
         self.dry_run = self.get_parameter("dry_run").get_parameter_value().bool_value
 
-        self.hardware_yaml = os.path.join(self.config_dir, "dual_xarm_hardware.yaml")
+        self.hardware_yaml = os.path.join(self.config_dir, "xarm_hardware.yaml")
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
 
         # Joint states cache
@@ -125,12 +124,13 @@ class AutonomousSorterNode(Node):
             data = json.loads(msg.data)
             raw_objects = data.get("objects", [])
 
-            # Filter objects assigned to this arm
+            # Filter reachable objects for single arm
             filtered = []
             for obj in raw_objects:
-                if obj.get("assigned_arm") == self.arm_id:
+                assigned = obj.get("assigned_arm", "xarm_1")
+                if assigned in [self.arm_id, "xarm", "xarm_1", ""]:
                     r = obj.get("target_r_mm", 0.0)
-                    if 120.0 <= r <= 320.0:
+                    if 110.0 <= r <= 325.0:
                         filtered.append(obj)
 
             # Nearest-First policy: sort queue by ascending target_r_mm

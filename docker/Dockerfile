@@ -1,5 +1,5 @@
 # ==============================================================================
-# Dual xArm 1s Color-Sorting Robot - Development Container
+# Single xArm 1S Color-Sorting Robot - Development Container
 # Base: ROS 2 Humble Hawksbill (Ubuntu 22.04 LTS)
 # Multi-arch support: x86_64 (Laptop with Intel graphics) and aarch64 (Jetson)
 # ==============================================================================

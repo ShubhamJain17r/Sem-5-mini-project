@@ -61,12 +61,12 @@ planar_homography:
     rows: 3
     cols: 3
     data:
-    - 0.796791
-    - 0.082023
-    - -374.521159
-    - 0.0
-    - 0.731894
-    - -146.012889
+    - 0.531194
+    - 0.054682
+    - -249.680773
+    - -0.0
+    - 0.487929
+    - -97.341926
     - -0.0
     - 0.00021
     - 1.0
@@ -77,25 +77,25 @@ aruco_reference_markers:
     marker_0:
       id: 0
       role: rear_left
-      world_x: 85.0
-      world_y: 255.0
+      world_x: 70.0
+      world_y: 180.0
       world_z: 0.0
     marker_1:
       id: 1
       role: rear_right
-      world_x: 475.0
-      world_y: 255.0
+      world_x: 330.0
+      world_y: 180.0
       world_z: 0.0
     marker_2:
       id: 2
       role: front_left
-      world_x: 85.0
-      world_y: 45.0
+      world_x: 70.0
+      world_y: 40.0
       world_z: 0.0
     marker_3:
       id: 3
       role: front_right
-      world_x: 475.0
-      world_y: 45.0
+      world_x: 330.0
+      world_y: 40.0
       world_z: 0.0
 reprojection_error_px: 0.18

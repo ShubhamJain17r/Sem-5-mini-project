@@ -1,5 +1,5 @@
 # ============================================================
-# .gitignore — Dual xArm 1s Color-Sorting Robot
+# .gitignore — Single xArm 1s Color-Sorting Robot
 # Stack: Python · ROS 2 Humble · OpenCV · JavaScript · Git
 # ============================================================
 
@@ -14,7 +14,7 @@
 !.env.example
 
 # Hardware configuration tracking
-# (Note: config/dual_xarm_hardware.yaml is the committed baseline config)
+# (Note: config/xarm_hardware.yaml is the committed baseline config)
 config/bin_coordinates.yaml
 config/arm_ips.yaml
 !config/bin_coordinates.example.yaml
@@ -123,6 +123,8 @@ vision/samples/
 # Annotated output frames (generated at runtime)
 vision/output/
 annotated_frames/
+data/*.png
+data/*.jpg
 
 
 # ------------------------------------------------------------

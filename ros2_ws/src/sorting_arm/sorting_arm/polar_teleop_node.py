@@ -107,7 +107,7 @@ class PolarTeleopNode(Node):
         super().__init__("polar_teleop_node")
 
         # Configuration parameters
-        self.declare_parameter("config_path", "config/dual_xarm_hardware.yaml")
+        self.declare_parameter("config_path", "config/xarm_hardware.yaml")
         self.declare_parameter("arm_id", "xarm_1")
         self.config_path = (
             self.get_parameter("config_path").get_parameter_value().string_value

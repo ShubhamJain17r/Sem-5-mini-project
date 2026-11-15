@@ -1,5 +1,5 @@
 {
-  "name": "ROS 2 Humble - Dual xArm Sorting",
+  "name": "ROS 2 Humble - Single xArm Sorting",
   "build": {
     "dockerfile": "../docker/Dockerfile",
     "context": "..",

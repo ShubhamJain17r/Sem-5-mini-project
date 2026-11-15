@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Setup / Activate Python Virtual Environment (venv) for Dual xArm
+# Setup / Activate Python Virtual Environment (venv) for Single xArm
 # Note: Host venv is used ONLY for standalone Python scripts (Web Tool, Telemetry).
 # All ROS 2 commands must run inside the Docker container (./docker/run.sh).
 # ==============================================================================

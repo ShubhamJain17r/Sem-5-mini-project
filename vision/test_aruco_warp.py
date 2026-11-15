@@ -69,12 +69,12 @@ def generate_synthetic_arena_frame(width=1920, height=1080) -> np.ndarray:
     h_synth = cv2.getPerspectiveTransform(pts_src, pipeline.dst_pts)
     h_inv = np.linalg.inv(h_synth)
 
-    # Sample cubes: Red at (200, 150), Blue at (400, 180), Yellow at (300, 100), Green at (150, 80)
+    # Sample cubes inside 260x140 mm arena (X in [70, 330], Y in [40, 180])
     test_cubes = [
-        {"x": 200.0, "y": 150.0, "color": (0, 0, 255)},    # Red
-        {"x": 400.0, "y": 180.0, "color": (255, 0, 0)},    # Blue
-        {"x": 300.0, "y": 100.0, "color": (0, 255, 255)},  # Yellow
-        {"x": 150.0, "y": 80.0,  "color": (0, 255, 0)},    # Green
+        {"x": 150.0, "y": 140.0, "color": (0, 0, 255)},    # Red (r ~ 148 mm)
+        {"x": 280.0, "y": 130.0, "color": (255, 0, 0)},    # Blue (r ~ 170 mm)
+        {"x": 220.0, "y": 80.0,  "color": (0, 255, 255)},  # Yellow (r ~ 201 mm)
+        {"x": 130.0, "y": 70.0,  "color": (0, 255, 0)},    # Green (r ~ 221 mm)
     ]
 
     cube_half_w = 25.0  # 25 px half-width = 12.5 mm in 2.0 px/mm -> 50x50 px = 25x25 mm cube

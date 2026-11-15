@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dual xArm 1S — Configuration & Diagnostics Tool</title>
+  <title>xArm 1S — Configuration & Diagnostics Tool</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -147,7 +147,7 @@
 
   <header>
     <div>
-      <h1>Dual xArm 1S — Real-Time Calibration & Diagnostics</h1>
+      <h1>xArm 1S — Real-Time Calibration & Diagnostics</h1>
       <div class="subtitle">Hardware Limits, Calibrated Deviations, Closed-Loop Tracking & Drift Telemetry</div>
     </div>
     <div class="header-actions">
@@ -177,7 +177,7 @@
       <div class="card">
         <div class="card-title">
           <div>
-            <span>xArm 1 (Left / West)</span>
+            <span>xArm 1S (Active Manipulator)</span>
             <div style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">
               Port: <span id="port-display-arm1" style="color: #fff; font-family: monospace;">auto</span> |
               Z-Trim: <input type="number" id="xarm_1-ztrim" value="0.0" step="0.5" min="-20" max="20" style="width: 55px; padding: 2px 4px; font-size: 11px;"> mm
@@ -205,52 +205,15 @@
           <tbody id="tbody-arm1"></tbody>
         </table>
       </div>
-
-      <!-- xArm 2 -->
-      <div class="card">
-        <div class="card-title">
-          <div>
-            <span>xArm 2 (Right / East - Aligned)</span>
-            <div style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">
-              Port: <span id="port-display-arm2" style="color: #fff; font-family: monospace;">auto</span> |
-              Z-Trim: <input type="number" id="xarm_2-ztrim" value="0.0" step="0.5" min="-20" max="20" style="width: 55px; padding: 2px 4px; font-size: 11px;"> mm
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px;" id="btn-toggle-arm2" onclick="toggleConnectArm('xarm_2')">Connect</button>
-            <span id="badge-arm2" class="badge badge-offline">Offline</span>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Joint</th>
-              <th>Min (ticks / deg)</th>
-              <th>Max (ticks / deg)</th>
-              <th>Center (ticks / deg)</th>
-              <th>Dev</th>
-              <th>Dir</th>
-              <th>Live (ticks / deg)</th>
-              <th>Err</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-arm2"></tbody>
-        </table>
-      </div>
     </div>
   </div>
 
   <!-- TAB 2: POSES -->
   <div id="tab-poses" class="tab-content">
-    <div class="grid-2">
+    <div>
       <div class="card">
-        <div class="card-title">xArm 1 Multi-State Poses</div>
+        <div class="card-title">xArm 1S Multi-State Poses</div>
         <div id="poses-arm1">Loading poses...</div>
-      </div>
-      <div class="card">
-        <div class="card-title">xArm 2 Multi-State Poses</div>
-        <div id="poses-arm2">Loading poses...</div>
       </div>
     </div>
   </div>
@@ -263,7 +226,7 @@
         <button class="btn-primary" onclick="runTelemetryScan()">Run Immediate Telemetry Scan</button>
       </div>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-        Queries all 12 servo potentiometers across both arms, records statistical drift metrics,
+        Queries all 6 servo potentiometers on xArm 1S, records statistical drift metrics,
         and saves records to <code>data/telemetry_drift_log.csv</code>.
       </p>
       <div id="telemetry-results" style="background: var(--bg); padding: 14px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 250px; overflow-y: auto;">
@@ -332,8 +295,8 @@
     }
 
     function renderMotors() {
-      ['xarm_1', 'xarm_2'].forEach(arm => {
-        const tbody = document.getElementById('tbody-' + (arm === 'xarm_1' ? 'arm1' : 'arm2'));
+      ['xarm_1'].forEach(arm => {
+        const tbody = document.getElementById('tbody-arm1');
         tbody.innerHTML = '';
         const armCfg = currentConfig?.manipulators?.[arm] || {};
         const motors = armCfg.motors || {};
@@ -392,8 +355,8 @@
     }
 
     function renderPoses() {
-      ['xarm_1', 'xarm_2'].forEach(arm => {
-        const container = document.getElementById('poses-' + (arm === 'xarm_1' ? 'arm1' : 'arm2'));
+      ['xarm_1'].forEach(arm => {
+        const container = document.getElementById('poses-arm1');
         const poses = currentConfig?.manipulators?.[arm]?.poses || {};
         let html = '';
         for (const [name, p] of Object.entries(poses)) {
@@ -421,7 +384,7 @@
         }
       }
 
-      ['xarm_1', 'xarm_2'].forEach(arm => {
+      ['xarm_1'].forEach(arm => {
         const armData = liveStatus[arm] || {};
         const isArm1 = arm === 'xarm_1';
         const badge = document.getElementById('badge-' + (isArm1 ? 'arm1' : 'arm2'));
@@ -492,8 +455,8 @@
 
     async function saveConfiguration() {
       const payload = {
-        manipulators: { xarm_1: { motors: {} }, xarm_2: { motors: {} } },
-        calibrations: { xarm_1: { servo_deviations: {} }, xarm_2: { servo_deviations: {} } }
+        manipulators: { xarm_1: { motors: {} } },
+        calibrations: { xarm_1: { servo_deviations: {} } }
       };
 
       const devKeys = {
@@ -501,7 +464,7 @@
         4: 'motor_4_elbow', 5: 'motor_5_shoulder', 6: 'motor_6_base_yaw'
       };
 
-      ['xarm_1', 'xarm_2'].forEach(arm => {
+      ['xarm_1'].forEach(arm => {
         const ztrimInput = document.getElementById(`${arm}-ztrim`);
         if (ztrimInput) {
           payload.manipulators[arm].z_depth_trim_mm = parseFloat(ztrimInput.value) || 0.0;
@@ -532,7 +495,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert("Configuration saved atomically to dual_xarm_hardware.yaml!", true);
+          showAlert("Configuration saved atomically to xarm_hardware.yaml!", true);
         } else {
           showAlert("Save failed: " + (data.error || "Unknown error"), false);
         }

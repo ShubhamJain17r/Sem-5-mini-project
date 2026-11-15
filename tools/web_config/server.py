@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Lightweight Web Configuration & Real-Time Diagnostics Server for Dual xArm 1S.
+Lightweight Web Configuration & Real-Time Diagnostics Server for xArm 1S.
 
 Zero-dependency REST backend using standard library http.server and PyYAML:
   - Serves responsive HTML5 tabular configuration editor and live diagnostics UI
   - Real-time potentiometer querying (CMD 0x15) and tracking error calculation
-  - Atomic, validated updates to config/dual_xarm_hardware.yaml and config/servo_calibration.yaml
+  - Atomic, validated updates to config/xarm_hardware.yaml and config/servo_calibration.yaml
   - Emergency Stop interlock and automated drift telemetry scanning
 """
 
@@ -34,17 +34,16 @@ from sorting_arm.xarm_protocol import XArmDriver, find_all_xarm_devices
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("web_config_server")
 
-CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/dual_xarm_hardware.yaml")
+CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/xarm_hardware.yaml")
 INDEX_HTML_PATH = os.path.join(script_dir, "index.html")
 
 # Global driver cache for arms
 ARM_DRIVERS: Dict[str, Optional[XArmDriver]] = {
     "xarm_1": None,
-    "xarm_2": None,
 }
 
 
-def get_arm_driver(arm_id: str, auto_reconnect: bool = True) -> Optional[XArmDriver]:
+def get_arm_driver(arm_id: str = "xarm_1", auto_reconnect: bool = True) -> Optional[XArmDriver]:
     """Retrieve or initialize driver instance for arm with hotplug auto-detection."""
     global ARM_DRIVERS
     driver = ARM_DRIVERS.get(arm_id)
@@ -53,7 +52,7 @@ def get_arm_driver(arm_id: str, auto_reconnect: bool = True) -> Optional[XArmDri
     devs = load_deviations(hw, arm_id)
     arm_cfg = hw.get("manipulators", {}).get(arm_id, {})
     comm = arm_cfg.get("communication", {})
-    fallback = comm.get("fallback_serial_device", "/dev/ttyUSB0" if arm_id == "xarm_1" else "/dev/ttyUSB1")
+    fallback = comm.get("fallback_serial_device", "/dev/ttyUSB0")
     pref_port = comm.get("preferred_port", "auto")
 
     if driver is None:
@@ -78,10 +77,7 @@ def get_arm_driver(arm_id: str, auto_reconnect: bool = True) -> Optional[XArmDri
         else:
             free_devices = [p for p, _ in devices if p not in assigned_ports]
             if free_devices:
-                if arm_id == "xarm_2" and len(free_devices) > 1:
-                    target_candidate = free_devices[1]
-                else:
-                    target_candidate = free_devices[0]
+                target_candidate = free_devices[0]
 
         if target_candidate:
             driver.requested_port = target_candidate
@@ -215,7 +211,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
             4: "motor_4_elbow", 5: "motor_5_shoulder", 6: "motor_6_base_yaw"
         }
         cal = {}
-        for arm in ["xarm_1", "xarm_2"]:
+        for arm in ["xarm_1"]:
             motors = hw.get("manipulators", {}).get(arm, {}).get("motors", {})
             cal[arm] = {
                 "servo_deviations": {
@@ -232,7 +228,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(response, indent=2).encode())
 
     def handle_save_config(self, payload: Dict[str, Any]):
-        """Validate parameters and atomically save updates to dual_xarm_hardware.yaml."""
+        """Validate parameters and atomically save updates to xarm_hardware.yaml."""
         hw_updates = payload.get("manipulators")
         cal_updates = payload.get("calibrations")
 
@@ -247,7 +243,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
         # Validation rules
         errors = []
         if hw_updates:
-            for arm_name in ["xarm_1", "xarm_2"]:
+            for arm_name in ["xarm_1"]:
                 if arm_name in hw_updates:
                     motors = hw_updates[arm_name].get("motors", {})
                     for mid_str, mcfg in motors.items():
@@ -269,7 +265,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
                             errors.append(f"{arm_name} {mid_str}: deviation {dev} exceeds safe range [-{max_dev_clamp}, +{max_dev_clamp}]")
 
         if cal_updates:
-            for arm_name in ["xarm_1", "xarm_2"]:
+            for arm_name in ["xarm_1"]:
                 if arm_name in cal_updates:
                     devs = cal_updates[arm_name].get("servo_deviations", {})
                     for k, val in devs.items():
@@ -281,7 +277,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "Validation failed", "details": errors}).encode())
             return
 
-        # Perform atomic updates to dual_xarm_hardware.yaml
+        # Perform atomic updates to xarm_hardware.yaml
         dev_to_sid = {
             "motor_1_claw": 1, "motor_2_wrist_roll": 2, "motor_3_wrist_pitch": 3,
             "motor_4_elbow": 4, "motor_5_shoulder": 5, "motor_6_base_yaw": 6
@@ -324,7 +320,7 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
             "system_devices": [{"path": p, "type": t} for p, t in all_devices],
             "arms": {},
         }
-        for arm_id in ["xarm_1", "xarm_2"]:
+        for arm_id in ["xarm_1"]:
             driver = get_arm_driver(arm_id, auto_reconnect=True)
             connected = driver.is_connected if driver else False
             interface = driver.interface_type if driver else "disconnected"
@@ -402,14 +398,14 @@ class WebConfigRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"success": True, "arm_id": arm_id}).encode())
 
     def handle_estop(self):
-        """Trigger emergency torque stop across both arms."""
-        for arm_id in ["xarm_1", "xarm_2"]:
+        """Trigger emergency torque stop on xArm 1."""
+        for arm_id in ["xarm_1"]:
             driver = get_arm_driver(arm_id)
             if driver and driver.is_connected:
                 driver.emergency_stop()
 
         self._set_headers()
-        self.wfile.write(json.dumps({"success": True, "message": "Emergency Stop dispatched to all arms"}).encode())
+        self.wfile.write(json.dumps({"success": True, "message": "Emergency Stop dispatched to xArm 1"}).encode())
 
     def handle_telemetry_scan(self):
         """Trigger an automated multi-servo telemetry scan and log to CSV."""
@@ -424,7 +420,7 @@ def run_server(port: int = 8000):
     server_address = ("", port)
     httpd = HTTPServer(server_address, WebConfigRequestHandler)
     print(f"\n=======================================================")
-    print(f"  Dual xArm Web Config & Diagnostics Server")
+    print(f"  Single xArm Web Config & Diagnostics Server")
     print(f"  Running locally at: http://localhost:{port}")
     print(f"=======================================================\n")
     try:

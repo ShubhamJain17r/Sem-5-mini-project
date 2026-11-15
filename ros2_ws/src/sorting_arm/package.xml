@@ -3,7 +3,7 @@
 <package format="3">
   <name>sorting_arm</name>
   <version>0.0.0</version>
-  <description>Dual xArm 1s serial driver and motion control package</description>
+  <description>Single xArm 1s serial driver and motion control package</description>
   <maintainer email="shubham@todo.todo">shubham</maintainer>
   <license>Apache-2.0</license>
 

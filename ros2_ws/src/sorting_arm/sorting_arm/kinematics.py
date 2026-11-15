@@ -40,7 +40,7 @@ class KinematicParameters:
     base_zero_deg: float = 0.0       # Arm-relative angle at center tick (default 0 deg)
     base_heading_deg: float = 0.0    # Base mounting nominal heading in world frame (East = 0 deg)
 
-    # Dynamic nominal center ticks (loaded from dual_xarm_hardware.yaml, defaults to 500)
+    # Dynamic nominal center ticks (loaded from xarm_hardware.yaml, defaults to 500)
     nominal_center_ticks: Optional[Dict[int, int]] = None
 
     # Motor direction multipliers (+1 standard, -1 inverted)
@@ -97,7 +97,7 @@ def clip(val: float, min_v: float, max_v: float) -> float:
 
 
 def load_kinematic_parameters(
-    config_path: str = "config/dual_xarm_hardware.yaml",
+    config_path: str = "config/xarm_hardware.yaml",
     arm_id: str = "xarm_1",
 ) -> KinematicParameters:
     """Load link dimensions and zero angles from hardware configuration YAML."""
@@ -105,6 +105,8 @@ def load_kinematic_parameters(
         config_path,
         os.path.join(os.getcwd(), config_path),
         os.path.join("/workspace", config_path),
+        "config/xarm_hardware.yaml",
+        os.path.join(os.getcwd(), "config/xarm_hardware.yaml"),
     ]
     chosen = None
     for c in candidates:
@@ -120,6 +122,12 @@ def load_kinematic_parameters(
             data = yaml.safe_load(f)
 
         arm_cfg = data.get("manipulators", {}).get(arm_id, {})
+        if not arm_cfg:
+            if "xarm_1" in data.get("manipulators", {}):
+                arm_cfg = data["manipulators"]["xarm_1"]
+            elif "xarm" in data.get("manipulators", {}):
+                arm_cfg = data["manipulators"]["xarm"]
+
         links = arm_cfg.get("link_lengths_mm", {})
         motors = arm_cfg.get("motors", {})
 
@@ -470,7 +478,7 @@ def world_to_arm_polar(
     y_w: float,
     z_w: float = 0.0,
     arm_id: str = "xarm_1",
-    config_path: str = "config/dual_xarm_hardware.yaml",
+    config_path: str = "config/xarm_hardware.yaml",
     params: Optional[KinematicParameters] = None,
 ) -> Tuple[float, float, float]:
     """
@@ -479,21 +487,23 @@ def world_to_arm_polar(
     :param x_w: Global workspace X in mm
     :param y_w: Global workspace Y in mm
     :param z_w: Global workspace Z in mm
-    :param arm_id: "xarm_1" or "xarm_2"
+    :param arm_id: Manipulator ID (default "xarm_1")
     :param config_path: Path to hardware configuration YAML
     :param params: Optional pre-loaded KinematicParameters instance
     :return: Tuple of (r_mm, theta_arm_deg, z_mm) where theta_arm is normalized to [-180, +180] deg.
     """
     p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
 
-    base_x = 170.0 if arm_id == "xarm_1" else 390.0
-    base_y = 360.0
+    base_x = 200.0
+    base_y = 280.0
     base_z = 0.0
 
     candidates = [
         config_path,
         os.path.join(os.getcwd(), config_path),
         os.path.join("/workspace", config_path),
+        "config/xarm_hardware.yaml",
+        os.path.join(os.getcwd(), "config/xarm_hardware.yaml"),
     ]
     for c in candidates:
         if os.path.exists(c):
@@ -524,10 +534,10 @@ def world_to_arm_polar(
 def get_compartment_target(
     color: str,
     arm_id: str = "xarm_1",
-    config_path: str = "config/dual_xarm_hardware.yaml",
+    config_path: str = "config/xarm_hardware.yaml",
 ) -> Optional[Dict]:
-    # Automatically support both get_compartment_target("red", "xarm_2") and ("xarm_2", "red")
-    if color in ["xarm_1", "xarm_2", "arm_1", "arm_2"] and arm_id.lower() in ["red", "green", "blue", "yellow"]:
+    # Automatically support both get_compartment_target("red", "xarm_1") and ("xarm_1", "red")
+    if color in ["xarm_1", "arm_1", "arm1"] and arm_id.lower() in ["red", "green", "blue", "yellow"]:
         color, arm_id = arm_id, color
 
     candidates = [
@@ -535,6 +545,8 @@ def get_compartment_target(
         os.path.join(os.getcwd(), config_path),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", config_path),
         os.path.join("/workspace", config_path),
+        "config/xarm_hardware.yaml",
+        os.path.join(os.getcwd(), "config/xarm_hardware.yaml"),
     ]
     chosen = None
     for c in candidates:
@@ -550,8 +562,14 @@ def get_compartment_target(
             data = yaml.safe_load(f)
 
         arm_cfg = data.get("manipulators", {}).get(arm_id, {})
-        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 170.0 if arm_id == "xarm_1" else 390.0))
-        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 360.0))
+        if not arm_cfg:
+            if "xarm_1" in data.get("manipulators", {}):
+                arm_cfg = data["manipulators"]["xarm_1"]
+            elif "xarm" in data.get("manipulators", {}):
+                arm_cfg = data["manipulators"]["xarm"]
+
+        base_x = float(arm_cfg.get("base_mount_mm", {}).get("x", 200.0))
+        base_y = float(arm_cfg.get("base_mount_mm", {}).get("y", 280.0))
         base_z = float(arm_cfg.get("base_mount_mm", {}).get("z", 0.0))
 
         compartments = arm_cfg.get("collection_box", {}).get("compartments", {})
@@ -567,8 +585,8 @@ def get_compartment_target(
             return None
 
         target_w = matched.get("target_world_mm", {})
-        wx = float(target_w.get("x", 30.0 if arm_id == "xarm_1" else 490.0))
-        wy = float(target_w.get("y", 380.0))
+        wx = float(target_w.get("x", 30.0))
+        wy = float(target_w.get("y", 300.0))
         wz = float(target_w.get("z", 35.0))
 
         # Vector relative to arm base mount

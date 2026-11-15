@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    """Launch vision node and autonomous sorting coordinator."""
+    """Launch vision node and autonomous sorter for single xArm."""
     camera_device_arg = DeclareLaunchArgument(
         "camera_device",
         default_value="/dev/video0",
@@ -14,8 +14,8 @@ def generate_launch_description():
     )
     target_arm_arg = DeclareLaunchArgument(
         "target_arm",
-        default_value="xarm_2",
-        description="Target manipulator to command (xarm_1 or xarm_2)",
+        default_value="xarm_1",
+        description="Target manipulator to command (xarm_1)",
     )
     auto_start_arg = DeclareLaunchArgument(
         "auto_start",

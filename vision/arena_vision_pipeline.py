@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Dual xArm 1s Computer Vision & Planar Homography Pipeline.
+Single xArm 1S Computer Vision & Planar Homography Pipeline.
 
 Features:
   - Monocular camera undistortion using intrinsic matrix K and distortion coefficients D.
   - 4-point ArUco planar homography (DICT_4X4_50, IDs: 0, 1, 2, 3) at flat arena corners (Z = 0.0 mm).
-  - Warps overhead camera view to metric arena grid (2.0 px/mm, 780x420 px).
+  - Warps overhead camera view to metric arena grid (2.0 px/mm, 520x280 px).
   - Homography freezing/locking to guard against camera vibration and arm occlusion.
   - Multi-band HSV color segmentation (Red, Green, Blue, Yellow) with morphology filtering.
   - Moment-based centroid extraction and yaw orientation calculation in [-45°, +45°].
-  - Coordinate system shifting from global arena frame (Xw, Yw) to arm polar frames (r, theta).
+  - Coordinate system shifting from global arena frame (Xw, Yw) to arm polar frame (r, theta).
   - Full compatibility with both OpenCV >= 4.7 and OpenCV < 4.7.
 """
 
@@ -28,25 +28,23 @@ class DetectedCube:
     """Represents a physical colored wooden cube detected on the picking arena."""
 
     color: str                        # "red", "green", "blue", "yellow"
-    world_x: float                    # Global arena X in mm [85.0, 475.0]
-    world_y: float                    # Global arena Y in mm [45.0, 255.0]
+    world_x: float                    # Global arena X in mm [70.0, 330.0]
+    world_y: float                    # Global arena Y in mm [40.0, 180.0]
     world_z: float = 12.5             # Tabletop elevation + half cube height (mm)
     yaw_deg: float = 0.0              # Planar cube rotation angle in [-45.0, +45.0] deg
-    assigned_arm: str = "xarm_2"      # "xarm_1" (Left) or "xarm_2" (Right)
+    assigned_arm: str = "xarm_1"      # Primary manipulator
     
-    # Polar coordinates relative to xArm 1 (Left: X=170, Y=360, Heading=-110°)
-    r1_mm: float = 0.0
-    theta1_deg: float = 0.0
-    
-    # Polar coordinates relative to xArm 2 (Right: X=390, Y=360, Heading=-70°)
-    r2_mm: float = 0.0
-    theta2_deg: float = 0.0
-    
-    # Polar coordinates for assigned arm
+    # Polar coordinates relative to single xArm 1S (Base: X=200, Y=280, Heading=-90°)
+    r_mm: float = 0.0
+    theta_deg: float = 0.0
     target_r_mm: float = 0.0
     target_theta_deg: float = 0.0
     
-    # Spatial mutex requirement (True if within central overlap corridor X in [240, 320])
+    # Backward-compatibility aliases
+    r1_mm: float = 0.0
+    theta1_deg: float = 0.0
+    r2_mm: float = 0.0
+    theta2_deg: float = 0.0
     requires_mutex: bool = False
     
     # Contour bounding box & center in rectified pixels
@@ -57,27 +55,28 @@ class DetectedCube:
 
 
 class ArenaVisionPipeline:
-    """Core perception pipeline for the Dual xArm 1s color-sorting workcell."""
+    """Core perception pipeline for the Single xArm 1S color-sorting workcell."""
 
     def __init__(self, config_dir: str = "config", scale_px_per_mm: float = 2.0):
         self.config_dir = config_dir
         self.scale_px_per_mm = scale_px_per_mm
 
         # ArUco Reference Markers Ground Truth Coordinates (mm at Z = 0.0 mm)
+        # Arena: 260 mm (W) x 140 mm (D), centered in front of arm at (X=200, Y=280)
         self.marker_world_corners: Dict[int, Tuple[float, float]] = {
-            0: (85.0, 255.0),   # Marker 0: Rear-Left
-            1: (475.0, 255.0),  # Marker 1: Rear-Right
-            2: (85.0, 45.0),    # Marker 2: Front-Left
-            3: (475.0, 45.0),   # Marker 3: Front-Right
+            0: (70.0, 180.0),   # Marker 0: Rear-Left
+            1: (330.0, 180.0),  # Marker 1: Rear-Right
+            2: (70.0, 40.0),    # Marker 2: Front-Left
+            3: (330.0, 40.0),   # Marker 3: Front-Right
         }
 
         # Arena physical dimensions between marker centers
-        self.arena_width_mm = 475.0 - 85.0   # 390.0 mm
-        self.arena_height_mm = 255.0 - 45.0  # 210.0 mm
+        self.arena_width_mm = 330.0 - 70.0   # 260.0 mm
+        self.arena_height_mm = 180.0 - 40.0  # 140.0 mm
 
         # Rectified metric image dimensions in pixels
-        self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 780 px
-        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 420 px
+        self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 520 px
+        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 280 px
 
         # Destination points in rectified image plane (Origin (0,0) is top-left: Marker 0)
         self.dst_pts = np.array([
@@ -87,13 +86,12 @@ class ArenaVisionPipeline:
             [float(self.rect_w), float(self.rect_h)],  # ID 3 (Front-Right)
         ], dtype=np.float32)
 
-        # Base mounts and nominal headings in world frame (from dual_xarm_hardware.yaml)
+        # Base mount and nominal heading in world frame (from xarm_hardware.yaml)
         self.base_mounts = {
-            "xarm_1": {"x": 170.0, "y": 360.0, "z": 0.0, "heading": -110.0},
-            "xarm_2": {"x": 390.0, "y": 360.0, "z": 0.0, "heading": -70.0},
+            "xarm_1": {"x": 200.0, "y": 280.0, "z": 0.0, "heading": -90.0},
         }
-        self.midline_x_mm = 280.0
-        self.mutex_corridor = (240.0, 320.0)
+        self.midline_x_mm = 200.0
+        self.mutex_corridor = (0.0, 0.0)  # No mutex corridor needed for single arm
 
         # Camera Intrinsic Parameters
         self.camera_matrix: Optional[np.ndarray] = None
@@ -157,11 +155,30 @@ class ArenaVisionPipeline:
             if self.camera_matrix is not None and self.dist_coeffs is not None:
                 self.has_calibration = True
 
+            # Load marker corners if specified in YAML
+            markers_yaml = data.get("aruco_reference_markers", {}).get("markers", {})
+            for mkey, mval in markers_yaml.items():
+                mid = int(mval.get("id", -1))
+                if mid in [0, 1, 2, 3]:
+                    self.marker_world_corners[mid] = (float(mval["world_x"]), float(mval["world_y"]))
+
+            # Recompute dimensions from loaded corners
+            if 0 in self.marker_world_corners and 1 in self.marker_world_corners and 2 in self.marker_world_corners:
+                self.arena_width_mm = abs(self.marker_world_corners[1][0] - self.marker_world_corners[0][0])
+                self.arena_height_mm = abs(self.marker_world_corners[0][1] - self.marker_world_corners[2][1])
+                self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))
+                self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))
+                self.dst_pts = np.array([
+                    [0.0, 0.0],
+                    [float(self.rect_w), 0.0],
+                    [0.0, float(self.rect_h)],
+                    [float(self.rect_w), float(self.rect_h)],
+                ], dtype=np.float32)
+
             # Check if homography is already cached
             h_data = data.get("planar_homography", {}).get("matrix", {}).get("data", None)
             if h_data and len(h_data) == 9:
                 cand_h = np.array(h_data, dtype=np.float32).reshape((3, 3))
-                # Only use if not identity
                 if not np.allclose(cand_h, np.eye(3)):
                     self.H_matrix = cand_h
 
@@ -180,7 +197,6 @@ class ArenaVisionPipeline:
             except Exception as e:
                 print(f"[ArenaVisionPipeline] Error loading colors.yaml: {e}")
 
-        # Fallback default colors if file not present or incomplete
         if "colors" not in self.color_config:
             self.color_config["colors"] = {
                 "red": {
@@ -245,10 +261,7 @@ class ArenaVisionPipeline:
         return corners, ids
 
     def calibrate_homography(self, frame: np.ndarray, force_update: bool = False) -> bool:
-        """
-        Detects 4 arena ArUco markers (0, 1, 2, 3) and computes the planar homography matrix H.
-        Returns True if all 4 markers are found and H is successfully calculated.
-        """
+        """Detects 4 arena ArUco markers (0, 1, 2, 3) and computes planar homography matrix H."""
         if self.H_locked and not force_update and self.H_matrix is not None:
             return True
 
@@ -263,7 +276,6 @@ class ArenaVisionPipeline:
         src_pts = np.zeros((4, 2), dtype=np.float32)
         for i, marker_id in enumerate([0, 1, 2, 3]):
             idx = np.where(detected_ids == marker_id)[0][0]
-            # Center of the 40mm marker
             marker_corners = corners[idx][0]
             center = np.mean(marker_corners, axis=0)
             src_pts[i] = center
@@ -276,7 +288,7 @@ class ArenaVisionPipeline:
         self.H_locked = locked
 
     def warp_arena(self, frame: np.ndarray) -> Optional[np.ndarray]:
-        """Warps the full camera image into the rectified metric arena grid (780x420 px)."""
+        """Warps the full camera image into the rectified metric arena grid (520x280 px)."""
         if self.H_matrix is None:
             if not self.calibrate_homography(frame):
                 return None
@@ -285,29 +297,28 @@ class ArenaVisionPipeline:
     def pixel_to_world(self, u: float, v: float) -> Tuple[float, float, float]:
         """
         Maps rectified arena image pixel (u, v) to physical world millimeter coordinates (Xw, Yw, Zw).
-        u=0 is Marker 0 (X=85.0), u=780 is Marker 1 (X=475.0).
-        v=0 is Marker 0 (Y=255.0), v=420 is Marker 2 (Y=45.0).
+        u=0 is Marker 0 (X=70.0), u=520 is Marker 1 (X=330.0).
+        v=0 is Marker 0 (Y=180.0), v=280 is Marker 2 (Y=40.0).
         """
-        x_w = 85.0 + (u / self.scale_px_per_mm)
-        y_w = 255.0 - (v / self.scale_px_per_mm)
+        x_min = self.marker_world_corners[0][0]
+        y_max = self.marker_world_corners[0][1]
+        x_w = x_min + (u / self.scale_px_per_mm)
+        y_w = y_max - (v / self.scale_px_per_mm)
         z_w = 12.5  # Tabletop surface Z=0.0 mm + half cube height 12.5 mm
         return (round(x_w, 2), round(y_w, 2), z_w)
 
     def world_to_pixel(self, x_w: float, y_w: float) -> Tuple[int, int]:
         """Maps physical world millimeters (Xw, Yw) back to rectified pixel (u, v)."""
-        u = int(round((x_w - 85.0) * self.scale_px_per_mm))
-        v = int(round((255.0 - y_w) * self.scale_px_per_mm))
+        x_min = self.marker_world_corners[0][0]
+        y_max = self.marker_world_corners[0][1]
+        u = int(round((x_w - x_min) * self.scale_px_per_mm))
+        v = int(round((y_max - y_w) * self.scale_px_per_mm))
         return (u, v)
 
-    def world_to_arm_polar(self, x_w: float, y_w: float, arm_id: str) -> Tuple[float, float]:
+    def world_to_arm_polar(self, x_w: float, y_w: float, arm_id: str = "xarm_1") -> Tuple[float, float]:
         """
         Transforms global world coordinates (Xw, Yw) into arm-relative cylindrical/polar coordinates (r, theta_arm).
-        
-        Formula:
-          DeltaX = Xw - X_base, DeltaY = Yw - Y_base
-          r = sqrt(DeltaX² + DeltaY²)
-          theta_world = atan2(DeltaY, DeltaX) in degrees
-          theta_arm = theta_world - theta_heading (normalized to [-180°, +180°])
+        Single arm base is at (200.0, 280.0) with nominal heading -90.0° (pointing South toward -Y).
         """
         arm_info = self.base_mounts.get(arm_id, self.base_mounts["xarm_1"])
         bx = arm_info["x"]
@@ -319,7 +330,7 @@ class ArenaVisionPipeline:
         r = math.hypot(dx, dy)
         theta_world = math.degrees(math.atan2(dy, dx))
         
-        # Relative angle from arm nominal bisector heading
+        # Relative angle from arm nominal heading
         theta_arm = theta_world - heading
         # Normalize to [-180.0, +180.0]
         theta_arm = (theta_arm + 180.0) % 360.0 - 180.0
@@ -347,7 +358,6 @@ class ArenaVisionPipeline:
             if not bands:
                 continue
 
-            # Combine sub-bands (e.g. for Red dual hue)
             combined_mask = np.zeros(warped_frame.shape[:2], dtype=np.uint8)
             for band in bands:
                 lower = np.array([band["h_min"], band["s_min"], band["v_min"]], dtype=np.uint8)
@@ -355,13 +365,11 @@ class ArenaVisionPipeline:
                 mask = cv2.inRange(hsv, lower, upper)
                 combined_mask = cv2.bitwise_or(combined_mask, mask)
 
-            # Morphological cleaning
             if open_iters > 0:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, self.morph_kernel, iterations=open_iters)
             if close_iters > 0:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, self.morph_kernel, iterations=close_iters)
 
-            # Find contours
             contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             for cnt in contours:
@@ -369,16 +377,13 @@ class ArenaVisionPipeline:
                 if not (min_area <= area <= max_area):
                     continue
 
-                # Minimum area bounding rectangle for yaw orientation
                 rect = cv2.minAreaRect(cnt)
                 (cx, cy), (w_box, h_box), angle = rect
 
-                # Reject highly elongated or non-square contours
                 aspect = max(w_box, h_box) / max(min(w_box, h_box), 1e-4)
                 if aspect > max_aspect:
                     continue
 
-                # Refine centroid with spatial moments if valid
                 M = cv2.moments(cnt)
                 if M["m00"] > 0:
                     u_c = M["m10"] / M["m00"]
@@ -386,31 +391,17 @@ class ArenaVisionPipeline:
                 else:
                     u_c, v_c = cx, cy
 
-                # Normalize yaw angle to [-45°, +45°]
                 yaw = angle - 90.0 if w_box < h_box else angle
                 while yaw < -45.0:
                     yaw += 90.0
                 while yaw > 45.0:
                     yaw -= 90.0
 
-                # Convert pixel coordinates to physical arena world frame
                 x_w, y_w, z_w = self.pixel_to_world(u_c, v_c)
+                r, th = self.world_to_arm_polar(x_w, y_w, "xarm_1")
 
-                # Polar coordinates for xArm 1
-                r1, th1 = self.world_to_arm_polar(x_w, y_w, "xarm_1")
-                # Polar coordinates for xArm 2
-                r2, th2 = self.world_to_arm_polar(x_w, y_w, "xarm_2")
-
-                # Territory assignment: X <= 280 mm -> xArm 1, X > 280 mm -> xArm 2
-                assigned_arm = "xarm_1" if x_w <= self.midline_x_mm else "xarm_2"
-                active_r = r1 if assigned_arm == "arm_1" or assigned_arm == "xarm_1" else r2
-                active_th = th1 if assigned_arm == "arm_1" or assigned_arm == "xarm_1" else th2
-
-                # Central shared corridor flag
-                requires_mutex = (self.mutex_corridor[0] <= x_w <= self.mutex_corridor[1])
-
-                # Reach envelope check (must be reachable by active arm: 120 mm <= r <= 320 mm)
-                if 115.0 <= active_r <= 325.0:
+                # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
+                if 110.0 <= r <= 325.0:
                     box_points = cv2.boxPoints(rect).astype(np.int32)
                     cube = DetectedCube(
                         color=color_key,
@@ -418,14 +409,16 @@ class ArenaVisionPipeline:
                         world_y=y_w,
                         world_z=z_w,
                         yaw_deg=round(yaw, 2),
-                        assigned_arm=assigned_arm,
-                        r1_mm=r1,
-                        theta1_deg=th1,
-                        r2_mm=r2,
-                        theta2_deg=th2,
-                        target_r_mm=active_r,
-                        target_theta_deg=active_th,
-                        requires_mutex=requires_mutex,
+                        assigned_arm="xarm_1",
+                        r_mm=r,
+                        theta_deg=th,
+                        target_r_mm=r,
+                        target_theta_deg=th,
+                        r1_mm=r,
+                        theta1_deg=th,
+                        r2_mm=r,
+                        theta2_deg=th,
+                        requires_mutex=False,
                         pixel_center=(round(u_c, 1), round(v_c, 1)),
                         bounding_box=box_points,
                         contour_area_px=float(area),
@@ -443,11 +436,12 @@ class ArenaVisionPipeline:
         """Draws metric millimeter grid, cube bounding boxes, color tags, and coordinates."""
         annotated = warped_frame.copy()
 
-        # 1. Draw metric grid (50 mm intervals)
         if draw_grid:
-            # Vertical lines (every 50 mm from X=100 to X=450)
-            for x_mm in range(100, 475, 50):
-                u, _ = self.world_to_pixel(float(x_mm), 150.0)
+            # Vertical lines (every 50 mm)
+            x_min = int(self.marker_world_corners[0][0])
+            x_max = int(self.marker_world_corners[1][0])
+            for x_mm in range(((x_min // 50) + 1) * 50, x_max, 50):
+                u, _ = self.world_to_pixel(float(x_mm), (self.marker_world_corners[0][1] + self.marker_world_corners[2][1]) / 2.0)
                 if 0 <= u < self.rect_w:
                     cv2.line(annotated, (u, 0), (u, self.rect_h), (60, 60, 60), 1)
                     cv2.putText(
@@ -455,9 +449,11 @@ class ArenaVisionPipeline:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (120, 120, 120), 1, cv2.LINE_AA
                     )
 
-            # Horizontal lines (every 50 mm from Y=50 to Y=250)
-            for y_mm in range(50, 260, 50):
-                _, v = self.world_to_pixel(280.0, float(y_mm))
+            # Horizontal lines (every 50 mm)
+            y_min = int(self.marker_world_corners[2][1])
+            y_max = int(self.marker_world_corners[0][1])
+            for y_mm in range(((y_min // 50) + 1) * 50, y_max, 50):
+                _, v = self.world_to_pixel(self.midline_x_mm, float(y_mm))
                 if 0 <= v < self.rect_h:
                     cv2.line(annotated, (0, v), (self.rect_w, v), (60, 60, 60), 1)
                     cv2.putText(
@@ -465,44 +461,39 @@ class ArenaVisionPipeline:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (120, 120, 120), 1, cv2.LINE_AA
                     )
 
-            # Central midline (X = 280 mm) in bright cyan dashed/solid line
-            mid_u, _ = self.world_to_pixel(self.midline_x_mm, 150.0)
-            cv2.line(annotated, (mid_u, 0), (mid_u, self.rect_h), (255, 255, 0), 2)
-            cv2.putText(
-                annotated, "MIDLINE X=280", (mid_u - 45, 20),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1, cv2.LINE_AA
-            )
+            # Centerline (X = 200 mm) in cyan
+            mid_u, _ = self.world_to_pixel(self.midline_x_mm, 100.0)
+            if 0 <= mid_u < self.rect_w:
+                cv2.line(annotated, (mid_u, 0), (mid_u, self.rect_h), (255, 255, 0), 1)
+                cv2.putText(
+                    annotated, "MIDLINE X=200", (mid_u - 45, 18),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 0), 1, cv2.LINE_AA
+                )
 
-        # 2. Draw detected cubes
         for cube in cubes:
             color_bgr = self.color_config.get("colors", {}).get(cube.color, {}).get("bgr_display", [0, 255, 255])
             
-            # Draw rotated bounding box
             if cube.bounding_box is not None:
                 cv2.drawContours(annotated, [cube.bounding_box], 0, color_bgr, 2)
 
-            # Draw centroid point
             uc, vc = int(round(cube.pixel_center[0])), int(round(cube.pixel_center[1]))
             cv2.circle(annotated, (uc, vc), 4, (0, 0, 0), -1)
             cv2.circle(annotated, (uc, vc), 3, (255, 255, 255), -1)
 
-            # Draw orientation arrow
             arrow_len = 16.0
             rad = math.radians(cube.yaw_deg)
             ex = int(round(uc + arrow_len * math.cos(rad)))
             ey = int(round(vc - arrow_len * math.sin(rad)))
             cv2.arrowedLine(annotated, (uc, vc), (ex, ey), (0, 0, 255), 2, tipLength=0.3)
 
-            # Label text
-            tag = f"{cube.color.upper()} ({cube.assigned_arm})"
-            coords = f"W:({cube.world_x:.0f},{cube.world_y:.0f}) r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°"
+            tag = f"{cube.color.upper()}"
+            coords = f"r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°"
             
-            # Place text above cube
             text_y = max(vc - 16, 20)
-            cv2.putText(annotated, tag, (uc - 30, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)
-            cv2.putText(annotated, tag, (uc - 30, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(annotated, coords, (uc - 50, text_y + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.33, (0, 0, 0), 2, cv2.LINE_AA)
-            cv2.putText(annotated, coords, (uc - 50, text_y + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.33, (220, 220, 220), 1, cv2.LINE_AA)
+            cv2.putText(annotated, tag, (uc - 20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)
+            cv2.putText(annotated, tag, (uc - 20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(annotated, coords, (uc - 35, text_y + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.33, (0, 0, 0), 2, cv2.LINE_AA)
+            cv2.putText(annotated, coords, (uc - 35, text_y + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.33, (220, 220, 220), 1, cv2.LINE_AA)
 
         return annotated
 

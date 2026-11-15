@@ -165,11 +165,11 @@ def main(args=None):
         help="Serial or HID port device path (default: 'auto' probes USB HID and Serial)",
     )
     parser.add_argument("--baud", type=int, default=115200, help="Baud rate (default 115200)")
-    parser.add_argument("--arm", default="xarm_1", help="Arm identifier (xarm_1 or xarm_2)")
+    parser.add_argument("--arm", default="xarm_1", help="Arm identifier (default: xarm_1)")
     parser.add_argument(
         "--config",
-        default="config/dual_xarm_hardware.yaml",
-        help="Path to dual_xarm_hardware.yaml",
+        default="config/xarm_hardware.yaml",
+        help="Path to xarm_hardware.yaml",
     )
     cli_args, _ = parser.parse_known_args()
 
@@ -179,6 +179,8 @@ def main(args=None):
             os.path.join(os.getcwd(), config_file),
             os.path.join(os.path.dirname(ws_dir), config_file),
             os.path.join("/workspace", config_file),
+            os.path.join(os.getcwd(), "config/xarm_hardware.yaml"),
+            os.path.join(os.path.dirname(ws_dir), "config/xarm_hardware.yaml"),
         ]:
             if os.path.exists(candidate):
                 config_file = candidate

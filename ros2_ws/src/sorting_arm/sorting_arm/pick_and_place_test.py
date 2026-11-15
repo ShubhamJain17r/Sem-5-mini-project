@@ -70,7 +70,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         self.closed_loop = closed_loop
         self.driver = None
 
-        self.hardware_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
+        self.hardware_yaml = os.path.join(config_dir, "xarm_hardware.yaml")
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
 
         # Load hardware specs
@@ -85,7 +85,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         self.claw_grip_tick = int(m1_cfg.get("claw_span_mm", {}).get("grip_cube_25mm", {}).get("tick", 605))
 
         # Drop box nominal yaw tick
-        self.drop_yaw_tick = int(box_cfg.get("base_yaw_drop_tick", 208 if self.arm_id == "xarm_1" else 792))
+        self.drop_yaw_tick = int(box_cfg.get("base_yaw_drop_tick", 145))
 
         # Arena picking elevations (mm)
         arena_cfg = self.hw_config.get("workspace", {}).get("picking_arena", {})
@@ -106,9 +106,7 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             target_port = self.port
             if target_port in ["auto", "", None]:
                 all_devices = find_all_xarm_devices()
-                if self.arm_id in ["xarm_2", "arm2", "2"] and len(all_devices) >= 2:
-                    target_port = all_devices[1][0]
-                elif len(all_devices) >= 1:
+                if len(all_devices) >= 1:
                     target_port = all_devices[0][0]
 
             self.log(f"Operating in Direct Hardware USB Mode (port: {target_port})")
@@ -335,7 +333,7 @@ def main():
     parser.add_argument("--z", type=float, default=None, help="Pick height (default from YAML: 12.5mm)")
     parser.add_argument("--color", default="red", choices=["red", "green", "blue", "yellow"], help="Target drop box color")
     parser.add_argument("--sag", type=float, default=0.0, help="Empirical Z-sag compensation in mm (e.g. +3.0 to lift)")
-    parser.add_argument("--arm", default="xarm_1", help="Arm instance (xarm_1 or xarm_2)")
+    parser.add_argument("--arm", default="xarm_1", help="Arm instance (default: xarm_1)")
     parser.add_argument("--port", default="auto", help="USB device port or 'auto'")
     parser.add_argument("--ros", action="store_true", help="Force ROS 2 topic publishing mode")
     parser.add_argument("--direct", action="store_true", help="Force direct USB hardware mode (default)")

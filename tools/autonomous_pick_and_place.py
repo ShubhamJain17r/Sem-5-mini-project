@@ -47,7 +47,7 @@ class AutonomousSorterBridge:
 
     def __init__(
         self,
-        arm_id: str = "xarm_2",
+        arm_id: str = "xarm_1",
         config_dir: str = "config",
         dry_run: bool = False,
         port: str = "auto",
@@ -62,8 +62,14 @@ class AutonomousSorterBridge:
         # Initialize vision pipeline
         self.pipeline = ArenaVisionPipeline(config_dir=self.config_dir, scale_px_per_mm=self.scale_px_per_mm)
 
-        # Load arm kinematic parameters
-        self.hardware_yaml = os.path.join(self.config_dir, "dual_xarm_hardware.yaml")
+        # Load arm kinematic parameters from xarm_hardware.yaml
+        primary_yaml = os.path.join(self.config_dir, "xarm_hardware.yaml")
+        candidates = [primary_yaml, os.path.join(os.getcwd(), primary_yaml), os.path.join(repo_root, primary_yaml)]
+        self.hardware_yaml = primary_yaml
+        for c in candidates:
+            if os.path.exists(c):
+                self.hardware_yaml = c
+                break
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
 
         # Initialize hardware commander if not dry-run
@@ -88,6 +94,7 @@ class AutonomousSorterBridge:
         """Captures a stationary frame, rectifies arena, and detects colored cubes."""
         if synthetic:
             frame = generate_synthetic_arena_frame()
+            self.pipeline.calibrate_homography(frame)
         else:
             if cap is None:
                 raise ValueError("Camera capture object is None")
@@ -109,8 +116,8 @@ class AutonomousSorterBridge:
         # Filter cubes assigned to this arm (or reachable by it)
         assigned_cubes = []
         for c in cubes:
-            # Check if this arm should handle it
-            if c.assigned_arm == self.arm_id:
+            # In single arm mode, all valid cubes in arena are reachable
+            if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm
                 if 120.0 <= active_r <= 320.0:
                     assigned_cubes.append(c)
@@ -156,7 +163,7 @@ class AutonomousSorterBridge:
         print(f"[IK Pick] Joint angles (deg): {pick_ik.angles_deg}")
 
         # 2. Compute Drop Target for 2x2 Flank Tray
-        drop_target = get_compartment_target(self.arm_id, color)
+        drop_target = get_compartment_target(color=color, arm_id=self.arm_id, config_path=self.hardware_yaml)
         if not drop_target:
             print(f"[Error] Could not find compartment target for color '{color}' in {self.hardware_yaml}")
             return False
@@ -164,7 +171,7 @@ class AutonomousSorterBridge:
         drop_r = drop_target["r"]
         drop_theta = drop_target["theta_deg"]
         drop_z = drop_target["z"]
-        drop_yaw_tick = drop_target.get("drop_yaw_tick", 820)
+        drop_yaw_tick = drop_target.get("drop_yaw_tick", 145)
         print(f"[IK Drop] Destination: {color.upper()} compartment in {self.arm_id} Flank Tray")
         print(f"[IK Drop] r={drop_r:.1f} mm, theta={drop_theta:+.1f} deg, Drop Yaw Tick={drop_yaw_tick}")
 
@@ -190,7 +197,7 @@ class AutonomousSorterBridge:
 
 def main():
     parser = argparse.ArgumentParser(description="Autonomous Vision-Guided Color Sorting Bridge.")
-    parser.add_argument("--arm", default="xarm_2", choices=["xarm_1", "xarm_2"], help="Manipulator under test (default: xarm_2)")
+    parser.add_argument("--arm", default="xarm_1", help="Manipulator under test (default: xarm_1)")
     parser.add_argument("--device", default="/dev/video0", help="Camera device path or index (default: /dev/video0)")
     parser.add_argument("--port", default="auto", help="Serial port for arm communication (default: auto)")
     parser.add_argument("--config-dir", default="config", help="Directory containing config YAMLs")

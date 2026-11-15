@@ -48,7 +48,7 @@ def generate_markers(output_dir: str = "docs/assets/aruco_markers"):
     # 30 mm at 300 DPI is ~354 px
     sheet = np.full((3508, 2480, 3), 255, dtype=np.uint8)
     
-    title = "Dual xArm 1s - Arena ArUco Calibration Markers (DICT_4X4_50)"
+    title = "Single xArm 1s - Arena ArUco Calibration Markers (DICT_4X4_50)"
     cv2.putText(sheet, title, (120, 200), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 0, 0), 3, cv2.LINE_AA)
     
     instructions = [

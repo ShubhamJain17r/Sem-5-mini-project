@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Automated Potentiometer Drift Telemetry & Statistical Analysis for Dual xArm 1S.
+Automated Potentiometer Drift Telemetry & Statistical Analysis for Single xArm 1S.
 
 Replaces manual paper logging:
-  - Queries all 6 servo potentiometers (CMD 0x15) across both manipulators (12 channels)
+  - Queries all 6 servo potentiometers (CMD 0x15) on the manipulator (6 channels)
   - Logs structured time-series data to data/telemetry_drift_log.csv
   - Computes statistical metrics: sample count, mean error (μ), standard deviation (σ), min/max
   - Evaluates sub-millimeter tabletop picking repeatability against reach kinematics (1 tick ≈ 1.05mm at R=250mm)
@@ -33,7 +33,7 @@ from sorting_arm.xarm_protocol import MOTOR_NAMES, XArmDriver
 
 DATA_DIR = os.path.join(project_root, "data")
 CSV_LOG_PATH = os.path.join(DATA_DIR, "telemetry_drift_log.csv")
-CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/dual_xarm_hardware.yaml")
+CONFIG_HARDWARE_PATH = os.path.join(project_root, "config/xarm_hardware.yaml")
 
 CSV_HEADER = [
     "timestamp_iso",
@@ -71,12 +71,12 @@ def run_telemetry_scan(
     """
     Execute a single synchronous scan across all joints and record to CSV.
 
-    :param arm_ids: List of arms to query (default: ["xarm_1", "xarm_2"])
+    :param arm_ids: List of arms to query (default: ["xarm_1"])
     :param csv_path: Target CSV filepath
     :return: Dictionary summary of scan results and statistical analysis
     """
     if arm_ids is None:
-        arm_ids = ["xarm_1", "xarm_2"]
+        arm_ids = ["xarm_1"]
 
     ensure_csv_header(csv_path)
     now_iso = datetime.now().isoformat()
@@ -198,7 +198,7 @@ def compute_drift_statistics(csv_path: str = CSV_LOG_PATH) -> Dict[str, Any]:
         if abs(mean_err) > 5.0:
             recommendations.append(
                 f"[CALIBRATION] {key} shows systematic drift (μ = {mean_err:+.1f} ticks > ±5.0). "
-                f"Calibrate zero position in xArm PC App or update dual_xarm_hardware.yaml by {-int(round(mean_err))} ticks."
+                f"Calibrate zero position in xArm PC App or update xarm_hardware.yaml by {-int(round(mean_err))} ticks."
             )
 
     if not recommendations:
@@ -216,7 +216,7 @@ def compute_drift_statistics(csv_path: str = CSV_LOG_PATH) -> Dict[str, Any]:
 def print_cli_report(results: Dict[str, Any]):
     """Pretty-print telemetry report to terminal."""
     print("\n" + "=" * 70)
-    print("  DUAL xARM 1S TELEMETRY & LONG-TERM DRIFT ANALYSIS")
+    print("  xARM 1S TELEMETRY & LONG-TERM DRIFT ANALYSIS")
     print(f"  Timestamp: {results.get('timestamp')}")
     print(f"  Dataset:   {results.get('csv_path')}")
     print("=" * 70)
@@ -242,7 +242,8 @@ def print_cli_report(results: Dict[str, Any]):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Dual xArm Automated Telemetry Drift Logger")
+    parser = argparse.ArgumentParser(description="xArm 1S Automated Telemetry Drift Logger")
+    parser.add_argument("--arm", default="xarm_1", help="Target manipulator ID (default: xarm_1)")
     parser.add_argument("--scan", action="store_true", default=True, help="Execute immediate scan")
     parser.add_argument("--samples", type=int, default=1, help="Number of consecutive scans to log")
     parser.add_argument("--interval", type=float, default=1.0, help="Interval between scans in seconds")
@@ -254,10 +255,11 @@ def main():
         print_cli_report({"timestamp": datetime.now().isoformat(), "csv_path": CSV_LOG_PATH, "drift_statistics": stats})
         return
 
+    arm_list = [args.arm]
     for i in range(args.samples):
         if i > 0:
             time.sleep(args.interval)
-        results = run_telemetry_scan()
+        results = run_telemetry_scan(arm_ids=arm_list)
         if i == args.samples - 1:
             print_cli_report(results)
 

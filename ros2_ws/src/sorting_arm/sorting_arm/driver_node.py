@@ -6,7 +6,7 @@ Features:
   - Subscribes to /xarm/joint_commands (sensor_msgs/msg/JointState)
   - Publishes /xarm/joint_states at 10 Hz
   - Exposes /xarm/emergency_stop and /xarm/re_enable services (std_srvs/srv/Trigger)
-  - Loads physical joint limits and optional deviations from dual_xarm_hardware.yaml
+  - Loads physical joint limits and optional deviations from xarm_hardware.yaml
   - Enforces physical safety limit clamps and prevents brownout current spikes
 """
 
@@ -65,7 +65,7 @@ class XArmDriverNode(Node):
         self.declare_parameter("port", "auto")
         self.declare_parameter("baudrate", 115200)
         self.declare_parameter("arm_id", "xarm_1")
-        self.declare_parameter("config_path", "config/dual_xarm_hardware.yaml")
+        self.declare_parameter("config_path", "config/xarm_hardware.yaml")
         self.declare_parameter("default_move_time_ms", 120)
         self.declare_parameter("stagger_ms", 0)
         self.declare_parameter("synchronized", True)
@@ -90,19 +90,14 @@ class XArmDriverNode(Node):
             f"Loaded config for {self.arm_id}: min_ticks={min_ticks}, max_ticks={max_ticks}, max_deviation={max_dev}"
         )
 
-        # Resolve target port (support multi-arm auto detection)
+        # Resolve target port (single xArm auto detection)
         actual_port = self.port
         if actual_port in ["auto", "", None]:
             all_devices = find_all_xarm_devices()
-            if self.arm_id in ["xarm_2", "arm2", "2"] and len(all_devices) >= 2:
-                actual_port = all_devices[1][0]
-                self.get_logger().info(
-                    f"Auto-selected second xArm interface {actual_port} for {self.arm_id}"
-                )
-            elif len(all_devices) >= 1:
+            if len(all_devices) >= 1:
                 actual_port = all_devices[0][0]
                 self.get_logger().info(
-                    f"Auto-selected first xArm interface {actual_port} for {self.arm_id}"
+                    f"Auto-selected xArm interface {actual_port} for {self.arm_id}"
                 )
 
         # Initialize hardware driver
@@ -158,11 +153,13 @@ class XArmDriverNode(Node):
     def _load_hardware_config(
         self, config_file: str, arm_name: str
     ) -> Tuple[Dict[int, int], Dict[int, int], Dict[int, int], int]:
-        """Load joint travel limits, deviations, and max deviation threshold from unified config."""
+        """Load joint travel limits, deviations, and max deviation threshold from hardware config."""
         candidates = [
             config_file,
             os.path.join(os.getcwd(), config_file),
             os.path.join("/workspace", config_file),
+            "config/xarm_hardware.yaml",
+            os.path.join(os.getcwd(), "config/xarm_hardware.yaml"),
         ]
         chosen = None
         for c in candidates:
@@ -185,7 +182,6 @@ class XArmDriverNode(Node):
             with open(chosen, "r") as f:
                 data = yaml.safe_load(f) or {}
 
-            # Support unified dual_xarm_hardware.yaml
             manipulators = data.get("manipulators", {})
             max_dev = int(manipulators.get("max_deviation_ticks", default_max_dev))
             arm_cfg = manipulators.get(arm_name, {})

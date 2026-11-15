@@ -59,28 +59,28 @@ def test_metric_coordinate_mapping(pipeline=None):
     """Test mathematical accuracy of pixel_to_world and world_to_pixel mappings."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Marker 0: Rear-Left (85.0, 255.0) -> (u=0, v=0)
+    # Marker 0: Rear-Left (70.0, 180.0) -> (u=0, v=0)
     x0, y0, _ = pipeline.pixel_to_world(0.0, 0.0)
-    assert abs(x0 - 85.0) < 0.1
-    assert abs(y0 - 255.0) < 0.1
+    assert abs(x0 - 70.0) < 0.1
+    assert abs(y0 - 180.0) < 0.1
 
-    # Marker 1: Rear-Right (475.0, 255.0) -> (u=780, v=0)
-    x1, y1, _ = pipeline.pixel_to_world(780.0, 0.0)
-    assert abs(x1 - 475.0) < 0.1
-    assert abs(y1 - 255.0) < 0.1
+    # Marker 1: Rear-Right (330.0, 180.0) -> (u=520, v=0)
+    x1, y1, _ = pipeline.pixel_to_world(520.0, 0.0)
+    assert abs(x1 - 330.0) < 0.1
+    assert abs(y1 - 180.0) < 0.1
 
-    # Marker 2: Front-Left (85.0, 45.0) -> (u=0, v=420)
-    x2, y2, _ = pipeline.pixel_to_world(0.0, 420.0)
-    assert abs(x2 - 85.0) < 0.1
-    assert abs(y2 - 45.0) < 0.1
+    # Marker 2: Front-Left (70.0, 40.0) -> (u=0, v=280)
+    x2, y2, _ = pipeline.pixel_to_world(0.0, 280.0)
+    assert abs(x2 - 70.0) < 0.1
+    assert abs(y2 - 40.0) < 0.1
 
-    # Marker 3: Front-Right (475.0, 45.0) -> (u=780, v=420)
-    x3, y3, _ = pipeline.pixel_to_world(780.0, 420.0)
-    assert abs(x3 - 475.0) < 0.1
-    assert abs(y3 - 45.0) < 0.1
+    # Marker 3: Front-Right (330.0, 40.0) -> (u=520, v=280)
+    x3, y3, _ = pipeline.pixel_to_world(520.0, 280.0)
+    assert abs(x3 - 330.0) < 0.1
+    assert abs(y3 - 40.0) < 0.1
 
     # Roundtrip check
-    for test_u, test_v in [(100.0, 50.0), (390.0, 210.0), (600.0, 350.0)]:
+    for test_u, test_v in [(100.0, 50.0), (260.0, 140.0), (450.0, 200.0)]:
         wx, wy, _ = pipeline.pixel_to_world(test_u, test_v)
         u_back, v_back = pipeline.world_to_pixel(wx, wy)
         assert abs(u_back - test_u) <= 1
@@ -91,27 +91,24 @@ def test_arm_polar_transformation(pipeline=None):
     """Test transformation from global world coordinates (Xw, Yw) to arm polar frames (r, theta)."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Test point along xArm 2 nominal heading (-70° world)
-    # xArm 2 base is at (390, 360).
-    # Heading -70° corresponds to dx = R * cos(-70°), dy = R * sin(-70°)
+    # Single xArm 1S is at (200, 280, 0) with nominal heading -90° (South)
+    # Heading -90° corresponds to dx = 0, dy = -R
     r_test = 200.0
-    rad_heading = math.radians(-70.0)
-    tx = 390.0 + r_test * math.cos(rad_heading)
-    ty = 360.0 + r_test * math.sin(rad_heading)
+    tx = 200.0
+    ty = 280.0 - r_test  # 80.0 mm
 
-    r_calc, th_calc = pipeline.world_to_arm_polar(tx, ty, "xarm_2")
+    r_calc, th_calc = pipeline.world_to_arm_polar(tx, ty, "xarm_1")
     assert abs(r_calc - r_test) < 0.5
     assert abs(th_calc - 0.0) < 0.5, f"Expected 0.0 deg along heading, got {th_calc}"
 
-    # Test point along xArm 1 nominal heading (-110° world)
-    # xArm 1 base is at (170, 360).
-    rad_heading_arm1 = math.radians(-110.0)
-    tx1 = 170.0 + r_test * math.cos(rad_heading_arm1)
-    ty1 = 360.0 + r_test * math.sin(rad_heading_arm1)
+    # Test point at +20° local angle
+    rad_arm = math.radians(-70.0)  # -90° + 20°
+    tx_off = 200.0 + r_test * math.cos(rad_arm)
+    ty_off = 280.0 + r_test * math.sin(rad_arm)
 
-    r1_calc, th1_calc = pipeline.world_to_arm_polar(tx1, ty1, "xarm_1")
-    assert abs(r1_calc - r_test) < 0.5
-    assert abs(th1_calc - 0.0) < 0.5, f"Expected 0.0 deg along heading, got {th1_calc}"
+    r_off, th_off = pipeline.world_to_arm_polar(tx_off, ty_off, "xarm_1")
+    assert abs(r_off - r_test) < 0.5
+    assert abs(th_off - 20.0) < 0.5, f"Expected 20.0 deg, got {th_off}"
 
 
 def test_aruco_detection_and_synthetic_homography(pipeline=None):
@@ -154,26 +151,23 @@ def test_color_segmentation_and_cube_detection(pipeline=None):
     assert expected_colors.issubset(detected_colors), f"Missing colors: {expected_colors - detected_colors}"
 
     for c in cubes:
-        # Check arena bounds
-        assert 80.0 <= c.world_x <= 480.0, f"X out of bounds: {c.world_x}"
-        assert 40.0 <= c.world_y <= 260.0, f"Y out of bounds: {c.world_y}"
+        # Check arena bounds: X in [70, 330], Y in [40, 180] (with tolerance)
+        assert 60.0 <= c.world_x <= 340.0, f"X out of bounds: {c.world_x}"
+        assert 30.0 <= c.world_y <= 190.0, f"Y out of bounds: {c.world_y}"
         # Check yaw angle normalization
         assert -45.0 <= c.yaw_deg <= 45.0, f"Yaw out of bounds: {c.yaw_deg}"
-        # Check reach range
-        assert 115.0 <= c.target_r_mm <= 325.0, f"Radius out of reach: {c.target_r_mm}"
-        # Check territory assignment
-        if c.world_x <= 280.0:
-            assert c.assigned_arm == "xarm_1"
-        else:
-            assert c.assigned_arm == "xarm_2"
+        # Check reach range from arm at (200, 280)
+        assert 100.0 <= c.target_r_mm <= 300.0, f"Radius out of reach: {c.target_r_mm}"
+        # Check single arm assignment
+        assert c.assigned_arm in ("xarm_1", "xarm")
 
 
 def test_nearest_first_queue_sorting():
     """Test that queue sorting prioritizes cubes by ascending radius to prevent collisions."""
-    bridge = AutonomousSorterBridge(arm_id="xarm_2", dry_run=True)
-    c1 = DetectedCube(color="red", world_x=400.0, world_y=180.0, assigned_arm="xarm_2", target_r_mm=260.0)
-    c2 = DetectedCube(color="blue", world_x=390.0, world_y=220.0, assigned_arm="xarm_2", target_r_mm=160.0)
-    c3 = DetectedCube(color="green", world_x=420.0, world_y=140.0, assigned_arm="xarm_2", target_r_mm=210.0)
+    bridge = AutonomousSorterBridge(arm_id="xarm_1", dry_run=True)
+    c1 = DetectedCube(color="red", world_x=200.0, world_y=120.0, assigned_arm="xarm_1", target_r_mm=260.0)
+    c2 = DetectedCube(color="blue", world_x=200.0, world_y=160.0, assigned_arm="xarm_1", target_r_mm=160.0)
+    c3 = DetectedCube(color="green", world_x=230.0, world_y=140.0, assigned_arm="xarm_1", target_r_mm=210.0)
 
     queue = bridge.filter_and_sort_queue([c1, c2, c3])
     assert len(queue) == 3
@@ -186,16 +180,15 @@ def test_nearest_first_queue_sorting():
 def test_phase1_phase2_ik_bridge():
     """Test that all vision targets solve cleanly with analytical IK and drop targets."""
     config_dir = os.path.join(repo_root, "config")
-    hardware_yaml = os.path.join(config_dir, "dual_xarm_hardware.yaml")
-    params_arm2 = load_kinematic_parameters(hardware_yaml, arm_id="xarm_2")
+    hardware_yaml = os.path.join(config_dir, "xarm_hardware.yaml")
     params_arm1 = load_kinematic_parameters(hardware_yaml, arm_id="xarm_1")
 
-    # Synthetic cubes in left and right arena
+    # Synthetic cubes in arena for xarm_1
     test_targets = [
-        {"arm": "xarm_2", "color": "red", "r": 220.0, "theta": 0.0, "z": 12.5, "yaw": 10.0, "params": params_arm2},
-        {"arm": "xarm_2", "color": "blue", "r": 165.0, "theta": -15.0, "z": 12.5, "yaw": -5.0, "params": params_arm2},
+        {"arm": "xarm_1", "color": "red", "r": 220.0, "theta": 0.0, "z": 12.5, "yaw": 10.0, "params": params_arm1},
+        {"arm": "xarm_1", "color": "blue", "r": 165.0, "theta": -15.0, "z": 12.5, "yaw": -5.0, "params": params_arm1},
         {"arm": "xarm_1", "color": "green", "r": 210.0, "theta": +10.0, "z": 12.5, "yaw": 0.0, "params": params_arm1},
-        {"arm": "xarm_1", "color": "yellow", "r": 275.0, "theta": -20.0, "z": 12.5, "yaw": 25.0, "params": params_arm1},
+        {"arm": "xarm_1", "color": "yellow", "r": 250.0, "theta": -20.0, "z": 12.5, "yaw": 25.0, "params": params_arm1},
     ]
 
     for t in test_targets:
@@ -208,7 +201,7 @@ def test_phase1_phase2_ik_bridge():
             assert 100 <= tick <= 900, f"Motor {motor_id} tick {tick} out of safe bounds"
 
         # 2. Drop Target resolution
-        drop = get_compartment_target(t["arm"], t["color"], config_path=hardware_yaml)
+        drop = get_compartment_target(color=t["color"], arm_id=t["arm"], config_path=hardware_yaml)
         assert drop is not None, f"Could not find drop target for {t['arm']} {t['color']}"
         assert drop["color"] == t["color"]
         assert 100 <= drop["drop_yaw_tick"] <= 900 or drop["ik_success"], "Invalid drop yaw tick"

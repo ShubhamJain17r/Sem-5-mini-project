@@ -18,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer='shubham',
     maintainer_email='shubham@todo.todo',
-    description='Dual xArm 1s serial driver and motion control package',
+    description='Single xArm 1s serial driver and motion control package',
     license='Apache-2.0',
     extras_require={
         'test': [
@@ -31,7 +31,6 @@ setup(
             'driver_node = sorting_arm.driver_node:main',
             'polar_teleop = sorting_arm.polar_teleop_node:main',
             'pick_and_place = sorting_arm.pick_and_place_test:main',
-            'coordinator_node = sorting_arm.dual_arm_coordinator_node:main',
             'motion_test = sorting_arm.motion_test_suite:main',
             'vision_node = sorting_arm.vision_node:main',
             'autonomous_sorter = sorting_arm.autonomous_sorter_node:main',
