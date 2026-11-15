@@ -19,11 +19,13 @@ if project_root not in sys.path:
 
 # Import test modules
 import test_calibration_and_features
+import test_camera_alignment
 import test_kinematics
 import test_vision_pipeline
 
 modules = [
     test_calibration_and_features,
+    test_camera_alignment,
     test_kinematics,
     test_vision_pipeline,
 ]
