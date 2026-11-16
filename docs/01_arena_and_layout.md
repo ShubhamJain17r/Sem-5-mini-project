@@ -93,62 +93,36 @@ In this design, the picking arena requires **zero woodworking cuts and zero elev
 - **Perimeter Retaining Border**: Formed by standard **self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall $\times 10\text{--}12\text{ mm}$ wide)** stuck directly along the perimeter.
   - Soft compliance prevents any servo overload if a claw finger nudges the border.
   - Keeps wooden craft cubes from skidding or rolling off the active zone.
-- **Target Sorting Cubes**: Standard 1-inch ($25.4\text{ mm}$, nominal $25.0\text{ mm}$) hardwood craft cubes ($14\text{--}16\text{ g}$ mass).
-  - Grasp target center is at **$Z_{\text{target}} = 12.5\text{ mm}$** ($0.0\text{ mm} + 25.0/2\text{ mm}$).
+- **Target Sorting Blocks**: $1.25" \times 1.25" \times 0.75"$ ($31.75\text{ mm} \times 31.75\text{ mm} \times 19.05\text{ mm}$) hardwood craft blocks.
+  - Grasp target center is at **$Z_{\text{target}} = 9.53\text{ mm}$** ($0.0\text{ mm} + 19.05/2\text{ mm}$), configured in software with zero physical risers.
 - *(Optional)* High-friction matte silicone mat ($\mu \approx 0.8$, $1.0\text{ mm}$ thickness) placed inside the arena to ensure zero cube skidding during high-speed gripper closure.
 
 ---
 
-## 4. Drop Zone Architecture: Immediate Left Flank 2×2 Sorting Tray
+## 4. Drop Zone Architecture: Immediate Left Flank Single Open Container
 
-### 4.1 Minimal 3D Printing (< 45 g Total Filament)
-Only a single small part in the entire workcell requires 3D printing: one **2×2 quadrant color sorting tray**:
-
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](assets/images/tray_3d_print_cad.png)
-
-```text
-             TOP VIEW: 2x2 QUADRANT COLOR SORTING TRAY
- 
-           ◄───────────────── 80 mm ─────────────────►
-         ┌─────────────────────────┬─────────────────────────┐ ▲
-         │                         │                         │ │
-         │       SLOT 1: RED       │      SLOT 2: GREEN      │ │
-         │       (36 x 36 mm)      │       (36 x 36 mm)      │ │
-         │                         │                         │ 80 mm
-         ├─────────────────────────┼─────────────────────────┤ │
-         │                         │                         │ │
-         │      SLOT 3: BLUE       │      SLOT 4: YELLOW     │ │
-         │       (36 x 36 mm)      │       (36 x 36 mm)      │ │
-         │                         │                         │ │
-         └─────────────────────────┴─────────────────────────┘ ▼
-                                   Height: 35 mm, Wall: 2.0 mm
-```
+### 4.1 Single Large Collection Container
+To eliminate jamming of the $31.75\text{ mm}$ square blocks (which have a $44.9\text{ mm}$ diagonal profile), the collection zone uses a **single large open container** without internal divider partitions:
+- Outer Dimensions: $\approx 100\text{ mm} \times 100\text{ mm}$, rim height $35\text{ mm}$.
+- Avoids dividing walls so blocks drop cleanly at any yaw angle.
 
 ### 4.2 Drop Coordinates & Compact Swings
-By placing the single collection bin on the **immediate Left Flank** of the arm base:
-- **Tray Center**: $(X = 50.0\text{ mm}, Y = 280.0\text{ mm}, Z = 0.0\text{ mm})$.
+By placing the single collection container on the **immediate Left Flank** of the arm base:
+- **Container Center**: $(X = 50.0\text{ mm}, Y = 280.0\text{ mm}, Z = 0.0\text{ mm})$.
 - **Radial Reach**: $r = 150.0\text{ mm}$ from base center $(200, 280)$.
 - **Angular Travel**: Clean $90^\circ$ clockwise swing from the south arena heading (nominal base yaw tick $\approx 145$).
-
-| Color | Slot Position | Target World $(X, Y, Z)$ | Offset from Tray Center | Drop Yaw Tick |
-| :--- | :---: | :---: | :---: | :---: |
-| **Red** | Slot 1 (Rear-Outer) | $(30.0, 300.0, 35.0)$ | $(-20.0, +20.0)$ | 135 |
-| **Green** | Slot 2 (Rear-Inner) | $(70.0, 300.0, 35.0)$ | $(+20.0, +20.0)$ | 145 |
-| **Blue** | Slot 3 (Front-Outer) | $(30.0, 260.0, 35.0)$ | $(-20.0, -20.0)$ | 165 |
-| **Yellow** | Slot 4 (Front-Inner) | $(70.0, 260.0, 35.0)$ | $(+20.0, -20.0)$ | 155 |
+- **Drop Target Coordinate**: $(X = 50.0\text{ mm}, Y = 280.0\text{ mm}, Z = 40.0\text{ mm})$ for all sorted blocks.
 
 ---
 
 ## 5. Optical Framing & Planar ArUco Fiducials
 
-### 5.1 Overhead Camera & Ring Light Mounting
-- **Welded Scrap Aluminum Stand**: Fabricated from scrap aluminum door profiles welded at $90^\circ$:
-  - **Vertical Upright**: $700.0\text{ mm}$ length, anchored to the rear baseboard center at $(X = 200.0\text{ mm}, Y = 400.0\text{ mm})$ via two heavy-duty L-brackets.
-  - **Horizontal Cantilever**: $300.0\text{ mm}$ length extending forward along $-Y$, reaching directly over $(X = 200.0\text{ mm}, Y = 110.0\text{ mm})$.
-  - **Tip Mounting Hardware**: A **1/4"-20 UNC bolt** ($1/2"$ or $3/4"$ length) through a $6.5\text{ mm}$ hole at the front tip.
-- **Invicto 10" Dimmable LED Ring Light**: Attached directly to the 1/4"-20 tip bolt via its included mini ball head. Tilted horizontally facing nadir downward to provide uniform, shadow-free illumination across the arena.
-- **Camera Mount**: USB webcam clipped inside the ring light's central flexible holder, oriented nadir downward over $(X = 200.0\text{ mm}, Y = 110.0\text{ mm})$ at an elevation of **$H = 650\text{--}700\text{ mm}$**.
-- **Field of View**: Encloses the complete $260\times 140\text{ mm}$ picking arena, the 4 fiducials, and the left flank tray with $>300\text{ mm}$ of clear overhead arm clearance.
+### 5.1 Overhead Camera & Lighting Mounting
+- **Freestanding Desk Clamp / Boom Stand**: Mounted separately from the $400\times 400\text{ mm}$ wooden baseboard (isolates arm vibration from the camera sensor):
+  - **Mount Height ($H$)**: **$450\text{--}500\text{ mm}$** above baseboard surface.
+  - **Center Alignment**: Reaches directly over $(X = 200.0\text{ mm}, Y = 110.0\text{ mm})$ oriented nadir downward.
+  - **Pixel Density**: Delivers $> 3.0\text{ px/mm}$ metric resolution across the active arena while preserving $> 100\text{ mm}$ vertical clearance over the robot arm.
+- **Lighting**: Dimmable LED ring light mounted concentrically around camera lens facing nadir downward.
 
 ### 5.2 Coplanar Board-Mounted ArUco Fiducials
 4 ArUco markers (`DICT_4X4_50`, IDs 0, 1, 2, 3) printed at $30.0\text{ mm} \times 30.0\text{ mm}$ on matte vinyl sticker paper are applied directly flat to the wooden board at the four corners of the arena:

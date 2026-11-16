@@ -159,7 +159,7 @@ class AutonomousSorterNode(Node):
         color = target.get("color", "red").lower()
         r = target.get("target_r_mm", 220.0)
         theta = target.get("target_theta_deg", 0.0)
-        z = target.get("world_z_mm", 12.5)
+        z = target.get("world_z_mm", 9.53)
         yaw = target.get("yaw_deg", 0.0)
 
         self.get_logger().info(f"Sorting {color.upper()} cube: r={r:.1f}mm, th={theta:+.1f}deg...")

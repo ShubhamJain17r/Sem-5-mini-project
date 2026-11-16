@@ -71,19 +71,19 @@ The vision pipeline is built on **pure classical computer vision (OpenCV 4.x)** 
 | **Backend Driver**     | Linux Video4Linux2 (`V4L2`) via `cv2.CAP_V4L2`                                                            |
 | **Native Resolution**  | $1920 \times 1080\text{ pixels}$ @ 30 FPS                                                                 |
 | **Lens Focal Length**  | $f \approx 3.67\text{ mm}$ (Diagonal FOV: $\approx 78^\circ$, Horizontal FOV: $\approx 70.42^\circ$)      |
-| **Mount Position**     | Overhead rigid boom centered at $(X = 550\text{ mm}, Y = 300\text{ mm})$                                  |
-| **Mount Height ($H$)** | **$650\text{--}750\text{ mm}$** above baseboard ($630\text{--}730\text{ mm}$ above $+20\text{ mm}$ arena) |
+| **Mount Position**     | Freestanding desk clamp/tripod centered overhead at $(X = 200\text{ mm}, Y = 110\text{ mm})$              |
+| **Mount Height ($H$)** | **$450\text{--}500\text{ mm}$** above baseboard ($>100\text{ mm}$ clear margin above highest robot pose)  |
 
 ### 2.2 Optical Geometry & Coverage Verification
 
 The picking arena rectangle framed by the 4 ArUco markers measures:
 $$\text{Width } (X) = 330 - 70 = 260\text{ mm}, \quad \text{Height } (Y) = 180 - 40 = 140\text{ mm}$$
 
-At a camera height of $H = 700\text{ mm}$ with a horizontal FOV of $\theta_H = 70.4^\circ$:
-$$\text{Coverage}_X = 2 \cdot H \cdot \tan\left(\frac{70.4^\circ}{2}\right) = 2 \cdot 700 \cdot \tan(35.2^\circ) \approx 2 \cdot 700 \cdot 0.705 = \mathbf{987\text{ mm}}$$
-$$\text{Coverage}_Y = \text{Coverage}_X \cdot \left(\frac{1080}{1920}\right) = 987 \cdot 0.5625 = \mathbf{555\text{ mm}}$$
+At a camera height of $H = 480\text{ mm}$ with a horizontal FOV of $\theta_H = 70.4^\circ$:
+$$\text{Coverage}_X = 2 \cdot H \cdot \tan\left(\frac{70.4^\circ}{2}\right) = 2 \cdot 480 \cdot \tan(35.2^\circ) \approx 2 \cdot 480 \cdot 0.705 = \mathbf{677\text{ mm}}$$
+$$\text{Coverage}_Y = \text{Coverage}_X \cdot \left(\frac{1080}{1920}\right) = 677 \cdot 0.5625 = \mathbf{381\text{ mm}}$$
 
-Because $\text{Coverage}_X (987\text{ mm}) > 260\text{ mm}$ and $\text{Coverage}_Y (555\text{ mm}) > 140\text{ mm}$, the entire arena, all 4 ArUco markers, and the Left Flank tray fit comfortably inside the camera sensor with substantial margin.
+Because $\text{Coverage}_X (677\text{ mm}) > 260\text{ mm}$ and $\text{Coverage}_Y (381\text{ mm}) > 140\text{ mm}$, the entire arena, all 4 ArUco markers, and the Left Flank container fit comfortably inside the camera frame while doubling the effective pixel density to over $2.8\text{--}3.2\text{ px/mm}$.
 
 ### 2.3 Lighting Lock & Exposure Control
 

@@ -582,7 +582,14 @@ def get_compartment_target(
                 break
 
         if not matched:
-            return None
+            if norm_color in ["default", "single", "all", "container", "box"] and "target_world_mm" in arm_cfg.get("collection_box", {}):
+                matched = {
+                    "color": norm_color,
+                    "target_world_mm": arm_cfg["collection_box"]["target_world_mm"],
+                    "drop_yaw_tick": arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 145),
+                }
+            else:
+                return None
 
         target_w = matched.get("target_world_mm", {})
         wx = float(target_w.get("x", 30.0))

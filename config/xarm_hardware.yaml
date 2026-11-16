@@ -34,8 +34,9 @@ workspace:
     elevation_z_mm: 0.0            # Flat table / baseboard surface
     retaining_barrier: "8-10mm self-adhesive foam weatherstripping tape"
     silicone_friction_coeff: 0.8
-    cube_size_mm: 25.0
-    cube_center_z_mm: 12.5         # 0.0mm elevation + 12.5mm half-cube height
+    cube_size_mm: 31.75            # 1.25 inch length and width
+    cube_height_mm: 19.05          # 0.75 inch block thickness
+    cube_center_z_mm: 9.53         # 0.0mm elevation + 9.53mm half-block height
     min_x_mm: 70.0
     max_x_mm: 330.0
     min_y_mm: 40.0
@@ -49,7 +50,7 @@ manipulators:
 
   xarm_1:
     name: "xArm 1S (Central Manipulator)"
-    role: "Sorts objects from the active picking arena into the Left Flank 2x2 tray"
+    role: "Sorts objects from the active picking arena into the Left Flank open collection container"
     
     # Mounting position relative to global workspace origin
     base_mount_mm:
@@ -75,55 +76,56 @@ manipulators:
       tool_claw_fingertip_L3: 168.0   # Link from wrist pitch to claw outer fingertip
       tool_claw_L4: 150.0             # Backward compatibility alias
 
-    # Dedicated Collection Box (Left Flank 2x2 Grid Sorting Tray) - 4 Color Compartments
+    # Dedicated Collection Box (Left Flank Open Sorting Container) - Single Large Bin
     collection_box:
       id: 1
-      name: "Box 1 (Left Flank 2x2 Tray)"
+      name: "Box 1 (Left Flank Single Container)"
       center_world_mm:
         x: 50.0
         y: 280.0
         z: 0.0
       outer_dimensions_mm:
-        width_x: 80.0
-        depth_y: 80.0
+        width_x: 100.0
+        depth_y: 100.0
         height_z: 35.0
       radial_reach_mm: 150.0
       azimuth_from_base_deg: -90.0  # -90° swing (clockwise from South to West)
       base_yaw_drop_tick: 145       # Nominal center drop tick (150mm reach, -90° local yaw)
-      grid_layout: "2x2"
+      grid_layout: "1x1"
+      target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
       compartments:
         section_1_red:
           color: "red"
           grid_col: 1
           grid_row: 1
-          offset_x_mm: -20.0
-          offset_y_mm: 20.0
-          target_world_mm: {x: 30.0, y: 300.0, z: 35.0}
-          drop_yaw_tick: 135
+          offset_x_mm: 0.0
+          offset_y_mm: 0.0
+          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
+          drop_yaw_tick: 145
         section_2_green:
           color: "green"
-          grid_col: 2
+          grid_col: 1
           grid_row: 1
-          offset_x_mm: 20.0
-          offset_y_mm: 20.0
-          target_world_mm: {x: 70.0, y: 300.0, z: 35.0}
-          drop_yaw_tick: 125
+          offset_x_mm: 0.0
+          offset_y_mm: 0.0
+          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
+          drop_yaw_tick: 145
         section_3_blue:
           color: "blue"
           grid_col: 1
-          grid_row: 2
-          offset_x_mm: -20.0
-          offset_y_mm: -20.0
-          target_world_mm: {x: 30.0, y: 260.0, z: 35.0}
-          drop_yaw_tick: 165
+          grid_row: 1
+          offset_x_mm: 0.0
+          offset_y_mm: 0.0
+          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
+          drop_yaw_tick: 145
         section_4_yellow:
           color: "yellow"
-          grid_col: 2
-          grid_row: 2
-          offset_x_mm: 20.0
-          offset_y_mm: -20.0
-          target_world_mm: {x: 70.0, y: 260.0, z: 35.0}
-          drop_yaw_tick: 155
+          grid_col: 1
+          grid_row: 1
+          offset_x_mm: 0.0
+          offset_y_mm: 0.0
+          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
+          drop_yaw_tick: 145
 
     # Motor specifications, travel limits & physical inspection testing
     motors:

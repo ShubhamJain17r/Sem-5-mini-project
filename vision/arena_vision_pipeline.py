@@ -30,7 +30,7 @@ class DetectedCube:
     color: str                        # "red", "green", "blue", "yellow"
     world_x: float                    # Global arena X in mm [70.0, 330.0]
     world_y: float                    # Global arena Y in mm [40.0, 180.0]
-    world_z: float = 12.5             # Tabletop elevation + half cube height (mm)
+    world_z: float = 9.53             # Tabletop elevation + half block height (mm)
     yaw_deg: float = 0.0              # Planar cube rotation angle in [-45.0, +45.0] deg
     assigned_arm: str = "xarm_1"      # Primary manipulator
     
@@ -105,6 +105,7 @@ class ArenaVisionPipeline:
         # Color and morphology configuration
         self.color_config: Dict = {}
         self.morph_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        self.cube_center_z_mm: float = 9.53
 
         # Setup ArUco Detector with backward compatibility
         self._init_aruco_detector()
@@ -112,6 +113,7 @@ class ArenaVisionPipeline:
         # Load configurations
         self.load_camera_calibration()
         self.load_color_config()
+        self.load_hardware_config()
 
     def _init_aruco_detector(self):
         """Initialize ArUco detector supporting both OpenCV >= 4.7 and older versions."""
@@ -243,6 +245,21 @@ class ArenaVisionPipeline:
         k_size = self.color_config.get("morphology", {}).get("kernel_size", 5)
         self.morph_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
 
+    def load_hardware_config(self, filename: Optional[str] = None):
+        """Loads picking arena parameters such as cube_center_z_mm from xarm_hardware.yaml."""
+        if filename is None:
+            filename = os.path.join(self.config_dir, "xarm_hardware.yaml")
+
+        if os.path.exists(filename):
+            try:
+                with open(filename, "r") as f:
+                    data = yaml.safe_load(f) or {}
+                arena_cfg = data.get("workspace", {}).get("picking_arena", {})
+                if "cube_center_z_mm" in arena_cfg:
+                    self.cube_center_z_mm = float(arena_cfg["cube_center_z_mm"])
+            except Exception as e:
+                print(f"[ArenaVisionPipeline] Warning loading hardware config: {e}")
+
     def undistort(self, frame: np.ndarray) -> np.ndarray:
         """Undistorts raw camera frame using calibrated intrinsic matrix and coefficients."""
         if not self.has_calibration or self.camera_matrix is None or self.dist_coeffs is None:
@@ -304,7 +321,7 @@ class ArenaVisionPipeline:
         y_max = self.marker_world_corners[0][1]
         x_w = x_min + (u / self.scale_px_per_mm)
         y_w = y_max - (v / self.scale_px_per_mm)
-        z_w = 12.5  # Tabletop surface Z=0.0 mm + half cube height 12.5 mm
+        z_w = self.cube_center_z_mm  # Tabletop surface Z=0.0 mm + half cube/block height
         return (round(x_w, 2), round(y_w, 2), z_w)
 
     def world_to_pixel(self, x_w: float, y_w: float) -> Tuple[int, int]:

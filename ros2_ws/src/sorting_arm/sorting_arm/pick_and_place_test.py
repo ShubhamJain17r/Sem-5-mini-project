@@ -330,7 +330,7 @@ def main():
     parser = argparse.ArgumentParser(description="xArm 1S Kinematic Pick-and-Place Test")
     parser.add_argument("--r", type=float, default=220.0, help="Pick radius (140-300mm, default: 220mm)")
     parser.add_argument("--theta", type=float, default=0.0, help="Pick azimuth (-45 to +45 deg, default: 0)")
-    parser.add_argument("--z", type=float, default=None, help="Pick height (default from YAML: 12.5mm)")
+    parser.add_argument("--z", type=float, default=None, help="Pick height (default from YAML: 9.53mm)")
     parser.add_argument("--color", default="red", choices=["red", "green", "blue", "yellow"], help="Target drop box color")
     parser.add_argument("--sag", type=float, default=0.0, help="Empirical Z-sag compensation in mm (e.g. +3.0 to lift)")
     parser.add_argument("--arm", default="xarm_1", help="Arm instance (default: xarm_1)")
