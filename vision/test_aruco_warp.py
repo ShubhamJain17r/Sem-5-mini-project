@@ -33,10 +33,10 @@ def generate_synthetic_arena_frame(width=1920, height=1080) -> np.ndarray:
 
     # Arena bounding box in full frame (approximate camera view)
     pts_src = np.array([
-        [450, 200],   # Marker 0: Rear-Left
-        [1470, 200],  # Marker 1: Rear-Right
-        [380, 880],   # Marker 2: Front-Left
-        [1540, 880],  # Marker 3: Front-Right
+        [450, 200],   # Marker 0: Top-Left
+        [1470, 200],  # Marker 1: Top-Right
+        [1540, 880],  # Marker 2: Bottom-Right
+        [380, 880],   # Marker 3: Bottom-Left
     ], dtype=np.float32)
 
     # Draw arena background

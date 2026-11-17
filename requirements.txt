@@ -1,4 +1,4 @@
-# Dual xArm 1S - Python Virtual Environment Dependencies
+# Single xArm 1S - Python Virtual Environment Dependencies
 # Used for host-side standalone execution (web config server, telemetry, direct tests)
 # For all ROS 2 nodes, launch files, and ROS coordination, use Docker (./docker/run.sh)
 

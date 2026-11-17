@@ -115,7 +115,7 @@ def test_get_compartment_target():
         assert target1["r"] > 0.0
         assert "target_world_mm" in target1 or "world_xyz" in target1
         assert "drop_yaw_tick" in target1
-        assert 120 <= target1["drop_yaw_tick"] <= 200
+        assert 120 <= target1["drop_yaw_tick"] <= 900
 
     # Invalid color returns None
     assert get_compartment_target("magenta", arm_id="xarm_1") is None
@@ -151,20 +151,20 @@ def test_ik_with_claw_tip():
 
 
 def test_world_to_arm_polar():
-    # Single xArm 1S is centered at (200, 280, 0) with nominal heading -90.0 deg (South)
-    # Point at (200, 80, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
-    # theta_arm = -90 - (-90) = 0.0 deg
-    r, th, z = world_to_arm_polar(200.0, 80.0, 12.5, arm_id="xarm_1")
+    # Single xArm 1S is centered at (175, 375, 0) with nominal heading -35.0 deg (South-East)
+    # Point at (175, 175, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
+    # theta_arm = -90 - (-35) = -55.0 deg
+    r, th, z = world_to_arm_polar(175.0, 175.0, 12.5, arm_id="xarm_1")
     assert abs(r - 200.0) < 0.1
-    assert abs(th - 0.0) < 0.1
+    assert abs(th - (-55.0)) < 0.1
     assert abs(z - 12.5) < 0.1
 
-    # Custom heading test: heading -110 deg
-    custom_params = KinematicParameters(base_heading_deg=-110.0)
-    r, th, z = world_to_arm_polar(200.0, 80.0, 12.5, arm_id="xarm_1", params=custom_params)
+    # Custom heading test: heading -90 deg
+    custom_params = KinematicParameters(base_heading_deg=-90.0)
+    r, th, z = world_to_arm_polar(175.0, 175.0, 12.5, arm_id="xarm_1", params=custom_params)
     assert abs(r - 200.0) < 0.1
-    # Global angle -90° minus heading -110° = +20° local
-    assert abs(th - 20.0) < 0.1
+    # Global angle -90° minus heading -90° = 0.0° local
+    assert abs(th - 0.0) < 0.1
 
 
 def test_base_zero_and_heading_kinematics():
@@ -185,7 +185,7 @@ def test_compartment_target_fallback():
     target = get_compartment_target("red", arm_id="xarm_1", config_path=cfg)
     assert target is not None
     assert "drop_yaw_tick" in target
-    assert 120 <= target["drop_yaw_tick"] <= 180
+    assert 120 <= target["drop_yaw_tick"] <= 900
     assert "drop_pose_preset" in target
     assert "theta_arm_deg" in target
     assert "theta_world_deg" in target

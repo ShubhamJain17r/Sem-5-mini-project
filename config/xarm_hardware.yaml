@@ -1,5 +1,5 @@
 # =====================================================================================
-# Single xArm 1S Color-Sorting Robot — Unified Hardware & Kinematic Configuration
+# Single xArm 1S Red-Object Picking Robot — Unified Hardware & Kinematic Configuration
 # File: config/xarm_hardware.yaml
 #
 # PURPOSE:
@@ -10,7 +10,7 @@
 #   - Joint travel limits (min_ticks, max_ticks) and nominal centers (from xArm PC App)
 #   - Rotation direction multipliers (+1 / -1) and semantic physical descriptions
 #   - Multi-state waypoint poses (home_tucked, ready_standoff, drop_container)
-#   - Dedicated 2x2 quadrant sorting tray targets on Left Flank (Red, Green, Blue, Yellow)
+#   - Dedicated single container box target on Rear Flank (Red objects)
 #
 # CALIBRATION:
 #   Physical servo deviations are calibrated via the official Hiwonder xArm PC App,
@@ -25,22 +25,22 @@ date_created: "2026-11-15"
 # -------------------------------------------------------------------------------------
 workspace:
   dimensions_mm:
-    width_x: 400.0
-    depth_y: 400.0
+    width_x: 350.0
+    depth_y: 600.0
     board_thickness_mm: 18.0
-  origin: "Front-Left baseboard corner (Operator at Y=0 looking toward +Y)"
-  midline_x_mm: 200.0
+  origin: "Front-Left baseboard corner (Row 11, Col 0 at Y=0 looking toward +Y)"
+  midline_x_mm: 175.0
   picking_arena:
     elevation_z_mm: 0.0            # Flat table / baseboard surface
     retaining_barrier: "8-10mm self-adhesive foam weatherstripping tape"
     silicone_friction_coeff: 0.8
-    cube_size_mm: 31.75            # 1.25 inch length and width
-    cube_height_mm: 19.05          # 0.75 inch block thickness
-    cube_center_z_mm: 9.53         # 0.0mm elevation + 9.53mm half-block height
-    min_x_mm: 70.0
-    max_x_mm: 330.0
-    min_y_mm: 40.0
-    max_y_mm: 180.0
+    cube_size_mm: 25.0             # Standard cube width/length
+    cube_height_mm: 19.05          # Block thickness (accommodates 19-25mm)
+    cube_center_z_mm: 9.53         # Grasp altitude (mm)
+    min_x_mm: 25.0
+    max_x_mm: 325.0
+    min_y_mm: 25.0
+    max_y_mm: 300.0
 
 # -------------------------------------------------------------------------------------
 # MANIPULATOR CONFIGURATION (xarm_1)
@@ -50,15 +50,15 @@ manipulators:
 
   xarm_1:
     name: "xArm 1S (Central Manipulator)"
-    role: "Sorts objects from the active picking arena into the Left Flank open collection container"
+    role: "Picks red objects from the 7x12 active arena and places into Rear Flank single container"
     
-    # Mounting position relative to global workspace origin
+    # Mounting position relative to global workspace origin (Rows 3..5, Cols 2..4)
     base_mount_mm:
-      x: 200.0
-      y: 280.0
+      x: 175.0
+      y: 375.0
       z: 0.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
-      nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world, -Y) into picking arena
+      nominal_heading_deg: -35.0   # 502 ticks points toward -35° (South-East)
 
     # Serial / USB Interface
     communication:
@@ -76,23 +76,23 @@ manipulators:
       tool_claw_fingertip_L3: 168.0   # Link from wrist pitch to claw outer fingertip
       tool_claw_L4: 150.0             # Backward compatibility alias
 
-    # Dedicated Collection Box (Left Flank Open Sorting Container) - Single Large Bin
+    # Dedicated Collection Box (Rear Flank Single Container, Rows 0..1, Cols 5..6)
     collection_box:
       id: 1
-      name: "Box 1 (Left Flank Single Container)"
+      name: "Box 1 (Rear Flank Single Container)"
       center_world_mm:
-        x: 50.0
-        y: 280.0
+        x: 300.0
+        y: 550.0
         z: 0.0
       outer_dimensions_mm:
         width_x: 100.0
         depth_y: 100.0
         height_z: 35.0
-      radial_reach_mm: 150.0
-      azimuth_from_base_deg: -90.0  # -90° swing (clockwise from South to West)
-      base_yaw_drop_tick: 145       # Nominal center drop tick (150mm reach, -90° local yaw)
+      radial_reach_mm: 215.1
+      azimuth_from_base_deg: 89.5   # +89.5° from nominal heading (-35°)
+      base_yaw_drop_tick: 875       # Yaw drop tick for (300, 550)
       grid_layout: "1x1"
-      target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
+      target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
       compartments:
         section_1_red:
           color: "red"
@@ -100,117 +100,118 @@ manipulators:
           grid_row: 1
           offset_x_mm: 0.0
           offset_y_mm: 0.0
-          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
-          drop_yaw_tick: 145
+          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
+          drop_yaw_tick: 875
         section_2_green:
           color: "green"
           grid_col: 1
           grid_row: 1
           offset_x_mm: 0.0
           offset_y_mm: 0.0
-          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
-          drop_yaw_tick: 145
+          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
+          drop_yaw_tick: 875
         section_3_blue:
           color: "blue"
           grid_col: 1
           grid_row: 1
           offset_x_mm: 0.0
           offset_y_mm: 0.0
-          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
-          drop_yaw_tick: 145
+          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
+          drop_yaw_tick: 875
         section_4_yellow:
           color: "yellow"
           grid_col: 1
           grid_row: 1
           offset_x_mm: 0.0
           offset_y_mm: 0.0
-          target_world_mm: {x: 50.0, y: 280.0, z: 40.0}
-          drop_yaw_tick: 145
+          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
+          drop_yaw_tick: 875
 
     # Motor specifications, travel limits & physical inspection testing
     motors:
       motor_1:
         joint_name: "claw_gripper"
         hardware_id: 1
-        min_tick: 220
-        max_tick: 800
-        nominal_center_tick: 501
+        min_tick: 226
+        max_tick: 782
+        nominal_center_tick: 517
         direction_multiplier: 1
         zero_reference_angle_deg: 0.0
-        motion_description: "Decreasing ticks opens claw (228 = 60mm); increasing ticks clamps/closes claw (791 = 0mm)"
-        test_500_to_450_direction: "Fingers open wider toward 60mm limit"
+        motion_description: "Decreasing ticks opens claw (221 raw = 56mm); increasing ticks clamps/closes claw (787 raw = 0mm)"
+        test_500_to_450_direction: "Fingers open wider toward 56mm limit"
         claw_span_mm:
-          fully_open: {tick: 228, span_mm: 60.0}
-          nominal_half_open: {tick: 501, span_mm: 40.0}
-          grip_cube_25mm: {tick: 610, span_mm: 25.0}
-          fully_closed_empty: {tick: 791, span_mm: 0.0}
+          fully_open: {tick: 226, span_mm: 56.0}
+          nominal_reset: {tick: 517, span_mm: 43.0}
+          grip_cube_25mm: {tick: 630, span_mm: 25.0}
+          grip_cube_31mm: {tick: 588, span_mm: 31.75}
+          fully_closed_empty: {tick: 782, span_mm: 0.0}
 
       motor_2:
         joint_name: "wrist_roll"
         hardware_id: 2
-        min_tick: 200
-        max_tick: 800
-        nominal_center_tick: 498
+        min_tick: 124
+        max_tick: 884
+        nominal_center_tick: 503
         direction_multiplier: 1
-        zero_reference_angle_deg: 0.0   # 498 = level horizontal claw jaws
-        motion_description: "Increasing ticks (>498) rolls counter-clockwise (ACW); decreasing ticks (<498) rolls clockwise (CW)"
+        zero_reference_angle_deg: 0.0   # 503 = level horizontal claw jaws
+        motion_description: "Increasing ticks (>503) rolls counter-clockwise (ACW: 889 raw); decreasing ticks (<503) rolls clockwise (CW: 119 raw)"
         test_500_to_450_direction: "Rolls clockwise (CW) toward left finger"
 
       motor_3:
         joint_name: "wrist_pitch"
         hardware_id: 3
-        min_tick: 110
-        max_tick: 865
-        nominal_center_tick: 497
+        min_tick: 121
+        max_tick: 864
+        nominal_center_tick: 504
         direction_multiplier: 1
-        zero_reference_angle_deg: 0.0   # 497 = aligned collinearly with forearm
-        motion_description: "0° (horizon forward) at 857 ticks; 180° (horizon backward) at 116 ticks; decreasing ticks tilts upward/backward"
+        zero_reference_angle_deg: 0.0   # 504 = aligned collinearly with forearm
+        motion_description: "CW at 869 raw ticks; ACW at 116 raw ticks; decreasing ticks tilts upward/backward"
         test_500_to_450_direction: "Pitches wrist UPWARD away from table"
 
       motor_4:
         joint_name: "elbow_pitch"
         hardware_id: 4
-        min_tick: 135
-        max_tick: 870
-        nominal_center_tick: 495
+        min_tick: 153
+        max_tick: 860
+        nominal_center_tick: 496
         direction_multiplier: 1
-        zero_reference_angle_deg: 180.0 # 495 = 180 deg straight collinear extension with upper arm
-        motion_description: "0° (folded forward) at 143 ticks; 180° (folded backward) at 864 ticks; increasing ticks folds backward"
+        zero_reference_angle_deg: 180.0 # 496 = straight collinear extension with upper arm
+        motion_description: "ACW at 865 raw ticks; CW at 148 raw ticks; increasing ticks folds backward"
         test_500_to_450_direction: "Folds forearm forward toward upper arm"
 
       motor_5:
         joint_name: "shoulder_pitch"
         hardware_id: 5
-        min_tick: 120
-        max_tick: 870
-        nominal_center_tick: 498
+        min_tick: 125
+        max_tick: 854
+        nominal_center_tick: 501
         direction_multiplier: 1        # Note: Inverted in URDF pitch, positive in servo ticks
-        zero_reference_angle_deg: 90.0  # 498 = 90° upright vertical relative to table
-        motion_description: "0° (forward horizontal) at 865 ticks; 180° (backward horizontal) at 125 ticks; decreasing ticks tilts upright/backward"
+        zero_reference_angle_deg: 90.0  # 501 = 90° upright vertical relative to table
+        motion_description: "CW at 859 raw ticks; ACW at 120 raw ticks; decreasing ticks tilts upright/backward"
         test_500_to_450_direction: "Tilts upper arm BACKWARD/upright toward table surface"
 
       motor_6:
         joint_name: "base_yaw"
         hardware_id: 6
-        min_tick: 100
-        max_tick: 880
-        nominal_center_tick: 495        # 495 ticks = nominal heading (-90° world / South)
+        min_tick: 126
+        max_tick: 879
+        nominal_center_tick: 502        # 502 ticks = nominal heading (-90° world / South)
         direction_multiplier: 1
         zero_reference_angle_deg: 0.0   # 0° = pointing along nominal heading
-        motion_description: "90° ACW (CCW) at 875 ticks; 90° CW at 105 ticks; increasing ticks rotates CCW (toward East); decreasing rotates CW (toward Left Flank West)"
+        motion_description: "ACW at 884 raw ticks; CW at 121 raw ticks; increasing ticks rotates CCW (toward East); decreasing rotates CW (toward Left Flank West)"
         test_500_to_450_direction: "Rotates clockwise (CW) toward Left Flank Box 1"
 
-    # Predefined Multi-State Poses (Theoretical Ticks: [M1, M2, M3, M4, M5, M6])
+    # Predefined Multi-State Poses (Calibrated Ticks: [M1, M2, M3, M4, M5, M6])
     poses:
       home_tucked:
-        ticks: [500, 500, 500, 500, 500, 500]
-        description: "Straight upright vertical reset pose; all servos at center (nominal 500 ticks)"
+        ticks: [517, 503, 504, 496, 501, 502]
+        description: "Straight upright vertical reset pose; all servos at physical reset center"
         transit_time_ms: 1500
       ready_standoff:
-        ticks: [228, 500, 746, 155, 529, 495]
+        ticks: [226, 503, 746, 155, 529, 502]
         description: "Hovering safely above arena picking zone awaiting commands (Zw ≈ 165mm)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [610, 500, 830, 160, 470, 145]
-        description: "Hovering safely over Left Flank 2x2 tray (Z ≈ 56mm) ready to release object"
+        ticks: [630, 503, 680, 154, 554, 875]
+        description: "Hovering safely over Rear Flank container (Zw ≈ 40mm) ready to release red object"
         transit_time_ms: 1800

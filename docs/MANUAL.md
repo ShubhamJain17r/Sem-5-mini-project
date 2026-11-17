@@ -103,7 +103,7 @@ python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --
 # Motion 7: Extended Far-Reach Pick (R=260mm, θ=0°, Z=12.5mm)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 7
 
-# Motion 13: 4-Color Left Flank Sorting Box Tour (Red -> Green -> Blue -> Yellow)
+# Motion 13: Rear Flank Container Box Drop Tour (Yaw tick 875)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 13
 ```
 
@@ -160,7 +160,7 @@ Open **`http://localhost:8000`** in Google Chrome or any modern browser.
 
 ## 📷 Phase 2: Computer Vision Calibration & Autonomous Sorting Bridge (Host venv)
 
-The vision system uses pure OpenCV to rectify the $260 \times 140\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid ($520 \times 280\text{ px}$) and classify colors.
+The vision system uses pure OpenCV to rectify the $350 \times 600\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid ($600 \times 800\text{ px}$) with strict color discrimination (Red target, Green distractor, Blue chassis bypass & spatial mask).
 
 ### Step 1: Camera Hardware Exposure & White Balance Lock
 Ambient lighting changes in a university lab cause fatal HSV color drift. Always disable auto-exposure and auto-white-balance before launching vision scripts:
@@ -198,7 +198,7 @@ python3 vision/calibrate_camera.py --synthetic
 - Controls: Hold checkerboard, press `SPACE` to record sample (collect $\ge 15$ samples), press `c` to compute and atomically update `config/camera_calibration.yaml`.
 
 ### Step 3: 4-Point ArUco Planar Homography & Metric Rectification
-Detect 4 arena corner ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3) at $(70, 180), (330, 180), (70, 40), (330, 40)$ and warp the picking arena to $520 \times 280\text{ px}$:
+Detect 4 arena corner ArUco markers (`DICT_4X4_50`, IDs: 0, 1, 2, 3, $50\times 50\text{ mm}$) at $(25, 425), (325, 425), (325, 25), (25, 25)$ in clockwise order and warp the picking arena to $600 \times 800\text{ px}$:
 ```bash
 # Live verification:
 python3 vision/test_aruco_warp.py --device /dev/video0
@@ -220,18 +220,18 @@ python3 vision/tune_hsv.py --device /dev/video0
 # Or offline synthetic tuner:
 python3 vision/tune_hsv.py --synthetic
 ```
-- Controls: Keys `1` (Red), `2` (Green), `3` (Blue), `4` (Yellow) to switch active color. Adjust the 6 trackbars until cubes are cleanly masked. Press `s` to export directly to `config/colors.yaml`.
+- Controls: Keys `1` (Red), `2` (Green) to switch active color. Blue and Yellow are bypassed. Adjust the trackbars until target cubes are cleanly masked. Press `s` to export directly to `config/colors.yaml`.
 
 ### Step 5: Autonomous Vision-Guided Sorting Bridge (Phase 1 + Phase 2 Merge)
-Executes end-to-end vision localization, Nearest-First queue ordering, and closed-form IK pick-and-place into the Left Flank 2×2 tray:
+Executes end-to-end vision localization, Nearest-First queue ordering, and closed-form IK pick-and-place into the Rear Flank container box:
 ```bash
 # Offline simulation / dry-run (no hardware required):
 python3 tools/autonomous_pick_and_place.py --arm xarm_1 --synthetic --dry-run
 
-# Single-shot pick of the nearest cube:
+# Single-shot pick of the nearest red cube:
 python3 tools/autonomous_pick_and_place.py --arm xarm_1 --device /dev/video0 --port auto --single-shot
 
-# Full continuous sorting run:
+# Full continuous picking run:
 python3 tools/autonomous_pick_and_place.py --arm xarm_1 --device /dev/video0 --port auto
 ```
 

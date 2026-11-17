@@ -1,84 +1,70 @@
-# 🤖 Single xArm 1S Color-Sorting Robot
+# 🤖 Single xArm 1S Red-Object Picking Robot
 
-An autonomous robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, and a single **LewanSoul / Hiwonder xArm 1S** 6-DoF articulated bus-servo manipulator. The system detects randomly scattered colored wooden craft blocks on a flat rectangular arena, computes analytical closed-form inverse kinematics, and sorts objects into a dedicated 4-compartment color-coded flank sorting tray.
-
----
-
-## 📸 System Architecture & Visual Renders
-
-![Realistic 3D Perspective Render of Single xArm Workcell](docs/assets/images/single_arm_setup.png)
-
-![Single xArm 1S Workcell Engineering Blueprint & Arena Layout](docs/assets/images/arena_layout.png)
-
-![3D CAD Render of 2x2 Quadrant Color Sorting Tray](docs/assets/images/tray_3d_print_cad.png)
+An autonomous robotic picking system powered by **ROS 2 Humble**, **OpenCV**, and a single **LewanSoul / Hiwonder xArm 1S** 6-DoF articulated bus-servo manipulator. The system detects red wooden craft blocks on a physical $7 \times 12$ grid arena ($350\text{ mm} \times 600\text{ mm}$), discriminates against green distractor blocks, filters out the blue robot chassis, computes analytical closed-form inverse kinematics, and deposits picked red objects into a dedicated Rear Flank container box.
 
 ---
 
 ## 📌 Project Overview
 
-This project automates color-based object sorting using computer vision, analytical kinematics, and minimum-jerk trajectory execution under real-world physical and mechanical constraints:
+This project automates target object picking using classical computer vision, analytical kinematics, and minimum-jerk trajectory execution under real-world physical and mechanical constraints:
 
 1. **Central Manipulator Mounting**:
-   - Single xArm 1S manipulator centered at $(X = 200.0\text{ mm}, Y = 280.0\text{ mm}, Z = 0.0\text{ mm})$ with nominal heading $-90.0^\circ$ (South, facing $-Y$ directly into the picking arena).
-   - Full coverage over the entire picking arena with optimal arm reach ($R \in [130, 260\text{ mm}]$) without joint singularities.
-2. **Compact Flat Baseboard ($400.0\text{ mm} \times 400.0\text{ mm} \times 18.0\text{ mm}$)**:
-   - Single store-cut MDF or plywood board with zero woodworking cuts required.
-   - High mass ($\approx 2.2\text{ kg}$) prevents table slipping, eliminates joint flex, and absorbs servo vibrations.
-3. **Flat Rectangular Arena ($Z = 0.0\text{ mm}$, $260.0\text{ mm} \times 140.0\text{ mm}$)**:
-   - Centered directly in front of the arm ($X \in [70.0, 330.0\text{ mm}]$, $Y \in [40.0, 180.0\text{ mm}]$). Sits directly flat on the baseboard at $Z = 0.0\text{ mm}$.
-   - Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) forms a compliant retaining perimeter that retains $25\text{ mm}$ cubes without jamming the claw.
-   - *Clearance Verified*: $Y = 180\text{ mm}$ leaves a safe $+23\text{ mm}$ buffer before the robot metal baseplate ($Y = 203\text{ mm}$), ensuring 100% collision-free reachability.
-4. **Immediate Left Flank 2×2 Sorting Tray ($90^\circ$ Clockwise Swing)**:
-   - Dedicated 3D-printed 2×2 quadrant sorting tray ($80\times 80\times 35\text{ mm}$) centered on the Left Flank at $(X = 50.0\text{ mm}, Y = 280.0\text{ mm}, Z = 0.0\text{ mm})$.
-   - Outward $90^\circ$ clockwise swing from the arena heading ($r = 150.0\text{ mm}$ to tray center, drop yaw tick $\approx 145$), minimizing transit time.
-5. **Table-Coplanar ArUco Markers ($Z = 0.0\text{ mm}$)**:
-   - 4 matte vinyl ArUco stickers (`DICT_4X4_50`, IDs 0..3) applied directly flat to the wooden board at the four corners of the arena:
-     - Marker 0: $(70.0, 180.0)$ [Rear-Left]
-     - Marker 1: $(330.0, 180.0)$ [Rear-Right]
-     - Marker 2: $(70.0, 40.0)$ [Front-Left]
-     - Marker 3: $(330.0, 40.0)$ [Front-Right]
-   - Planar homography rectifies the arena to an exact $520 \times 280\text{ px}$ image at $2.0\text{ px/mm}$ with zero elevation distortion.
-6. **Minimal 3D Printing (< 45 g Total Filament)**:
-   - Only a single $2\times 2$ quadrant sorting tray unit is 3D-printed ($< 42\text{ g}$ filament). Overhead camera uses a welded scrap aluminum door stand ($700\times 400\text{ mm}$) with a 10" LED ring light.
+   - Single xArm 1S manipulator centered at $(X = 175.0\text{ mm}, Y = 375.0\text{ mm}, Z = 0.0\text{ mm})$ [Rows 3..5, Cols 2..4] with nominal heading **$-35.0^\circ$** (South-East).
+   - This orientation ensures Motor 6 (travel range $126\text{--}879$ ticks) easily spans both the arena pick envelope ($139\text{--}785$ ticks) and the container drop zone ($875$ ticks) without crossing the servo deadzone.
+2. **Physical Hand-Drawn $7 \times 12$ Grid Arena ($350.0\text{ mm} \times 600.0\text{ mm}$)**:
+   - 7 columns (Cols 0..6) $\times$ 12 rows (Rows 0..11) of $50.0\text{ mm} \times 50.0\text{ mm}$ square cells drawn directly on the platform.
+   - Sits directly flat on the baseboard at $Z = 0.0\text{ mm}$.
+   - Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) forms a compliant retaining perimeter.
+3. **Color Discrimination Methodology**:
+   - **Target (Red)**: Dual-band HSV segmentation ($[0..10]$ and $[170..180]$) detects red craft cubes. Only red objects are queued, validated, and picked.
+   - **Distractor (Green)**: Green cubes ($[38..82]$) are tracked for telemetry and visual overlay, but marked `targetable: false` and strictly excluded from the pick queue.
+   - **Chassis Exclusion (Blue)**: The xArm 1S chassis is blue anodized aluminum. Blue detection is completely bypassed to prevent false-positive self-detections and specular reflection artifacts.
+   - **Spatial Exclusion Mask**: Rectangular exclusion mask for Rows 3..5, Cols 2..4 ($X \in [100, 250\text{ mm}]$, $Y \in [300, 450\text{ mm}]$) zeros out the robot base area in computer vision.
+4. **Dedicated Rear Flank Container Box**:
+   - Physical container box placed in Rows 0..1, Columns 5..6 ($100\times 100\text{ mm}$).
+   - Drop Target: $(X = 300.0\text{ mm}, Y = 550.0\text{ mm}, Z = 40.0\text{ mm})$, base yaw tick $875$.
+5. **Table-Coplanar ArUco Markers ($50\text{ mm} \times 50\text{ mm}$, $Z = 0.0\text{ mm}$)**:
+   - 4 matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3) positioned in clockwise order:
+     - Marker 0: $(25.0, 425.0\text{ mm})$ [Row 3, Col 0] $\to$ Pixel $(0, 0)$
+     - Marker 1: $(325.0, 425.0\text{ mm})$ [Row 3, Col 6] $\to$ Pixel $(600, 0)$
+     - Marker 2: $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 800)$
+     - Marker 3: $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 800)$
+   - Planar homography rectifies the active arena into a metric $600 \times 800\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
 
 ---
 
 ## 📐 Workspace Field Layout
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                      ◄─── REAR OF WORKSPACE ───►                       │
-│                                                                        │
-│                  [Clamp-On Overhead Camera Boom Arm]                   │
-│            ┌─────────────────────────────────────────────┐             │
-│            │        REAR ELECTRONICS BAY (Y=350..400)    │             │
-│            │        (Jetson Orin / RPi 5 + Buck Hub)     │             │
-│            └──────────────────────┬──────────────────────┘             │
-│                                   │                                    │
-│   ┌─────────────────┐             ▼                                    │
-│   │  Tray 1 (2x2)   │          xArm 1S                                 │
-│   │  (Left Flank)   │      (X=200, Y=280)                              │
-│   │  (X=50, Y=280)  │      [Base 140x154]                              │
-│   └─────────────────┘             │  +23mm Clearance                   │
-│        ▲             ═════════════╪═══════════════════════             │
-│  90°   │  ◤ ArUco #0              │                       ArUco #1 ◥   │
-│  Swing │  (70, 180)               \      RECTANGULAR      (330, 180)   │
-│        ▼                          │     PICKING ARENA     │            │
-│                                   │      (260 x 140)      │            │
-│                                   │   (Flat Z = 0.0 mm)   │            │
-│                                   │     (Foam Border)     │            │
-│                                   /                       \            │
-│           ◣ ArUco #2 ─────────────┴───────────────────────┴─ ArUco #3 ◢ │
-│           (70, 40)                                          (330, 40)  │
-│                                                                        │
-│                      ◄─── FRONT OF WORKSPACE ───►                      │
-│                                   ▲                                    │
-│                          (Operator Position)                           │
-└────────────────────────────────────────────────────────────────────────┘
+  Y (Depth: 600 mm, Rows 11 to 0)
+   ^
+   │  ┌────────────────────────────────────────────────────────────┐
+   │  │ REAR OF WORKSPACE (Row 0, Y = 600 mm)                      │
+   │  │                                  ┌───────────────────────┐ │
+   │  │                                  │ CONTAINER BOX (100x100│ │ (X=300, Y=550)
+   │  │                                  │ Rows 0..1, Cols 5..6) │ │ Drop Yaw: 875 ticks
+   │  │                                  └───────────────────────┘ │
+   │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
+   │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
+   │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
+   │  │                             │ Heading: -35.0 deg│          │
+   │  │                             └───────────────────┘          │
+   │  │                                                            │
+   │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
+   │  │                     (r = 160..300 mm reach)                │
+   │  │               [Red = Target | Green = Distractor]          │
+   │  │                                                            │
+   │  │   [ArUco #3] (50x50mm)                            [ArUco #2│
+   │  │   (25, 25) [Row 11, Col 0]                        (325, 25)│
+   │  │                                                   [Row 11, │
+   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)  │
+   │  └────────────────────────────────────────────────────────────┘
+   └───────────────────────────────────────────────────────────────────> X (Width: 350 mm, Cols 0 to 6)
 
-  Base Topology:   Single store-cut flat wooden board (400 x 400 x 18 mm MDF)
-  Vision Focus:    100% of camera pixels warped onto the 260x140 mm picking arena
-  Drop Travel:     Clean 90° clockwise outward swing to Left Flank 2x2 tray (r = 150 mm)
+  Platform Grid:   7 columns x 12 rows of 50x50 mm squares (350 x 600 mm)
+  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0 mm), Heading -35.0°
+  Vision Rect:     600 x 800 px metric grid at 2.0 px/mm between ArUco centers
+  Drop Motion:     Motor 6 swivel to 875 ticks into Rear Flank container box
 ```
 
 ---
@@ -87,17 +73,18 @@ This project automates color-based object sorting using computer vision, analyti
 
 | Component           | Specification                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Manipulator**     | 1× LewanSoul / Hiwonder xArm 1S (Centered at $X=200\text{ mm}, Y=280\text{ mm}$, South heading $-90.0^\circ$)    |
+| **Manipulator**     | 1× LewanSoul / Hiwonder xArm 1S (Mount at $X=175\text{ mm}, Y=375\text{ mm}$, Heading $-35.0^\circ$)             |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
 | **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics bay)                  |
-| **Camera**          | Overhead camera with Invicto 10" LED ring light on welded scrap aluminum stand ($700\times 400\text{ mm}$) @ 65 cm nadir |
-| **Baseboard**       | Single store-cut MDF board ($400\text{ mm} \times 400\text{ mm} \times 18\text{ mm}$, zero woodworking cuts)   |
-| **Picking Arena**   | Flat rectangular surface ($Z = 0.0\text{ mm}$, $260\times 140\text{ mm}$) with $8\text{--}10\text{ mm}$ foam tape border|
-| **Collection Bin**  | 1× 3D-printed 2×2 sorting tray ($80\times 80\times 35\text{ mm}$) on Left Flank at $(X=50, Y=280)$              |
-| **Electronics Area**| Rear section of board ($Y \approx 350\text{--}400\text{ mm}$), short cable runs with surface wire clips         |
-| **Fiducials**       | 4× matte vinyl ArUco stickers (`DICT_4X4_50`, IDs 0..3) coplanar with arena floor at $Z = 0.0\text{ mm}$       |
-| **Objects**         | 1-inch ($25.4\text{ mm}$) wooden craft cubes ($14\text{--}16\text{ g}$) in ultra-matte Red, Green, Blue, Yellow  |
+| **Camera**          | Overhead camera with Invicto 10" LED ring light on welded scrap aluminum stand @ 65 cm nadir                    |
+| **Base Platform**   | Flat platform board with drawn $7\times 12$ grid ($350\text{ mm} \times 600\text{ mm}$, $5\text{ cm}$ cells)    |
+| **Picking Arena**   | Rows 7..10 active pick zone ($r \in [160, 300\text{ mm}]$) with compliant foam perimeter                       |
+| **Container Box**   | Single physical container box ($100\times 100\times 35\text{ mm}$) at Rear Flank $(X=300, Y=550\text{ mm})$     |
+| **Fiducials**       | 4× matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3, $50\times 50\text{ mm}$) coplanar at $Z = 0.0\text{ mm}$|
+| **Target Objects**  | Red wooden craft blocks ($25.4\text{ mm}$, $14\text{--}16\text{ g}$)                                            |
+| **Distractor**      | Green wooden craft blocks (ignored/bypassed by pick scheduler)                                                  |
+| **Chassis Color**   | Blue (disabled in vision; excluded via spatial mask to prevent reflection false-positives)                      |
 | **Power Supply**    | Single 7.4V / 5A DC buck regulator with common star ground                                                      |
 | **Communication**   | Direct USB HID / USB-UART serial bus (`/dev/ttyUSB0`) @ 115200 / 9600 baud                                      |
 
@@ -112,7 +99,7 @@ This project automates color-based object sorting using computer vision, analyti
 
 - **Operating System**: Linux (Ubuntu 22.04 LTS)
 - **Middleware**: ROS 2 Humble Hawksbill
-- **Computer Vision**: OpenCV (ArUco planar homography, HSV color masking, contour moments)
+- **Computer Vision**: OpenCV (ArUco planar homography, HSV color masking, contour moments, chassis spatial mask)
 - **Kinematics**: Analytical closed-form Inverse Kinematics + Distance-to-Pitch LUT
 - **Web Dashboard**: HTML5, CSS3, JavaScript REST API
 
@@ -125,10 +112,10 @@ This project automates color-based object sorting using computer vision, analyti
  [ camera_node ] ───► /camera/image_raw
                            │
                            ▼
-                    [ vision_node ] (ArUco Homography + HSV Color Detection)
+                    [ vision_node ] (ArUco Homography + Red/Green HSV Detection)
                            │
                            ▼ /detected_objects
-              [ autonomous_sorter_node ] (Nearest-First Radial Queue + State Machine)
+              [ autonomous_sorter_node ] (Red-Only Queue + Nearest-First State Machine)
                            │
                            ▼ /xarm_1/joint_commands
                   [ xarm_driver_node ] (Serial / HID Protocol Driver)
@@ -140,8 +127,8 @@ This project automates color-based object sorting using computer vision, analyti
 | Node                     | Responsibility                                                                                                                  |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `camera_node`            | Streams raw video frames from overhead camera to `/camera/image_raw`                                                           |
-| `vision_node`            | Detects 4 arena ArUco markers, rectifies arena to metric mm grid, runs HSV thresholding, publishes `/detected_objects`         |
-| `autonomous_sorter_node` | Prioritizes targets via Nearest-First ascending radius, computes 5-phase trajectories, handles grip validation & state machine   |
+| `vision_node`            | Detects 4 ArUco markers, rectifies $600\times 800\text{ px}$ metric grid, masks chassis, publishes `/detected_objects`          |
+| `autonomous_sorter_node` | Queues target red cubes in Nearest-First order, solves 5-phase trajectories to container box, handles state machine             |
 | `driver_node`            | Dispatches servo move packets over USB serial/HID, reads position feedback, monitors communication health & handles E-Stop     |
 | `web_config`             | Serves real-time web portal on port 8000 for motor calibration, live potentiometer readouts, and CSV drift telemetry logging     |
 
@@ -154,26 +141,20 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 ### Stepping-Stone Specifications
 
 - 📄 **Stepping Stone 0**: [`docs/00_docker_and_ros2_development_guide.md`](docs/00_docker_and_ros2_development_guide.md) — Docker containerization, hybrid host/container development workflow, Intel GPU acceleration, USB hardware mapping, and ROS 2 Humble package build standards.
-- 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Flat store-cut baseboard ($400\times 400\text{ mm}$), central single xArm 1S mounting, rectangular arena ($Z=0\text{ mm}$), foam retaining border, left flank 2x2 tray, and table-coplanar ArUco fiducials.
+- 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Physical $7\times 12$ grid arena ($350\times 600\text{ mm}$), central xArm 1S mount at $(175, 375)$ with heading $-35.0^\circ$, Rear Flank container box, and $50\text{ mm}$ ArUco fiducials.
 - 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
-- 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, camera alignment and leveling tool (`align_camera.py`), 4-point ArUco planar homography ($2.0\text{ px/mm}$), hardware exposure/WB locks, HSV color segmentation, spatial moments centroiding, and Python perception pipeline.
-- 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, single-arm autonomous sorting pipeline, Nearest-First radial queueing, joint trajectory generation, and production Python nodes.
+- 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), **Color Discrimination Methodology** (Red target, Green distractor, Blue chassis exclusion), and spatial masking.
+- 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, single-arm red-object picking pipeline, Nearest-First radial queueing, joint trajectory generation, and production Python nodes.
 - 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), direct USB-HID/UART bringup, xArm PC App servo calibration, and tick-to-angle conversion.
-- 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 6 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
-- 📄 **Stepping Stone 7**: [`docs/07_fusion360_cad_modeling_guide.md`](docs/07_fusion360_cad_modeling_guide.md) — Physical workcell fabrication guide, wood/MDF layered build, 3D renders, cut list, camera mast & non-glare painting.
+- 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 1 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
 - 📄 **Stepping Stone 8**: [`docs/08_servo_limits_and_calibration_guide.md`](docs/08_servo_limits_and_calibration_guide.md) — Comprehensive guide for servo min/max angles, physical-to-tick math ($0.24^\circ/\text{tick}$), safe boundary discovery, Web Config Portal integration, and Cartesian Z-depth trim adjustment.
 
 ### System Integration & Planning
 
 - 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md): **Comprehensive Operator Manual & Debugging Guide** (Python venv testing, Web Config Server, ROS 2 Docker workflow, and fault troubleshooting).
 - 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
-- 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4) replacing rigid weekly schedules.
+- 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4).
 - 📄 [`docs/risks.md`](docs/risks.md): Failure Mode and Effects Analysis (FMEA) covering risks R-01 through R-11 (including $240^\circ$ base servo ROM deadzone mitigation), optical coplanarity rules, and pre-flight checklist.
-
-- 🖼️ [`docs/assets/images/single_arm_setup.png`](docs/assets/images/single_arm_setup.png): 3D perspective studio render of the Single xArm 1S robotic workcell.
-- 🖼️ [`docs/assets/images/arena_layout.png`](docs/assets/images/arena_layout.png): 1:1 engineering blueprint and coordinate cheat-sheet for the 400×400mm baseboard.
-- 🖼️ [`docs/assets/images/pcb module.webp`](docs/assets/images/pcb%20module.webp): Physical xArm controller board secondary UART pinout and electrical interfacing diagram.
-- 🖼️ [`docs/assets/images/xArm demensions.png`](docs/assets/images/xArm%20demensions.png): Factory link measurements and motor layout drawing for the xArm 1S.
 
 ---
 
@@ -185,7 +166,7 @@ Sem-5-mini-project/
 ├── config/                         # Unified Configuration YAMLs
 │   ├── camera_calibration.yaml     # Overhead camera intrinsics & ArUco corner coordinates
 │   ├── colors.yaml                 # Calibrated HSV color bands & morphology thresholds
-│   └── xarm_hardware.yaml          # Unified link lengths, mounting origins, joint limits, centers & 4 color compartments
+│   └── xarm_hardware.yaml          # Unified link lengths, mounting origins, joint limits & container drop target
 │
 ├── docker/                         # Docker & Hardware Pass-Through Scripts
 │   ├── Dockerfile                  # ROS 2 Humble base image with OpenCV, serial & GUI support
@@ -203,8 +184,8 @@ Sem-5-mini-project/
 │   ├── 04_ros2_architecture_and_scheduling.md # Stepping Stone 4: ROS 2 Architecture & Sorter
 │   ├── 05_hardware_bringup_and_firmware_control.md # Stepping Stone 5: Low-Level Protocols & Bringup
 │   ├── 06_system_testing_diagnostics_and_verification.md # Stepping Stone 6: Testing & Diagnostics
-│   ├── 07_fusion360_cad_modeling_guide.md # Stepping Stone 7: Flat Board & 3D Printed Tray Rapid Fabrication
-│   ├── assets/                     # CAD Renders, Blueprints, Photos & Layout Diagrams
+│   ├── 08_servo_limits_and_calibration_guide.md # Stepping Stone 8: Servo Limits & Calibration
+│   ├── arena_bill_of_materials.md  # Master BOM, Hardware Checklist & Fasteners
 │   ├── implementation_plan.md      # System architecture & integration blueprint
 │   ├── risks.md                    # Risk matrix & failure mode analysis (R-01 to R-11)
 │   └── roadmap.md                  # Milestone-based Phase-Gate Checklist (Gate 0 to Gate 4)
@@ -223,7 +204,7 @@ Sem-5-mini-project/
 │           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
 │           │   ├── trajectory.py       # Quintic polynomial minimum-jerk trajectory generator
 │           │   ├── vision_node.py      # ROS 2 camera capture & ArUco perception node
-│           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator
+│           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator (red-only)
 │           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
 │           ├── test/
 │           │   ├── run_tests.py        # Standalone offline simulation test suite (32 unit tests)
@@ -237,7 +218,6 @@ Sem-5-mini-project/
 │
 ├── tools/                          # Utility & Calibration Tools (RUN IN VENV OR DOCKER)
 │   ├── autonomous_pick_and_place.py # End-to-end vision-guided autonomous sorting bridge
-│   ├── pick_and_place_test.py      # Trajectory test with closed-loop verification
 │   ├── telemetry_logger.py         # Sub-millimeter drift analysis & repeatability logger
 │   └── web_config/                 # Real-time Web Configuration & Calibration Tool
 │       ├── server.py               # Dynamic port auto-detect HTTP & REST API server (:8000)
@@ -248,6 +228,13 @@ Sem-5-mini-project/
 │   ├── align_camera.py             # Interactive camera centering & optical tilt alignment tool
 │   ├── arena_vision_pipeline.py    # Core 4-point ArUco homography & HSV segmentation pipeline
 │   ├── calibrate_camera.py         # Interactive checkerboard lens intrinsic calibration
+│   ├── test_aruco_warp.py          # ArUco marker detection & metric grid verification
+│   └── tune_hsv.py                 # Real-time 6-trackbar HSV threshold calibration GUI
+│
+├── .devcontainer/                  # VS Code Dev Container configuration
+│   └── devcontainer.json           # 1-click isolated ROS 2 environment
+├── requirements.txt                # Python host virtual environment dependencies
+└── setup_venv.sh                   # One-click host Python virtual environment setup
 │   ├── test_aruco_warp.py          # ArUco marker detection & metric grid verification
 │   └── tune_hsv.py                 # Real-time 6-trackbar HSV threshold calibration GUI
 │
@@ -383,7 +370,6 @@ For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and
 - [x] **Stepping Stone 4**: ROS 2 Architecture & Single-Arm Pipeline (`docs/04_ros2_architecture_and_scheduling.md`)
 - [x] **Stepping Stone 5**: Hardware Bringup & Firmware Control (`docs/05_hardware_bringup_and_firmware_control.md`)
 - [x] **Stepping Stone 6**: Testing, Diagnostics & Reach Verification (`docs/06_system_testing_diagnostics_and_verification.md`)
-- [x] **Stepping Stone 7**: Flat Board & 3D Printed Tray Rapid Fabrication (`docs/07_fusion360_cad_modeling_guide.md`)
 - [x] **Stepping Stone 8**: Servo Limits, Calibration & Z-Trim Web Guide (`docs/08_servo_limits_and_calibration_guide.md`)
 - [x] **Phase 0**: Direct USB Hardware Bringup, xArm App Calibration & Reach Testing
 - [x] **Phase 1**: Kinematics, Driver, Calibration & 13-Motion Trajectory Test Suite (`ros2_ws/src/sorting_arm/`) — **✅ COMPLETE**

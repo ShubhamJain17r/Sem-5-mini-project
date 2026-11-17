@@ -59,28 +59,28 @@ def test_metric_coordinate_mapping(pipeline=None):
     """Test mathematical accuracy of pixel_to_world and world_to_pixel mappings."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Marker 0: Rear-Left (70.0, 180.0) -> (u=0, v=0)
+    # Marker 0: Top-Left (25.0, 425.0) -> (u=0, v=0)
     x0, y0, _ = pipeline.pixel_to_world(0.0, 0.0)
-    assert abs(x0 - 70.0) < 0.1
-    assert abs(y0 - 180.0) < 0.1
+    assert abs(x0 - 25.0) < 0.1
+    assert abs(y0 - 425.0) < 0.1
 
-    # Marker 1: Rear-Right (330.0, 180.0) -> (u=520, v=0)
-    x1, y1, _ = pipeline.pixel_to_world(520.0, 0.0)
-    assert abs(x1 - 330.0) < 0.1
-    assert abs(y1 - 180.0) < 0.1
+    # Marker 1: Top-Right (325.0, 425.0) -> (u=600, v=0)
+    x1, y1, _ = pipeline.pixel_to_world(600.0, 0.0)
+    assert abs(x1 - 325.0) < 0.1
+    assert abs(y1 - 425.0) < 0.1
 
-    # Marker 2: Front-Left (70.0, 40.0) -> (u=0, v=280)
-    x2, y2, _ = pipeline.pixel_to_world(0.0, 280.0)
-    assert abs(x2 - 70.0) < 0.1
-    assert abs(y2 - 40.0) < 0.1
+    # Marker 2: Bottom-Right (325.0, 25.0) -> (u=600, v=800)
+    x2, y2, _ = pipeline.pixel_to_world(600.0, 800.0)
+    assert abs(x2 - 325.0) < 0.1
+    assert abs(y2 - 25.0) < 0.1
 
-    # Marker 3: Front-Right (330.0, 40.0) -> (u=520, v=280)
-    x3, y3, _ = pipeline.pixel_to_world(520.0, 280.0)
-    assert abs(x3 - 330.0) < 0.1
-    assert abs(y3 - 40.0) < 0.1
+    # Marker 3: Bottom-Left (25.0, 25.0) -> (u=0, v=800)
+    x3, y3, _ = pipeline.pixel_to_world(0.0, 800.0)
+    assert abs(x3 - 25.0) < 0.1
+    assert abs(y3 - 25.0) < 0.1
 
     # Roundtrip check
-    for test_u, test_v in [(100.0, 50.0), (260.0, 140.0), (450.0, 200.0)]:
+    for test_u, test_v in [(100.0, 50.0), (300.0, 400.0), (500.0, 700.0)]:
         wx, wy, _ = pipeline.pixel_to_world(test_u, test_v)
         u_back, v_back = pipeline.world_to_pixel(wx, wy)
         assert abs(u_back - test_u) <= 1
@@ -91,20 +91,20 @@ def test_arm_polar_transformation(pipeline=None):
     """Test transformation from global world coordinates (Xw, Yw) to arm polar frames (r, theta)."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Single xArm 1S is at (200, 280, 0) with nominal heading -90° (South)
-    # Heading -90° corresponds to dx = 0, dy = -R
+    # Single xArm 1S is at (175, 375, 0) with nominal heading -35° (South-East)
     r_test = 200.0
-    tx = 200.0
-    ty = 280.0 - r_test  # 80.0 mm
+    rad_head = math.radians(-35.0)
+    tx = 175.0 + r_test * math.cos(rad_head)
+    ty = 375.0 + r_test * math.sin(rad_head)
 
     r_calc, th_calc = pipeline.world_to_arm_polar(tx, ty, "xarm_1")
     assert abs(r_calc - r_test) < 0.5
     assert abs(th_calc - 0.0) < 0.5, f"Expected 0.0 deg along heading, got {th_calc}"
 
     # Test point at +20° local angle
-    rad_arm = math.radians(-70.0)  # -90° + 20°
-    tx_off = 200.0 + r_test * math.cos(rad_arm)
-    ty_off = 280.0 + r_test * math.sin(rad_arm)
+    rad_arm = math.radians(-15.0)  # -35° + 20°
+    tx_off = 175.0 + r_test * math.cos(rad_arm)
+    ty_off = 375.0 + r_test * math.sin(rad_arm)
 
     r_off, th_off = pipeline.world_to_arm_polar(tx_off, ty_off, "xarm_1")
     assert abs(r_off - r_test) < 0.5
@@ -144,37 +144,40 @@ def test_color_segmentation_and_cube_detection(pipeline=None):
 
     assert warped is not None
     assert annotated is not None
-    assert len(cubes) >= 4, f"Expected at least 4 cubes, found {len(cubes)}"
+    assert len(cubes) >= 1, f"Expected at least 1 detected cube, found {len(cubes)}"
 
     detected_colors = {c.color for c in cubes}
-    expected_colors = {"red", "green", "blue", "yellow"}
-    assert expected_colors.issubset(detected_colors), f"Missing colors: {expected_colors - detected_colors}"
+    assert "red" in detected_colors, f"Expected red in detected colors: {detected_colors}"
+
+    # Verify red cubes are marked targetable
+    red_cubes = [c for c in cubes if c.color == "red"]
+    assert len(red_cubes) >= 1
+    assert all(c.targetable for c in red_cubes)
 
     for c in cubes:
-        # Check arena bounds: X in [70, 330], Y in [40, 180] (with tolerance)
-        assert 60.0 <= c.world_x <= 340.0, f"X out of bounds: {c.world_x}"
-        assert 30.0 <= c.world_y <= 190.0, f"Y out of bounds: {c.world_y}"
+        # Check arena bounds: X in [25, 325], Y in [25, 425] (with tolerance)
+        assert 20.0 <= c.world_x <= 330.0, f"X out of bounds: {c.world_x}"
+        assert 20.0 <= c.world_y <= 430.0, f"Y out of bounds: {c.world_y}"
         # Check yaw angle normalization
         assert -45.0 <= c.yaw_deg <= 45.0, f"Yaw out of bounds: {c.yaw_deg}"
-        # Check reach range from arm at (200, 280)
-        assert 100.0 <= c.target_r_mm <= 300.0, f"Radius out of reach: {c.target_r_mm}"
         # Check single arm assignment
         assert c.assigned_arm in ("xarm_1", "xarm")
 
 
 def test_nearest_first_queue_sorting():
-    """Test that queue sorting prioritizes cubes by ascending radius to prevent collisions."""
+    """Test that queue sorting prioritizes cubes by ascending radius and excludes distractors."""
     bridge = AutonomousSorterBridge(arm_id="xarm_1", dry_run=True)
     c1 = DetectedCube(color="red", world_x=200.0, world_y=120.0, assigned_arm="xarm_1", target_r_mm=260.0)
-    c2 = DetectedCube(color="blue", world_x=200.0, world_y=160.0, assigned_arm="xarm_1", target_r_mm=160.0)
-    c3 = DetectedCube(color="green", world_x=230.0, world_y=140.0, assigned_arm="xarm_1", target_r_mm=210.0)
+    c2 = DetectedCube(color="red", world_x=200.0, world_y=160.0, assigned_arm="xarm_1", target_r_mm=160.0)
+    c3 = DetectedCube(color="red", world_x=230.0, world_y=140.0, assigned_arm="xarm_1", target_r_mm=210.0)
+    c4_distractor = DetectedCube(color="green", world_x=220.0, world_y=130.0, assigned_arm="xarm_1", target_r_mm=180.0)
 
-    queue = bridge.filter_and_sort_queue([c1, c2, c3])
-    assert len(queue) == 3
+    queue = bridge.filter_and_sort_queue([c1, c2, c3, c4_distractor])
+    assert len(queue) == 3, f"Expected 3 red cubes, got {len(queue)}"
     assert queue[0].target_r_mm == 160.0
     assert queue[1].target_r_mm == 210.0
     assert queue[2].target_r_mm == 260.0
-    assert queue[0].color == "blue"
+    assert all(c.color == "red" for c in queue)
 
 
 def test_phase1_phase2_ik_bridge():

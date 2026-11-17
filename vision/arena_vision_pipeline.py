@@ -52,6 +52,7 @@ class DetectedCube:
     bounding_box: Optional[np.ndarray] = None
     contour_area_px: float = 0.0
     confidence: float = 1.0
+    targetable: bool = True
 
 
 class ArenaVisionPipeline:
@@ -62,35 +63,35 @@ class ArenaVisionPipeline:
         self.scale_px_per_mm = scale_px_per_mm
 
         # ArUco Reference Markers Ground Truth Coordinates (mm at Z = 0.0 mm)
-        # Arena: 260 mm (W) x 140 mm (D), centered in front of arm at (X=200, Y=280)
+        # Arena: 300 mm (W) x 400 mm (D) between marker centers in 7x12 grid
         self.marker_world_corners: Dict[int, Tuple[float, float]] = {
-            0: (70.0, 180.0),   # Marker 0: Rear-Left
-            1: (330.0, 180.0),  # Marker 1: Rear-Right
-            2: (70.0, 40.0),    # Marker 2: Front-Left
-            3: (330.0, 40.0),   # Marker 3: Front-Right
+            0: (25.0, 425.0),   # Marker 0: Top-Left (Row 3, Col 0)
+            1: (325.0, 425.0),  # Marker 1: Top-Right (Row 3, Col 6)
+            2: (325.0, 25.0),   # Marker 2: Bottom-Right (Row 11, Col 6)
+            3: (25.0, 25.0),    # Marker 3: Bottom-Left (Row 11, Col 0)
         }
 
         # Arena physical dimensions between marker centers
-        self.arena_width_mm = 330.0 - 70.0   # 260.0 mm
-        self.arena_height_mm = 180.0 - 40.0  # 140.0 mm
+        self.arena_width_mm = 325.0 - 25.0   # 300.0 mm
+        self.arena_height_mm = 425.0 - 25.0  # 400.0 mm
 
         # Rectified metric image dimensions in pixels
-        self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 520 px
-        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 280 px
+        self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 600 px
+        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 800 px
 
-        # Destination points in rectified image plane (Origin (0,0) is top-left: Marker 0)
+        # Destination points in rectified image plane (Clockwise order: 0 -> 1 -> 2 -> 3)
         self.dst_pts = np.array([
-            [0.0, 0.0],                          # ID 0 (Rear-Left)
-            [float(self.rect_w), 0.0],           # ID 1 (Rear-Right)
-            [0.0, float(self.rect_h)],           # ID 2 (Front-Left)
-            [float(self.rect_w), float(self.rect_h)],  # ID 3 (Front-Right)
+            [0.0, 0.0],                          # ID 0 (Top-Left)
+            [float(self.rect_w), 0.0],           # ID 1 (Top-Right)
+            [float(self.rect_w), float(self.rect_h)],  # ID 2 (Bottom-Right)
+            [0.0, float(self.rect_h)],           # ID 3 (Bottom-Left)
         ], dtype=np.float32)
 
         # Base mount and nominal heading in world frame (from xarm_hardware.yaml)
         self.base_mounts = {
-            "xarm_1": {"x": 200.0, "y": 280.0, "z": 0.0, "heading": -90.0},
+            "xarm_1": {"x": 175.0, "y": 375.0, "z": 0.0, "heading": -35.0},
         }
-        self.midline_x_mm = 200.0
+        self.midline_x_mm = 175.0
         self.mutex_corridor = (0.0, 0.0)  # No mutex corridor needed for single arm
 
         # Camera Intrinsic Parameters
@@ -173,8 +174,8 @@ class ArenaVisionPipeline:
                 self.dst_pts = np.array([
                     [0.0, 0.0],
                     [float(self.rect_w), 0.0],
-                    [0.0, float(self.rect_h)],
                     [float(self.rect_w), float(self.rect_h)],
+                    [0.0, float(self.rect_h)],
                 ], dtype=np.float32)
 
             # Check if homography is already cached
@@ -257,6 +258,13 @@ class ArenaVisionPipeline:
                 arena_cfg = data.get("workspace", {}).get("picking_arena", {})
                 if "cube_center_z_mm" in arena_cfg:
                     self.cube_center_z_mm = float(arena_cfg["cube_center_z_mm"])
+                arm_mount = data.get("manipulators", {}).get("xarm_1", {}).get("base_mount_mm", {})
+                if arm_mount:
+                    self.base_mounts["xarm_1"]["x"] = float(arm_mount.get("x", self.base_mounts["xarm_1"]["x"]))
+                    self.base_mounts["xarm_1"]["y"] = float(arm_mount.get("y", self.base_mounts["xarm_1"]["y"]))
+                    self.base_mounts["xarm_1"]["z"] = float(arm_mount.get("z", self.base_mounts["xarm_1"]["z"]))
+                    self.base_mounts["xarm_1"]["heading"] = float(arm_mount.get("nominal_heading_deg", self.base_mounts["xarm_1"]["heading"]))
+                    self.midline_x_mm = self.base_mounts["xarm_1"]["x"]
             except Exception as e:
                 print(f"[ArenaVisionPipeline] Warning loading hardware config: {e}")
 
@@ -371,9 +379,14 @@ class ArenaVisionPipeline:
         colors_dict = self.color_config.get("colors", {})
 
         for color_key, color_info in colors_dict.items():
+            if not color_info.get("enabled", True):
+                continue
+
             bands = color_info.get("bands", [])
             if not bands:
                 continue
+
+            targetable = color_info.get("targetable", True)
 
             combined_mask = np.zeros(warped_frame.shape[:2], dtype=np.uint8)
             for band in bands:
@@ -386,6 +399,13 @@ class ArenaVisionPipeline:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, self.morph_kernel, iterations=open_iters)
             if close_iters > 0:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, self.morph_kernel, iterations=close_iters)
+
+            # Robot Chassis Exclusion: Mask out Rows 3..5, Cols 2..4 (X in [100, 250], Y in [300, 450])
+            u_b1, v_b1 = self.world_to_pixel(100.0, 450.0)
+            u_b2, v_b2 = self.world_to_pixel(250.0, 300.0)
+            u_min, u_max = max(0, min(u_b1, u_b2)), min(warped_frame.shape[1], max(u_b1, u_b2))
+            v_min, v_max = max(0, min(v_b1, v_b2)), min(warped_frame.shape[0], max(v_b1, v_b2))
+            combined_mask[v_min:v_max, u_min:u_max] = 0
 
             contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -439,6 +459,7 @@ class ArenaVisionPipeline:
                         pixel_center=(round(u_c, 1), round(v_c, 1)),
                         bounding_box=box_points,
                         contour_area_px=float(area),
+                        targetable=targetable,
                     )
                     detected_cubes.append(cube)
 

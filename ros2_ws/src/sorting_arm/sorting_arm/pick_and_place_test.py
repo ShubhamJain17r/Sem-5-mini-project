@@ -134,8 +134,11 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         print(f"[{self.arm_id.upper()}] {text}")
 
     def _load_yaml(self, path: str) -> dict:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         candidates = [
             path,
+            os.path.join(repo_root, path),
+            os.path.join(repo_root, "config", os.path.basename(path)),
             os.path.join(os.getcwd(), path),
             os.path.join("/workspace", path),
         ]
@@ -277,12 +280,12 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         if not self.send_ik_target(retract_r, pick_theta, lift_z, self.claw_grip_tick, move_time_ms=1000):
             return False
 
-        # Phase 5: Slew ~70° to Flank 2x2 Sorting Tray Compartment
-        print(f"[Phase 5] Swiveling ~70° to Flank 2x2 Tray (Color: {color.upper()})...")
+        # Phase 5: Slew to Collection Container
+        print(f"[Phase 5] Swiveling to Collection Container (Color: {color.upper()})...")
         target_info = get_compartment_target(color, arm_id=self.arm_id, config_path=self.hardware_yaml)
         drop_yaw = target_info.get("drop_yaw_tick", self.drop_yaw_tick) if target_info else self.drop_yaw_tick
 
-        # High clearance drop pose over flank tray (safe elevation Z ≈ 56mm above tray rim Z=35mm)
+        # High clearance drop pose over container box (safe elevation Z ≈ 40mm)
         preset_ticks = target_info.get("drop_pose_preset") if target_info else None
         if preset_ticks and len(preset_ticks) == 6:
             drop_pose = {
@@ -297,9 +300,9 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             drop_pose = {
                 1: self.claw_grip_tick,
                 2: 500,
-                3: 830,
-                4: 160,
-                5: 470,
+                3: 680,
+                4: 154,
+                5: 554,
                 6: drop_yaw,
             }
         self.send_pose_ticks(drop_pose, move_time_ms=1800)

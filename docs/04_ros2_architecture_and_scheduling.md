@@ -57,8 +57,8 @@ flowchart TD
 | Node Name                   | Input Topics / Interfaces                 | Output Topics / Interfaces                                              |            Execution Rate            |            QoS Profile             | Role                                                                                                                                                 |
 | --------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- | :----------------------------------: | :--------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`camera_node`**           | Hardware `/dev/video0`                    | `/camera/image_raw`  `/camera/camera_info`                               |            $30\text{ Hz}$            | SensorData (Best Effort, Depth 1)  | V4L2 video acquisition, exposure lock ($156$), white balance lock ($4500\text{K}$).                                                                  |
-| **`vision_node`**           | `/camera/image_raw`                       | `/vision/detected_objects`  `/vision/annotated_image`                    |      $10\text{--}15\text{ Hz}$       | Reliable, Transient Local, Depth 1 | ArUco 4-point homography warp ($2.0\text{ px/mm}$), HSV color segmentation, centroid extraction $(X_w, Y_w)$, yaw $\psi \in [-45^\circ, +45^\circ]$. |
-| **`autonomous_sorter_node`**| `/vision/detected_objects`                | `/xarm_1/joint_commands`                                                |         $10\text{ Hz}$ loop          |         Reliable, Depth 10         | Nearest-First target ordering, closed-form analytical IK for pick & Left Flank drop, 5-phase trajectory execution.                                    |
+| **`vision_node`**           | `/camera/image_raw`                       | `/vision/detected_objects`  `/vision/annotated_image`                    |      $10\text{--}15\text{ Hz}$       | Reliable, Transient Local, Depth 1 | ArUco 4-point homography warp ($2.0\text{ px/mm}$, $600\times 800\text{ px}$), chassis mask, Red/Green segmentation, centroid $(X_w, Y_w)$, yaw $\psi$. |
+| **`autonomous_sorter_node`**| `/vision/detected_objects`                | `/xarm_1/joint_commands`                                                |         $10\text{ Hz}$ loop          |         Reliable, Depth 10         | Nearest-First red cube ordering, analytical IK for pick & container drop (tick $875$), 5-phase trajectory execution.                                  |
 | **`driver_node`**           | `/xarm_1/joint_commands`                  | `/xarm_1/joint_states`  `/dev/ttyUSB0` (UART)                           | Event-driven + $50\text{ Hz}$ status |         Reliable, Depth 5          | xArm 1S serial protocol driver: command dispatch, position telemetry feedback, health monitoring & E-Stop interlock.                                 |
 | **`web_config`**            | HTTP / REST API                           | Port 8000 Web Dashboard                                                 |            $2\text{ Hz}$             |            Best Effort             | Real-time calibration, servo min/max adjustments, live potentiometer readouts, and CSV drift telemetry logging.                                      |
 
@@ -70,17 +70,18 @@ All custom messages and services are defined in the project ROS 2 package `xarm_
 
 ### 2.1 `DetectedObject.msg`
 
-Represents an individual physical cube identified on the elevated picking arena.
+Represents an individual physical cube identified on the picking arena.
 
 ```text
 # xarm_interfaces/msg/DetectedObject.msg
 # Represents a single detected colored wooden block on the picking arena
 
 uint32 object_id                  # Unique sequential detection ID
-string color                      # Color classification: "RED", "GREEN", "BLUE", "YELLOW"
-float64 x_mm                      # Absolute world X coordinate in arena frame [80.0, 480.0 mm]
-float64 y_mm                      # Absolute world Y coordinate in arena frame [40.0, 420.0 mm]
-float64 z_mm                      # Elevation coordinate (nominally +37.5 mm for cube centroid on +25mm deck)
+string color                      # Color classification: "RED" (target), "GREEN" (distractor)
+bool targetable                   # True if eligible for picking (Red = True, Green = False)
+float64 x_mm                      # Absolute world X coordinate in arena frame [25.0, 325.0 mm]
+float64 y_mm                      # Absolute world Y coordinate in arena frame [25.0, 425.0 mm]
+float64 z_mm                      # Elevation coordinate (nominally +12.5 mm for cube centroid on table)
 float64 yaw_deg                   # Planar orientation angle psi in range [-45.0, +45.0 degrees]
 float64 confidence                # Optical classification confidence score [0.0, 1.0]
 builtin_interfaces/Time stamp     # Timestamp of perception capture
@@ -102,40 +103,35 @@ bool homography_locked            # True if all 4 ArUco markers are actively tra
 
 ### 2.3 `ArmTask.msg`
 
-Dispatched by `scheduler_node` to command a specific pick-and-place cycle.
+Dispatched by scheduler to command a specific pick-and-place cycle.
 
 ```text
 # xarm_interfaces/msg/ArmTask.msg
-# Action directive issued from scheduler to an individual arm controller
+# Action directive issued from scheduler to the arm controller
 
 uint32 task_id                    # Unique task transaction ID
-string arm_id                     # Target manipulator: "arm_1" or "arm_2"
+string arm_id                     # Target manipulator: "xarm_1"
 DetectedObject target_object      # Full perception state of the cube to pick
 
-# Kinematic target parameters relative to target arm base
-float64 target_r_mm               # Polar radius r = sqrt(dx^2 + dy^2) [120.0, 320.0 mm]
-float64 target_theta_deg          # Polar azimuth angle theta = atan2(dy, dx) [degrees]
-float64 distance_from_edge_cm     # Physical reach d_edge = (r - 70 mm) / 10 [5.0, 25.0 cm]
+# Kinematic target parameters relative to arm base
+float64 target_r_mm               # Polar radius r = sqrt(dx^2 + dy^2) [160.0, 300.0 mm]
+float64 target_theta_deg          # Polar azimuth angle theta relative to heading [degrees]
 
 # Sorting destination parameters
-string destination_box            # Drop target: "BOX_1_NW" (Arm 1) or "BOX_2_SW" (Arm 2)
-int32 compartment_index           # Compartment index 0..3 matching color partition
-float64 drop_theta_deg            # Target base yaw for drop (+125° for NW, -125° for SW)
-
-# Safety synchronization
-bool requires_mutex               # True if target cube lies within central crossover band
+string destination_box            # Drop target: "CONTAINER_REAR_FLANK"
+float64 drop_theta_deg            # Target base yaw for drop (+89.5° from heading, tick 875)
 ```
 
 ### 2.4 `ArmStatus.msg`
 
-High-speed state telemetry published by each `arm_node` at $50\text{ Hz}$.
+High-speed state telemetry published by `arm_node` at $50\text{ Hz}$.
 
 ```text
 # xarm_interfaces/msg/ArmStatus.msg
 # Runtime status and telemetry of an individual xArm 1S
 
 std_msgs/Header header
-string arm_id                     # "arm_1" (North) or "arm_2" (South)
+string arm_id                     # "xarm_1"
 
 # State Machine State
 string state                      # "IDLE", "APPROACHING", "GRASPING", "LIFTING",
@@ -226,7 +222,7 @@ Each sorting transaction executes 5 distinct kinematic phases:
 | **Phase 2** | **Horizontal Radial Advance**        |   Descent ($+12.5\text{ mm}$)   |     $r - 30\text{ mm} \rightarrow r$     |   Smooth ($450\text{ ms}$)   | Advance claw tip around cube; orient wrist roll to match cube yaw $\psi$ |
 | **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+12.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($250\text{ ms}$) | Clamp claw (tick 500); settle against silicone pad |
 | **Phase 4** | **Vertical Lift & Radial Retract**   |     Lift to $+60.0\text{ mm}$   |     $r \rightarrow r - 40\text{ mm}$     |   Smooth ($400\text{ ms}$)   | Lift cube clear of perimeter tape; retract toward shoulder |
-| **Phase 5** | **Flank Swivel & Release**           | Drop altitude ($+45.0\text{ mm}$) |   Swivel to Left Flank Tray (90° CW)   |    Fast ($600\text{ ms}$)    | Swing to tray compartment, open claw (tick 200), return to ready standoff |
+| **Phase 5** | **Flank Swivel & Release**           | Drop altitude ($+45.0\text{ mm}$) |   Swivel to Rear Flank Container Box   |    Fast ($600\text{ ms}$)    | Swing to container (yaw tick 875), open claw (tick 200), return to ready standoff |
 
 ### 4.2 Cycle Timing & Performance
 
@@ -269,10 +265,10 @@ class AutonomousSorterNode(Node):
 
 #### Core Operational Loop
 1. **Perception Subscription**: Subscribes to `/vision/detected_objects` published by `vision_node`.
-2. **Nearest-First Ordering**: Filters detected cubes and sorts the active queue in ascending order of radial distance $r$.
+2. **Nearest-First Ordering**: Filters detected cubes and sorts the active queue in ascending order of radial distance $r$. Only target red objects are queued for execution; green distractors are skipped.
 3. **Analytical Trajectory Generation**:
    - For pick: Solves `solve_ik(r, theta, z=12.5, roll_tick)` with roll aligned to cube orientation $\psi$.
-   - For drop: Retrieves compartment target from `get_compartment_target(color, arm_id)` targeting the Left Flank 2×2 tray ($90^\circ$ CW swing, drop yaw tick $\approx 145$).
+   - For drop: Retrieves target from `get_compartment_target(color, arm_id)` targeting the Rear Flank container box at $(300.0, 550.0, 40.0\text{ mm})$ with drop yaw tick $875$.
 4. **Trajectory Execution**: Emits interpolated `sensor_msgs/JointState` waypoints to `/{arm_id}/joint_commands`.
 
 
@@ -289,9 +285,10 @@ The hardware interface node connects directly to the LewanSoul xArm controller:
 
 The perception node interfaces with OpenCV:
 - Streams overhead video from `/dev/video0`.
-- Detects the 4 ArUco markers (`DICT_4X4_50`, IDs 0..3) coplanar with the arena tabletop ($Z = 0.0\text{ mm}$).
-- Computes perspective homography matrix $H$ and warps the arena to an exact $2.0\text{ px/mm}$ metric grid ($520 \times 280\text{ px}$).
-- Segments Red, Green, Blue, and Yellow cubes via calibrated HSV thresholds.
+- Detects the 4 ArUco markers (`DICT_4X4_50`, IDs 0..3) coplanar with the arena tabletop ($Z = 0.0\text{ mm}$) in clockwise order.
+- Computes perspective homography matrix $H$ and warps the arena to an exact $2.0\text{ px/mm}$ metric grid ($600 \times 800\text{ px}$).
+- Applies rectangular exclusion mask over arm mounting zone (Rows 3..5, Cols 2..4).
+- Segments Red (target) and Green (distractor) cubes; bypasses blue chassis color.
 - Computes spatial moments to extract cube centroids $(X_w, Y_w)$, yaw orientation $\psi \in [-45^\circ, +45^\circ]$, and radial coordinates $(r, \theta)$.
 - Publishes structured detections to `/vision/detected_objects` and annotated video to `/vision/annotated_image`.
 

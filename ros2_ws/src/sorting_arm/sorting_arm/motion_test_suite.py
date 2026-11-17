@@ -10,15 +10,15 @@ Single Arm Motions (xarm_1):
   2. Pure Cartesian Vertical Z-Plunge & Elevate (Z=120mm -> Z=25mm -> Z=120mm at constant R=220mm)
   3. Pure Cartesian Radial Reach Sweep (R=160mm -> R=275mm -> R=160mm at clearance Z=35mm)
   4. Azimuthal Panoramic Arc Scan (Base yaw sweep from -35° to +35° over arena)
-  5. Standard Mid-Range Color Pick-and-Place (R=220mm, θ=0°, Z=12.5mm -> Flank Tray)
-  6. Near-Field Shallow Pick-and-Place (Short reach R=165mm, θ=0°, Z=12.5mm -> Flank Tray)
-  7. Extended Far-Reach Pick-and-Place (Maximum reach R=275mm, θ=0°, Z=12.5mm -> Flank Tray)
-  8. Left-Quadrant Flank Diagonal Pick-and-Place (R=210mm, θ=-30° West -> Flank Tray)
-  9. Right-Quadrant Midline Diagonal Pick-and-Place (R=210mm, θ=+30° East -> Flank Tray)
+  5. Standard Mid-Range Color Pick-and-Place (R=220mm, θ=0°, Z=12.5mm -> Flank Container)
+  6. Near-Field Shallow Pick-and-Place (Short reach R=165mm, θ=0°, Z=12.5mm -> Flank Container)
+  7. Extended Far-Reach Pick-and-Place (Maximum reach R=275mm, θ=0°, Z=12.5mm -> Flank Container)
+  8. Left-Quadrant Flank Diagonal Pick-and-Place (R=210mm, θ=-30° West -> Flank Container)
+  9. Right-Quadrant Midline Diagonal Pick-and-Place (R=210mm, θ=+30° East -> Flank Container)
   10. Far-Corner Diagonal Reach & Tabletop Sweep (R=265mm, θ=-25° to +25° at Z=20mm)
   11. Multi-Altitude Stepped Standoff Sequence (Z=150mm -> 90mm -> 40mm -> 12.5mm contact)
   12. Continuous 3-Point Tabletop Rapid Touch (Near-West -> Center -> Far-East without homing)
-  13. Precision Flank 4-Color Compartment Tour (Red -> Green -> Blue -> Yellow compartments)
+  13. Rear Flank Container Box Drop Tour (yaw tick 875)
 """
 
 import argparse
@@ -424,31 +424,30 @@ def motion_single_12_continuous_3point_touch(arm: ArmController):
 
 
 def motion_single_13_flank_compartment_tour(arm: ArmController):
-    """Motion 13: Precision 4-Color Flank Sorting Box Tour (Red -> Green -> Blue -> Yellow)."""
-    print(f"\n--- [MOTION 13: 4-Color Flank Tray Compartment Tour on {arm.arm_id}] ---")
+    """Motion 13: Rear Flank Container Box Drop Tour (yaw tick 875)."""
+    print(f"\n--- [MOTION 13: Rear Flank Container Box Drop Tour on {arm.arm_id}] ---")
     arm.reset_pose(move_time_ms=1400)
 
-    colors = ["red", "green", "blue", "yellow"]
-    for c in colors:
-        target_info = get_compartment_target(c, arm_id=arm.arm_id, config_path=arm.hw_yaml)
-        drop_yaw = target_info.get("drop_yaw_tick", 208 if arm.arm_id == "xarm_1" else 792) if target_info else 208
-        arm.log(f"Visiting [{c.upper()}] compartment (Base Yaw: {drop_yaw} ticks)...")
-        drop_pose = {
-            1: arm.claw_open,
-            2: 500,
-            3: 830 if arm.arm_id == "xarm_1" else 170,
-            4: 160 if arm.arm_id == "xarm_1" else 840,
-            5: 470,
-            6: drop_yaw,
-        }
-        arm.send_pose(drop_pose, move_time_ms=1400)
-        time.sleep(0.3)
-        # Gripper tap
-        drop_pose[1] = arm.claw_grip
-        arm.send_pose(drop_pose, move_time_ms=400)
-        drop_pose[1] = arm.claw_open
-        arm.send_pose(drop_pose, move_time_ms=400)
-        time.sleep(0.2)
+    target_info = get_compartment_target("red", arm_id=arm.arm_id, config_path=arm.hw_yaml)
+    drop_yaw = target_info.get("drop_yaw_tick", 875) if target_info else 875
+    arm.log(f"Visiting Rear Flank Container Box (Base Yaw: {drop_yaw} ticks)...")
+    drop_pose = {
+        1: arm.claw_open,
+        2: 500,
+        3: 680,
+        4: 154,
+        5: 554,
+        6: drop_yaw,
+    }
+    arm.send_pose(drop_pose, move_time_ms=1400)
+    time.sleep(0.5)
+    # Gripper tap
+    drop_pose[1] = arm.claw_grip
+    arm.send_pose(drop_pose, move_time_ms=400)
+    time.sleep(0.3)
+    drop_pose[1] = arm.claw_open
+    arm.send_pose(drop_pose, move_time_ms=400)
+    time.sleep(0.3)
 
     arm.reset_pose(move_time_ms=1500)
     print(">>> Motion 13 Complete! <<<\n")

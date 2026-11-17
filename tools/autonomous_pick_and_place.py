@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Autonomous Vision-Guided Pick-and-Place Bridge (Phase 1 + Phase 2 Integration).
+Autonomous Vision-Guided Pick-and-Place Bridge (Single xArm 1S Red-Object Picking).
 
 Workflow:
   1. Captures overhead camera frame and applies 4-point ArUco planar homography.
-  2. Segments colored cubes (Red, Green, Blue, Yellow) and calculates arena centroids (Xw, Yw).
-  3. Shifts coordinates into arm-relative cylindrical/polar frames (r, theta_arm) for xArm 1 and xArm 2.
+  2. Segments colored cubes; filters for target red cubes while ignoring green distractors and blue chassis.
+  3. Shifts coordinates into arm-relative cylindrical/polar frames (r, theta_arm).
   4. Enforces Nearest-First pick ordering (ascending r) to prevent foreground cube collisions.
-  5. Computes analytical inverse kinematics for pick (r, theta, z=12.5mm) and color drop (2x2 flank tray).
+  5. Computes analytical inverse kinematics for pick (r, theta, z=12.5mm) and drop into Rear Flank container box.
   6. Executes 5-phase minimum-jerk trajectory with Motor 1 clamp readback grip verification.
   7. Supports --dry-run and --synthetic modes for offline verification without physical hardware.
 """
@@ -109,14 +109,16 @@ class AutonomousSorterBridge:
 
     def filter_and_sort_queue(self, cubes: List[DetectedCube]) -> List[DetectedCube]:
         """
-        Filters cubes for the active arm and applies Nearest-First radial sorting.
+        Filters cubes for red targets and applies Nearest-First radial sorting.
         Nearest cubes (smallest r) are prioritized first to prevent the arm forearm/claw
         from colliding with foreground cubes during horizontal approaches.
+        Green distractors and non-target cubes are excluded from picking.
         """
-        # Filter cubes assigned to this arm (or reachable by it)
+        # Filter cubes assigned to this arm (or reachable by it) and matching target color 'red'
         assigned_cubes = []
         for c in cubes:
-            # In single arm mode, all valid cubes in arena are reachable
+            if c.color.lower() != "red":
+                continue
             if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm
                 if 120.0 <= active_r <= 320.0:
@@ -130,7 +132,7 @@ class AutonomousSorterBridge:
         """
         Executes full pick and place for a single detected cube:
           1. Computes pick IK for cube (r, theta, z)
-          2. Computes drop IK for dedicated flank tray compartment
+          2. Computes drop IK for dedicated container box
           3. Executes trajectory with grip confirmation
         """
         color = cube.color.lower()
@@ -162,7 +164,7 @@ class AutonomousSorterBridge:
         print(f"[IK Pick] Target reachable! Motor ticks (1..6): {pick_ik.ticks}")
         print(f"[IK Pick] Joint angles (deg): {pick_ik.angles_deg}")
 
-        # 2. Compute Drop Target for 2x2 Flank Tray
+        # 2. Compute Drop Target for Rear Flank Container Box
         drop_target = get_compartment_target(color=color, arm_id=self.arm_id, config_path=self.hardware_yaml)
         if not drop_target:
             print(f"[Error] Could not find compartment target for color '{color}' in {self.hardware_yaml}")
@@ -171,8 +173,8 @@ class AutonomousSorterBridge:
         drop_r = drop_target["r"]
         drop_theta = drop_target["theta_deg"]
         drop_z = drop_target["z"]
-        drop_yaw_tick = drop_target.get("drop_yaw_tick", 145)
-        print(f"[IK Drop] Destination: {color.upper()} compartment in {self.arm_id} Flank Tray")
+        drop_yaw_tick = drop_target.get("drop_yaw_tick", 875)
+        print(f"[IK Drop] Destination: Container Box for {self.arm_id}")
         print(f"[IK Drop] r={drop_r:.1f} mm, theta={drop_theta:+.1f} deg, Drop Yaw Tick={drop_yaw_tick}")
 
         # 3. Dry-Run or Physical Execution

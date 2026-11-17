@@ -142,47 +142,48 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Save locked homography matrix $H$ with key `s`.
 - [ ] **HSV Color Threshold Tuning**:
   - [ ] Run `python3 vision/tune_hsv.py` with test cubes on the arena surface.
-  - [ ] Tune upper and lower bounds for Red, Green, Blue, and Yellow and save to `config/colors.yaml` with key `s`.
+  - [ ] Tune upper and lower bounds for Red and Green and save to `config/colors.yaml` with key `s`.
 - [ ] **Centroid Extraction & Spatial Accuracy Verification**:
-  - [ ] Scatter 8 cubes at known millimeter locations on the arena.
+  - [ ] Scatter cubes at known millimeter locations on the active arena.
   - [ ] Compare detected centroids against ground truth and verify spatial error $< 2.0\text{ mm}$.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 2 Exit Criteria (Prerequisites to Enter Phase 3)
-> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($520 \times 280\text{ px}$ at $2.0\text{ px/mm}$).
+> 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($600 \times 800\text{ px}$ at $2.0\text{ px/mm}$).
 > 2. Planar homography matrix locked at startup; zero pixel jitter when table vibrates.
-> 3. HSV color classification achieves $100\%$ accuracy on all 4 colors under laboratory ambient lighting.
+> 3. HSV color discrimination cleanly segments Red targets, flags Green as distractor, and ignores Blue chassis.
 > 4. Physical cube localization error is $< 2.0\text{ mm}$ in Cartesian arena coordinates.
 
 ---
 
-## 📋 Phase 3: Single-Arm Autonomous Sorting (Standalone Workcell MVP)
+## 📋 Phase 3: Single-Arm Autonomous Red-Object Picking (Standalone MVP)
 
-**Primary Focus**: Closing the perception-action loop on xArm 1; verifying Nearest-First queue sorting and grip confirmation; achieving an independently gradable, fully functional autonomous sorting cell.  
-**Hardware Required**: Single calibrated xArm 1s, Camera setup, Flat arena with foam border, 1× 2×2 Left Flank Tray, 8–12 colored craft cubes.  
+**Primary Focus**: Closing the perception-action loop on xArm 1; verifying Nearest-First queue sorting and grip confirmation; picking red target blocks while ignoring green distractors into the Rear Flank container box.  
+**Hardware Required**: Single calibrated xArm 1s, Camera setup, $7\times 12$ hand-drawn grid arena with foam border, Rear Flank container box, Red target cubes, Green distractor cubes.  
 **Reference Document**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 
 ### Lab Action Checklist
 
 - [ ] **ROS 2 Vision-to-Arm Pipeline Integration**:
   - [ ] Launch complete system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
-  - [ ] Verify `/vision/detected_objects` topic publishes real-time cube lists.
+  - [ ] Verify `/vision/detected_objects` topic publishes real-time cube lists with `color` and `targetable` flags.
 - [ ] **Nearest-First Corridor Collision Verification**:
-  - [ ] Place Cube B ($r = 250\text{ mm}$) directly behind Cube A ($r = 140\text{ mm}$) along the same radial azimuth.
+  - [ ] Place Red Cube B ($r = 250\text{ mm}$) directly behind Red Cube A ($r = 160\text{ mm}$) along the same radial azimuth.
   - [ ] Trigger pick cycle. Confirm `autonomous_sorter` prioritizes Cube A first.
-  - [ ] Verify arm picks Cube A, deposits in Left Flank tray, and then picks Cube B with zero forearm collision.
+  - [ ] Verify arm picks Cube A, deposits in Rear Flank container box, and then picks Cube B with zero forearm collision.
 - [ ] **Software Grip Confirmation Integration**:
   - [ ] Verify Motor 1 position feedback executes after clamping.
-  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss ($P < 220\text{ ticks}$), aborts the drop swing, and alerts sorter.
-- [ ] **Multi-Color End-to-End Sorting Run**:
-  - [ ] Scatter 8 cubes (2 Red, 2 Green, 2 Blue, 2 Yellow) across the $260\times 140\text{ mm}$ arena.
-  - [ ] Run autonomous sorting sequence without human intervention.
-  - [ ] Verify all 8 cubes are dropped cleanly into their dedicated color-coded tray compartments at $(50, 280)$.
+  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss, aborts the drop swing, and alerts sorter.
+- [ ] **Red-Only Picking with Green Distractor Run**:
+  - [ ] Scatter Red cubes and Green distractor cubes across active arena rows 7..10.
+  - [ ] Run autonomous picking sequence without human intervention.
+  - [ ] Verify all Red cubes are picked and deposited into the Rear Flank container box at $(300, 550)$ with yaw tick $875$.
+  - [ ] Verify all Green distractor cubes remain untouched on the arena floor.
   - [ ] Record total cycle time and individual pick-to-drop duration.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 3 Exit Criteria (Standalone MVP Complete)
-> 1. Single arm autonomously sorts 8 scattered cubes with $\ge 90\%$ success rate without human intervention.
+> 1. Single arm autonomously picks all red cubes with $\ge 90\%$ success rate without disturbing green distractors.
 > 2. Nearest-First sorting eliminates all radial approach collisions.
 > 3. Grip confirmation detects empty claw and prevents false-positive drop swings.
 > 4. Complete system demonstration recorded on video as a baseline project submission.
@@ -191,33 +192,33 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 
 ## 📋 Phase 4: Full Workcell Assembly, Web Diagnostics & Continuous Benchmark
 
-**Primary Focus**: Final physical integration on the $400\times 400\text{ mm}$ baseboard; wiring management; web portal diagnostic tuning; long-term repeatability telemetry.  
-**Hardware Required**: 1× xArm 1s, Single 7.4V/5A power supply, Jetson Orin Nano / RPi 5, Pre-Cut MDF Baseboard ($400 \times 400\text{ mm}$), 1× 3D-Printed 2×2 Flank Tray, 16–20 wooden craft cubes.  
-**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md), [`docs/07_fusion360_cad_modeling_guide.md`](07_fusion360_cad_modeling_guide.md), and [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md).
+**Primary Focus**: Final physical integration on the $350\times 600\text{ mm}$ platform board; wiring management; web portal diagnostic tuning; long-term repeatability telemetry.  
+**Hardware Required**: 1× xArm 1s, Single 7.4V/5A power supply, Jetson Orin Nano / RPi 5, Platform Board ($350 \times 600\text{ mm}$) with $7\times 12$ drawn grid, Rear Flank container box, Red and Green craft cubes.  
+**Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) and [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md).
 
 ### Lab Action Checklist
 
 - [ ] **Workcell Mechanical & Electrical Assembly**:
-  - [ ] Place single pre-cut wooden baseboard ($400\times 400\text{ mm}$, $18\text{ mm}$ MDF) on workstation.
-  - [ ] Mount xArm 1 centered at $(X = 200\text{ mm}, Y = 280\text{ mm})$ flat to the board with wood screws (heading $-90^\circ$ South).
-  - [ ] Mount single 2×2 sorting tray on left flank at $(X = 50\text{ mm}, Y = 280\text{ mm})$.
-  - [ ] Apply self-adhesive foam weatherstripping tape to create $260\times 140\text{ mm}$ arena perimeter.
-  - [ ] Mount rear electronics: connect single 7.4V/5A buck regulator with common ground star point and route cables neatly with surface clips.
+  - [ ] Place platform board ($350\times 600\text{ mm}$, $7\times 12$ grid) on workstation.
+  - [ ] Mount xArm 1 in Rows 3..5, Cols 2..4 centered at $(X = 175\text{ mm}, Y = 375\text{ mm})$ with heading $-35.0^\circ$ (South-East).
+  - [ ] Place single container box in Rows 0..1, Cols 5..6 at $(X = 300\text{ mm}, Y = 550\text{ mm})$.
+  - [ ] Apply self-adhesive foam weatherstripping tape to create active arena boundary.
+  - [ ] Mount rear electronics ($Y \in [500, 600\text{ mm}]$): connect 7.4V/5A buck regulator with star ground and route cables with surface clips.
 - [ ] **Web Portal & Drift Telemetry Verification**:
   - [ ] Launch Web Config portal (`python3 tools/web_config/server.py 8000`).
   - [ ] Verify live potentiometer polling on all 6 joints and validate E-stop responsiveness.
   - [ ] Run automated telemetry scan (`python3 tools/telemetry_logger.py --scan --arm xarm_1`) and log baseline statistics.
-- [ ] **Full Continuous Sorting Benchmark**:
-  - [ ] Scatter 12 colored craft blocks across the rectangular arena.
+- [ ] **Full Continuous Picking Benchmark**:
+  - [ ] Scatter red target blocks and green distractors across the arena.
   - [ ] Launch full system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
-  - [ ] Run 3 back-to-back sorting cycles without servo thermal cutoff or communication reset.
+  - [ ] Run 3 back-to-back picking cycles without servo thermal cutoff or communication reset.
 - [ ] **Final Polish & Operator Documentation**:
   - [ ] Route and clip all wiring neatly with zero overhang.
   - [ ] Capture high-resolution demo video and finalize project report.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 4 Exit Criteria (Final Project Complete)
-> 1. Single arm autonomously sorts 12 cubes across 3 consecutive runs with 100% completion.
-> 2. Zero mechanical binding, zero cable snagging, and clean $90^\circ$ clockwise drop swings.
+> 1. Single arm autonomously picks red cubes across 3 consecutive runs with 100% completion.
+> 2. Zero mechanical binding, zero cable snagging, and clean drop swings to yaw tick $875$.
 > 3. Web portal and telemetry logging fully verified with repeatable sub-millimeter positioning accuracy.
 > 4. Demonstration video and engineering report finalized for submission.

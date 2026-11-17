@@ -50,7 +50,7 @@ We establish a right-handed Cartesian base coordinate frame $\mathcal{F}_{\text{
 
 ### 2.2 Physical Dimension Parameters
 
-From technical measurements ([`docs/assets/xArm demensions.png`](assets/xArm%20demensions.png)):
+From physical measurements and factory specifications:
 
 | Parameter                 | Description                                                     |           Value           |
 | ------------------------- | --------------------------------------------------------------- | :-----------------------: |
@@ -330,7 +330,7 @@ How can we make the physical grasping system significantly better?
 | **Boundary Singularity ($R > 320\text{ mm} (d_{\text{edge}} > 250\text{ mm})$)**      | Fully extended elbow ($L_1, L_2$ collinear)                           | Jacobian determinant $\det(J) \rightarrow 0$; infinite joint velocity required for radial motion; severe servo jitter | Software clamps all picks to $r \le 320\text{ mm}$                            |
 | **Base Collision Singularity ($R < 120\text{ mm} (d_{\text{edge}} < 50\text{ mm})$)** | Proximity to $140\times 154\text{ mm}$ base mounting plate            | Wrist / Link 2 hits base servo chassis                                                                                | Software rejects any detection with $r < 120\text{ mm}$                       |
 | **Backlash Error Envelope**                                                           | Gear play in plastic/brass spur gearboxes ($1^\circ\text{--}2^\circ$) | End-effector has $\pm 2.5\text{ mm}$ mechanical slack at $240\text{ mm}$ reach                                        | Compensated by wide $55\text{ mm}$ jaw opening ($> 2\times$ cube size)        |
-| **Drop Clearance Limit**                                                              | Flank 2x2 sorting tray outer rim height ($H = 35.0\text{ mm}$)        | Arm could clip tray rim if dropped at low altitude                                                                    | Planner enforces ascent to $Z \ge +50\text{ mm}$ before descending into compartment   |
+| **Drop Clearance Limit**                                                              | Rear Flank container box outer rim height ($H = 35.0\text{ mm}$)      | Arm could clip container rim if dropped at low altitude                                                               | Planner enforces ascent to $Z \ge +50\text{ mm}$ before descending into container      |
 | **Bus Contention Latency**                                                            | Half-duplex UART communication over shared bus at 115200 baud         | Querying all 6 servo registers takes $\approx 18\text{ ms}$                                                           | Status queries run asynchronously; motion commands broadcast in packet bursts |
 
 ---

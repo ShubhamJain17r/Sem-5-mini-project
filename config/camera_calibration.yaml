@@ -72,30 +72,30 @@ planar_homography:
     - 1.0
 aruco_reference_markers:
   dictionary: DICT_4X4_50
-  marker_size_mm: 40.0
+  marker_size_mm: 50.0
   markers:
     marker_0:
       id: 0
-      role: rear_left
-      world_x: 70.0
-      world_y: 180.0
+      role: top_left
+      world_x: 25.0
+      world_y: 425.0
       world_z: 0.0
     marker_1:
       id: 1
-      role: rear_right
-      world_x: 330.0
-      world_y: 180.0
+      role: top_right
+      world_x: 325.0
+      world_y: 425.0
       world_z: 0.0
     marker_2:
       id: 2
-      role: front_left
-      world_x: 70.0
-      world_y: 40.0
+      role: bottom_right
+      world_x: 325.0
+      world_y: 25.0
       world_z: 0.0
     marker_3:
       id: 3
-      role: front_right
-      world_x: 330.0
-      world_y: 40.0
+      role: bottom_left
+      world_x: 25.0
+      world_y: 25.0
       world_z: 0.0
 reprojection_error_px: 0.18
