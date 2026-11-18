@@ -18,7 +18,7 @@ Single Arm Motions (xarm_1):
   10. Far-Corner Diagonal Reach & Tabletop Sweep (R=265mm, θ=-25° to +25° at Z=20mm)
   11. Multi-Altitude Stepped Standoff Sequence (Z=150mm -> 90mm -> 40mm -> 12.5mm contact)
   12. Continuous 3-Point Tabletop Rapid Touch (Near-West -> Center -> Far-East without homing)
-  13. Rear Flank Container Box Drop Tour (yaw tick 875)
+  13. Rear Flank Dual Container Boxes Drop Tour (Red @ 650, Green @ 354)
 """
 
 import argparse
@@ -424,31 +424,51 @@ def motion_single_12_continuous_3point_touch(arm: ArmController):
 
 
 def motion_single_13_flank_compartment_tour(arm: ArmController):
-    """Motion 13: Rear Flank Container Box Drop Tour (yaw tick 875)."""
-    print(f"\n--- [MOTION 13: Rear Flank Container Box Drop Tour on {arm.arm_id}] ---")
+    """Motion 13: Rear Flank Dual Container Boxes Drop Tour (Red @ 650, Green @ 354)."""
+    print(f"\n--- [MOTION 13: Rear Flank Dual Container Boxes Drop Tour on {arm.arm_id}] ---")
     arm.reset_pose(move_time_ms=1400)
 
-    target_info = get_compartment_target("red", arm_id=arm.arm_id, config_path=arm.hw_yaml)
-    drop_yaw = target_info.get("drop_yaw_tick", 875) if target_info else 875
-    arm.log(f"Visiting Rear Flank Container Box (Base Yaw: {drop_yaw} ticks)...")
-    drop_pose = {
-        1: arm.claw_open,
-        2: 500,
-        3: 680,
-        4: 154,
-        5: 554,
-        6: drop_yaw,
-    }
-    arm.send_pose(drop_pose, move_time_ms=1400)
-    time.sleep(0.5)
-    # Gripper tap
-    drop_pose[1] = arm.claw_grip
-    arm.send_pose(drop_pose, move_time_ms=400)
-    time.sleep(0.3)
-    drop_pose[1] = arm.claw_open
-    arm.send_pose(drop_pose, move_time_ms=400)
-    time.sleep(0.3)
+    # Overhead rear transit tuck
+    rear_tuck = {1: arm.claw_open, 2: 503, 3: 504, 4: 350, 5: 501, 6: 502}
+    arm.send_pose(rear_tuck, move_time_ms=1200)
 
+    for color_name in ["red", "green"]:
+        target_info = get_compartment_target(color_name, arm_id=arm.arm_id, config_path=arm.hw_yaml)
+        drop_yaw = target_info.get("drop_yaw_tick", 650 if color_name == "red" else 354) if target_info else (650 if color_name == "red" else 354)
+        preset_ticks = target_info.get("drop_pose_preset") if target_info else None
+
+        arm.log(f"Visiting [{color_name.upper()}] Container Box in Rear (Base Yaw: {drop_yaw} ticks)...")
+        if preset_ticks and len(preset_ticks) == 6:
+            drop_pose = {
+                1: arm.claw_open,
+                2: preset_ticks[1],
+                3: preset_ticks[2],
+                4: preset_ticks[3],
+                5: preset_ticks[4],
+                6: drop_yaw,
+            }
+        else:
+            drop_pose = {
+                1: arm.claw_open,
+                2: 503,
+                3: 704,
+                4: 169,
+                5: 558,
+                6: drop_yaw,
+            }
+
+        arm.send_pose(drop_pose, move_time_ms=1500)
+        time.sleep(0.4)
+        # Gripper tap
+        drop_pose[1] = arm.claw_grip
+        arm.send_pose(drop_pose, move_time_ms=400)
+        time.sleep(0.3)
+        drop_pose[1] = arm.claw_open
+        arm.send_pose(drop_pose, move_time_ms=400)
+        time.sleep(0.3)
+
+    # Retract back through rear tuck to home
+    arm.send_pose(rear_tuck, move_time_ms=1100)
     arm.reset_pose(move_time_ms=1500)
     print(">>> Motion 13 Complete! <<<\n")
 

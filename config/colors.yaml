@@ -17,6 +17,7 @@ colors:
     name: "Red"
     enabled: true
     targetable: true
+    destination: "red_box"
     bgr_display: [0, 0, 255]
     bands:
       # Sub-band 1: Lower red hue near 0°
@@ -37,7 +38,8 @@ colors:
   green:
     name: "Green"
     enabled: true
-    targetable: false
+    targetable: true
+    destination: "green_box"
     bgr_display: [0, 255, 0]
     bands:
       - h_min: 38

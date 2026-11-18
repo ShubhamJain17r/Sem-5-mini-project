@@ -50,7 +50,7 @@ manipulators:
 
   xarm_1:
     name: "xArm 1S (Central Manipulator)"
-    role: "Picks red objects from the 7x12 active arena and places into Rear Flank single container"
+    role: "Picks red and green objects from 7x12 arena and deposits into symmetric Rear Flank containers via overhead rear-flip"
     
     # Mounting position relative to global workspace origin (Rows 3..5, Cols 2..4)
     base_mount_mm:
@@ -58,7 +58,7 @@ manipulators:
       y: 375.0
       z: 0.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
-      nominal_heading_deg: -35.0   # 502 ticks points toward -35° (South-East)
+      nominal_heading_deg: -90.0   # 502 ticks points directly South (-90° world) down Column 3 midline
 
     # Serial / USB Interface
     communication:
@@ -76,56 +76,29 @@ manipulators:
       tool_claw_fingertip_L3: 168.0   # Link from wrist pitch to claw outer fingertip
       tool_claw_L4: 150.0             # Backward compatibility alias
 
-    # Dedicated Collection Box (Rear Flank Single Container, Rows 0..1, Cols 5..6)
+    # Dedicated Collection Boxes (Rear Flank Dual Containers, Rows 0..1)
     collection_box:
       id: 1
-      name: "Box 1 (Rear Flank Single Container)"
-      center_world_mm:
-        x: 300.0
-        y: 550.0
-        z: 0.0
-      outer_dimensions_mm:
-        width_x: 100.0
-        depth_y: 100.0
-        height_z: 35.0
+      name: "Rear Flank Dual Containers (Rows 0..1)"
+      grid_layout: "1x2"
       radial_reach_mm: 215.1
-      azimuth_from_base_deg: 89.5   # +89.5° from nominal heading (-35°)
-      base_yaw_drop_tick: 875       # Yaw drop tick for (300, 550)
-      grid_layout: "1x1"
-      target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
       compartments:
-        section_1_red:
+        red_box:
           color: "red"
+          name: "Red Container Box (Rows 0..1, Cols 0..1)"
           grid_col: 1
           grid_row: 1
-          offset_x_mm: 0.0
-          offset_y_mm: 0.0
-          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
-          drop_yaw_tick: 875
-        section_2_green:
+          target_world_mm: {x: 50.0, y: 550.0, z: 45.0}
+          drop_yaw_tick: 650        # Overhead rear-flip drop yaw (+35.5° from South flipped)
+          outer_dimensions_mm: {width_x: 100.0, depth_y: 100.0, height_z: 35.0}
+        green_box:
           color: "green"
-          grid_col: 1
+          name: "Green Container Box (Rows 0..1, Cols 5..6)"
+          grid_col: 2
           grid_row: 1
-          offset_x_mm: 0.0
-          offset_y_mm: 0.0
-          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
-          drop_yaw_tick: 875
-        section_3_blue:
-          color: "blue"
-          grid_col: 1
-          grid_row: 1
-          offset_x_mm: 0.0
-          offset_y_mm: 0.0
-          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
-          drop_yaw_tick: 875
-        section_4_yellow:
-          color: "yellow"
-          grid_col: 1
-          grid_row: 1
-          offset_x_mm: 0.0
-          offset_y_mm: 0.0
-          target_world_mm: {x: 300.0, y: 550.0, z: 40.0}
-          drop_yaw_tick: 875
+          target_world_mm: {x: 300.0, y: 550.0, z: 45.0}
+          drop_yaw_tick: 354        # Overhead rear-flip drop yaw (-35.5° from South flipped)
+          outer_dimensions_mm: {width_x: 100.0, depth_y: 100.0, height_z: 35.0}
 
     # Motor specifications, travel limits & physical inspection testing
     motors:
@@ -193,13 +166,13 @@ manipulators:
       motor_6:
         joint_name: "base_yaw"
         hardware_id: 6
-        min_tick: 126
-        max_tick: 879
+        min_tick: 100
+        max_tick: 900
         nominal_center_tick: 502        # 502 ticks = nominal heading (-90° world / South)
         direction_multiplier: 1
         zero_reference_angle_deg: 0.0   # 0° = pointing along nominal heading
-        motion_description: "ACW at 884 raw ticks; CW at 121 raw ticks; increasing ticks rotates CCW (toward East); decreasing rotates CW (toward Left Flank West)"
-        test_500_to_450_direction: "Rotates clockwise (CW) toward Left Flank Box 1"
+        motion_description: "Increasing ticks rotates CCW (toward East); decreasing rotates CW (toward West)"
+        test_500_to_450_direction: "Rotates clockwise (CW) toward West"
 
     # Predefined Multi-State Poses (Calibrated Ticks: [M1, M2, M3, M4, M5, M6])
     poses:
@@ -211,7 +184,19 @@ manipulators:
         ticks: [226, 503, 746, 155, 529, 502]
         description: "Hovering safely above arena picking zone awaiting commands (Zw ≈ 165mm)"
         transit_time_ms: 1600
+      rear_transit_tuck:
+        ticks: [630, 503, 504, 350, 501, 502]
+        description: "High upright clearance pose while flipping from front arena to rear containers"
+        transit_time_ms: 1200
+      drop_container_red:
+        ticks: [226, 503, 704, 169, 558, 650]
+        description: "Hovering over Rear-Left Red container box (Zw ≈ 45mm, yaw tick 650)"
+        transit_time_ms: 1600
+      drop_container_green:
+        ticks: [226, 503, 704, 169, 558, 354]
+        description: "Hovering over Rear-Right Green container box (Zw ≈ 45mm, yaw tick 354)"
+        transit_time_ms: 1600
       drop_container:
-        ticks: [630, 503, 680, 154, 554, 875]
-        description: "Hovering safely over Rear Flank container (Zw ≈ 40mm) ready to release red object"
-        transit_time_ms: 1800
+        ticks: [226, 503, 704, 169, 558, 650]
+        description: "Default rear drop container pose (Red box)"
+        transit_time_ms: 1600

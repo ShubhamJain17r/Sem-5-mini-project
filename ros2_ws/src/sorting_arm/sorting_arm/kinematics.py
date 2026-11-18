@@ -611,9 +611,10 @@ def get_compartment_target(
         # Attempt analytical IK solution for the compartment
         ik_sol = solve_ik(r=r, theta=theta_arm, z=rel_z, params=params)
 
-        # Fallback preset values
-        drop_pose = arm_cfg.get("poses", {}).get("drop_container", {})
-        preset_yaw = matched.get("drop_yaw_tick", arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 820))
+        # Color-specific drop pose preset (e.g. drop_container_red, drop_container_green)
+        pose_key = f"drop_container_{norm_color}"
+        drop_pose = arm_cfg.get("poses", {}).get(pose_key, arm_cfg.get("poses", {}).get("drop_container", {}))
+        preset_yaw = matched.get("drop_yaw_tick", arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 650 if norm_color == "red" else 354))
 
         return {
             "color": norm_color,
@@ -625,9 +626,9 @@ def get_compartment_target(
             "theta_arm_deg": theta_arm,
             "z": rel_z,
             "drop_yaw_tick": preset_yaw,
-            "ik_success": ik_sol.success,
-            "ik_ticks": ik_sol.ticks if ik_sol.success else None,
-            "ik_message": ik_sol.message,
+            "ik_success": ik_sol.success or (drop_pose.get("ticks") is not None),
+            "ik_ticks": ik_sol.ticks if ik_sol.success else {i: drop_pose["ticks"][i-1] for i in range(1, 7)} if drop_pose.get("ticks") else None,
+            "ik_message": ik_sol.message if ik_sol.success else "Using rear-flip calibrated drop preset",
             "drop_pose_preset": drop_pose.get("ticks", None),
         }
     except Exception:

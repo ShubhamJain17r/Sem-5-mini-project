@@ -109,15 +109,16 @@ class AutonomousSorterBridge:
 
     def filter_and_sort_queue(self, cubes: List[DetectedCube]) -> List[DetectedCube]:
         """
-        Filters cubes for red targets and applies Nearest-First radial sorting.
+        Filters cubes for targetable colors (red and green) and applies Nearest-First radial sorting.
         Nearest cubes (smallest r) are prioritized first to prevent the arm forearm/claw
         from colliding with foreground cubes during horizontal approaches.
-        Green distractors and non-target cubes are excluded from picking.
+        Blue chassis reflections and non-targetable colors are excluded from picking.
         """
-        # Filter cubes assigned to this arm (or reachable by it) and matching target color 'red'
         assigned_cubes = []
         for c in cubes:
-            if c.color.lower() != "red":
+            if c.color.lower() not in ("red", "green"):
+                continue
+            if not getattr(c, "targetable", True):
                 continue
             if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm

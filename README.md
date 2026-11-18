@@ -1,34 +1,36 @@
-# 🤖 Single xArm 1S Red-Object Picking Robot
+# 🤖 Single xArm 1S Dual-Color (Red & Green) Sorting Robot
 
-An autonomous robotic picking system powered by **ROS 2 Humble**, **OpenCV**, and a single **LewanSoul / Hiwonder xArm 1S** 6-DoF articulated bus-servo manipulator. The system detects red wooden craft blocks on a physical $7 \times 12$ grid arena ($350\text{ mm} \times 600\text{ mm}$), discriminates against green distractor blocks, filters out the blue robot chassis, computes analytical closed-form inverse kinematics, and deposits picked red objects into a dedicated Rear Flank container box.
+An autonomous robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, and a single **LewanSoul / Hiwonder xArm 1S** 6-DoF articulated bus-servo manipulator. The system detects red and green wooden craft blocks on a physical $7 \times 12$ grid arena ($350\text{ mm} \times 600\text{ mm}$), bypasses the blue robot chassis, computes analytical closed-form inverse kinematics, and deposits cubes into symmetric Rear Flank container boxes (Red box @ Rear-Left, Green box @ Rear-Right) using an overhead rear-flip transfer trajectory.
 
 ---
 
 ## 📌 Project Overview
 
-This project automates target object picking using classical computer vision, analytical kinematics, and minimum-jerk trajectory execution under real-world physical and mechanical constraints:
+This project automates target object sorting using classical computer vision, analytical kinematics, and minimum-jerk trajectory execution under real-world physical and mechanical constraints:
 
 1. **Central Manipulator Mounting**:
-   - Single xArm 1S manipulator centered at $(X = 175.0\text{ mm}, Y = 375.0\text{ mm}, Z = 0.0\text{ mm})$ [Rows 3..5, Cols 2..4] with nominal heading **$-35.0^\circ$** (South-East).
-   - This orientation ensures Motor 6 (travel range $126\text{--}879$ ticks) easily spans both the arena pick envelope ($139\text{--}785$ ticks) and the container drop zone ($875$ ticks) without crossing the servo deadzone.
-2. **Physical Hand-Drawn $7 \times 12$ Grid Arena ($350.0\text{ mm} \times 600.0\text{ mm}$)**:
+   - Single xArm 1S manipulator centered at $(X = 175.0\text{ mm}, Y = 375.0\text{ mm}, Z = 0.0\text{ mm})$ [Rows 3..5, Cols 2..4] with nominal heading **$-90.0^\circ$** (pointing straight South down Column 3 midline).
+   - Motor 6 (travel range $100\text{--}900$ ticks, center $502$ ticks) spans the front picking arena ($\pm 26^\circ$) and the rear drop zones ($\pm 35.5^\circ$) with zero risk of hitting mechanical stops.
+2. **Overhead Rear-Flip Transfer Trajectory**:
+   - Rather than sweeping the arm across the table, the robot lifts the grasped cube vertically to safe transit altitude ($Z \ge 130\text{ mm}$), pitches Motors 5, 4, 3 backward overhead into a rear-facing stance (+Y), aligns Motor 6 over the target container (Red: $650$ ticks, Green: $354$ ticks), and drops from standoff clearance ($Z = 45\text{ mm}$).
+3. **Physical Hand-Drawn $7 \times 12$ Grid Arena ($350.0\text{ mm} \times 600.0\text{ mm}$)**:
    - 7 columns (Cols 0..6) $\times$ 12 rows (Rows 0..11) of $50.0\text{ mm} \times 50.0\text{ mm}$ square cells drawn directly on the platform.
    - Sits directly flat on the baseboard at $Z = 0.0\text{ mm}$.
    - Self-adhesive foam weatherstripping tape ($8\text{--}10\text{ mm}$ tall) forms a compliant retaining perimeter.
-3. **Color Discrimination Methodology**:
-   - **Target (Red)**: Dual-band HSV segmentation ($[0..10]$ and $[170..180]$) detects red craft cubes. Only red objects are queued, validated, and picked.
-   - **Distractor (Green)**: Green cubes ($[38..82]$) are tracked for telemetry and visual overlay, but marked `targetable: false` and strictly excluded from the pick queue.
+4. **Color Discrimination Methodology**:
+   - **Target (Red)**: Dual-band HSV segmentation ($[0..10]$ and $[170..180]$) detects red craft cubes, routed to the Red container box.
+   - **Target (Green)**: HSV segmentation ($[38..85]$) detects green craft cubes, routed to the Green container box.
    - **Chassis Exclusion (Blue)**: The xArm 1S chassis is blue anodized aluminum. Blue detection is completely bypassed to prevent false-positive self-detections and specular reflection artifacts.
    - **Spatial Exclusion Mask**: Rectangular exclusion mask for Rows 3..5, Cols 2..4 ($X \in [100, 250\text{ mm}]$, $Y \in [300, 450\text{ mm}]$) zeros out the robot base area in computer vision.
-4. **Dedicated Rear Flank Container Box**:
-   - Physical container box placed in Rows 0..1, Columns 5..6 ($100\times 100\text{ mm}$).
-   - Drop Target: $(X = 300.0\text{ mm}, Y = 550.0\text{ mm}, Z = 40.0\text{ mm})$, base yaw tick $875$.
-5. **Table-Coplanar ArUco Markers ($50\text{ mm} \times 50\text{ mm}$, $Z = 0.0\text{ mm}$)**:
-   - 4 matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3) positioned in clockwise order:
-     - Marker 0: $(25.0, 425.0\text{ mm})$ [Row 3, Col 0] $\to$ Pixel $(0, 0)$
-     - Marker 1: $(325.0, 425.0\text{ mm})$ [Row 3, Col 6] $\to$ Pixel $(600, 0)$
-     - Marker 2: $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 800)$
-     - Marker 3: $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 800)$
+5. **Dual Rear Flank Container Boxes**:
+   - **Red Container Box**: Rows 0..1, Cols 0..1 ($100\times 100\text{ mm}$); Drop Target $(X = 50.0\text{ mm}, Y = 550.0\text{ mm}, Z = 45.0\text{ mm})$, base yaw tick **$650$**.
+   - **Green Container Box**: Rows 0..1, Cols 5..6 ($100\times 100\text{ mm}$); Drop Target $(X = 300.0\text{ mm}, Y = 550.0\text{ mm}, Z = 45.0\text{ mm})$, base yaw tick **$354$**.
+6. **Table-Coplanar ArUco Markers ($50\text{ mm} \times 50\text{ mm}$, $Z = 0.0\text{ mm}$)**:
+   - 4 matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3) positioned at:
+     - Marker 0: $(25.0, 425.0\text{ mm})$ [Row 3, Col 0] $\to$ Pixel $(0, 0)$ (Top-Left)
+     - Marker 1: $(325.0, 425.0\text{ mm})$ [Row 3, Col 6] $\to$ Pixel $(600, 0)$ (Top-Right)
+     - Marker 2: $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 800)$ (Bottom-Left)
+     - Marker 3: $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 800)$ (Bottom-Right)
    - Planar homography rectifies the active arena into a metric $600 \times 800\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
 
 ---
@@ -40,31 +42,32 @@ This project automates target object picking using classical computer vision, an
    ^
    │  ┌────────────────────────────────────────────────────────────┐
    │  │ REAR OF WORKSPACE (Row 0, Y = 600 mm)                      │
-   │  │                                  ┌───────────────────────┐ │
-   │  │                                  │ CONTAINER BOX (100x100│ │ (X=300, Y=550)
-   │  │                                  │ Rows 0..1, Cols 5..6) │ │ Drop Yaw: 875 ticks
-   │  │                                  └───────────────────────┘ │
+   │  │ ┌───────────────────────┐        ┌───────────────────────┐ │
+   │  │ │   RED CONTAINER BOX   │        │  GREEN CONTAINER BOX  │ │
+   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │
+   │  │ │ Drop Yaw: 650 ticks   │        │ Drop Yaw: 354 ticks   │ │
+   │  │ └───────────────────────┘        └───────────────────────┘ │
    │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
    │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
    │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
-   │  │                             │ Heading: -35.0 deg│          │
+   │  │                             │ Heading: -90° (S) │          │
    │  │                             └───────────────────┘          │
    │  │                                                            │
    │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
    │  │                     (r = 160..300 mm reach)                │
-   │  │               [Red = Target | Green = Distractor]          │
+   │  │             [Red & Green Targets | Nearest-First]          │
    │  │                                                            │
-   │  │   [ArUco #3] (50x50mm)                            [ArUco #2│
-   │  │   (25, 25) [Row 11, Col 0]                        (325, 25)│
-   │  │                                                   [Row 11, │
-   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)  │
-   │  └────────────────────────────────────────────────────────────┘
-   └───────────────────────────────────────────────────────────────────> X (Width: 350 mm, Cols 0 to 6)
+   │  │   [ArUco #2] (50x50mm)                            [ArUco #3] (50x50mm) │
+   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6│
+   │  │                                                                        │
+   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)              │
+   │  └────────────────────────────────────────────────────────────────────────┘
+   └───────────────────────────────────────────────────────────────────────────> X (Width: 350 mm)
 
   Platform Grid:   7 columns x 12 rows of 50x50 mm squares (350 x 600 mm)
-  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0 mm), Heading -35.0°
+  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0 mm), Heading -90.0° (South)
   Vision Rect:     600 x 800 px metric grid at 2.0 px/mm between ArUco centers
-  Drop Motion:     Motor 6 swivel to 875 ticks into Rear Flank container box
+  Drop Motion:     Overhead rear-flip: Red box @ 650 ticks, Green box @ 354 ticks
 ```
 
 ---

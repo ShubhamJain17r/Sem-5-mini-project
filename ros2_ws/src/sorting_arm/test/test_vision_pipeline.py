@@ -91,9 +91,9 @@ def test_arm_polar_transformation(pipeline=None):
     """Test transformation from global world coordinates (Xw, Yw) to arm polar frames (r, theta)."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Single xArm 1S is at (175, 375, 0) with nominal heading -35° (South-East)
+    # Single xArm 1S is at (175, 375, 0) with nominal heading -90° (South)
     r_test = 200.0
-    rad_head = math.radians(-35.0)
+    rad_head = math.radians(-90.0)
     tx = 175.0 + r_test * math.cos(rad_head)
     ty = 375.0 + r_test * math.sin(rad_head)
 
@@ -102,7 +102,7 @@ def test_arm_polar_transformation(pipeline=None):
     assert abs(th_calc - 0.0) < 0.5, f"Expected 0.0 deg along heading, got {th_calc}"
 
     # Test point at +20° local angle
-    rad_arm = math.radians(-15.0)  # -35° + 20°
+    rad_arm = math.radians(-70.0)  # -90° + 20°
     tx_off = 175.0 + r_test * math.cos(rad_arm)
     ty_off = 375.0 + r_test * math.sin(rad_arm)
 
@@ -148,11 +148,12 @@ def test_color_segmentation_and_cube_detection(pipeline=None):
 
     detected_colors = {c.color for c in cubes}
     assert "red" in detected_colors, f"Expected red in detected colors: {detected_colors}"
+    assert "green" in detected_colors, f"Expected green in detected colors: {detected_colors}"
 
-    # Verify red cubes are marked targetable
-    red_cubes = [c for c in cubes if c.color == "red"]
-    assert len(red_cubes) >= 1
-    assert all(c.targetable for c in red_cubes)
+    # Verify red and green cubes are marked targetable
+    target_cubes = [c for c in cubes if c.color in ("red", "green")]
+    assert len(target_cubes) >= 2
+    assert all(c.targetable for c in target_cubes)
 
     for c in cubes:
         # Check arena bounds: X in [25, 325], Y in [25, 425] (with tolerance)
@@ -165,19 +166,21 @@ def test_color_segmentation_and_cube_detection(pipeline=None):
 
 
 def test_nearest_first_queue_sorting():
-    """Test that queue sorting prioritizes cubes by ascending radius and excludes distractors."""
+    """Test that queue sorting prioritizes cubes by ascending radius across red and green targets."""
     bridge = AutonomousSorterBridge(arm_id="xarm_1", dry_run=True)
     c1 = DetectedCube(color="red", world_x=200.0, world_y=120.0, assigned_arm="xarm_1", target_r_mm=260.0)
-    c2 = DetectedCube(color="red", world_x=200.0, world_y=160.0, assigned_arm="xarm_1", target_r_mm=160.0)
+    c2 = DetectedCube(color="green", world_x=200.0, world_y=160.0, assigned_arm="xarm_1", target_r_mm=160.0)
     c3 = DetectedCube(color="red", world_x=230.0, world_y=140.0, assigned_arm="xarm_1", target_r_mm=210.0)
-    c4_distractor = DetectedCube(color="green", world_x=220.0, world_y=130.0, assigned_arm="xarm_1", target_r_mm=180.0)
+    c4_ignored_blue = DetectedCube(color="blue", world_x=220.0, world_y=130.0, assigned_arm="xarm_1", target_r_mm=180.0)
 
-    queue = bridge.filter_and_sort_queue([c1, c2, c3, c4_distractor])
-    assert len(queue) == 3, f"Expected 3 red cubes, got {len(queue)}"
+    queue = bridge.filter_and_sort_queue([c1, c2, c3, c4_ignored_blue])
+    assert len(queue) == 3, f"Expected 3 target cubes (red & green), got {len(queue)}"
     assert queue[0].target_r_mm == 160.0
+    assert queue[0].color == "green"
     assert queue[1].target_r_mm == 210.0
+    assert queue[1].color == "red"
     assert queue[2].target_r_mm == 260.0
-    assert all(c.color == "red" for c in queue)
+    assert queue[2].color == "red"
 
 
 def test_phase1_phase2_ik_bridge():
@@ -186,12 +189,10 @@ def test_phase1_phase2_ik_bridge():
     hardware_yaml = os.path.join(config_dir, "xarm_hardware.yaml")
     params_arm1 = load_kinematic_parameters(hardware_yaml, arm_id="xarm_1")
 
-    # Synthetic cubes in arena for xarm_1
+    # Synthetic cubes in arena for xarm_1 (Red and Green active targets)
     test_targets = [
         {"arm": "xarm_1", "color": "red", "r": 220.0, "theta": 0.0, "z": 12.5, "yaw": 10.0, "params": params_arm1},
-        {"arm": "xarm_1", "color": "blue", "r": 165.0, "theta": -15.0, "z": 12.5, "yaw": -5.0, "params": params_arm1},
         {"arm": "xarm_1", "color": "green", "r": 210.0, "theta": +10.0, "z": 12.5, "yaw": 0.0, "params": params_arm1},
-        {"arm": "xarm_1", "color": "yellow", "r": 250.0, "theta": -20.0, "z": 12.5, "yaw": 25.0, "params": params_arm1},
     ]
 
     for t in test_targets:

@@ -35,12 +35,12 @@ def generate_synthetic_arena_frame(width=1920, height=1080) -> np.ndarray:
     pts_src = np.array([
         [450, 200],   # Marker 0: Top-Left
         [1470, 200],  # Marker 1: Top-Right
-        [1540, 880],  # Marker 2: Bottom-Right
-        [380, 880],   # Marker 3: Bottom-Left
+        [380, 880],   # Marker 2: Bottom-Left
+        [1540, 880],  # Marker 3: Bottom-Right
     ], dtype=np.float32)
 
     # Draw arena background
-    arena_poly = pts_src.astype(np.int32)
+    arena_poly = pts_src[[0, 1, 3, 2]].astype(np.int32)
     cv2.fillConvexPoly(frame, arena_poly, (80, 80, 80))
 
     # Generate ArUco marker images and blend onto frame
@@ -66,7 +66,7 @@ def generate_synthetic_arena_frame(width=1920, height=1080) -> np.ndarray:
     # Draw synthetic colored cubes inside arena
     # Compute rough homography to place cubes at known physical coordinates
     pipeline = ArenaVisionPipeline()
-    h_synth = cv2.getPerspectiveTransform(pts_src, pipeline.dst_pts)
+    h_synth = cv2.getPerspectiveTransform(pts_src[[0, 1, 3, 2]], pipeline.dst_pts)
     h_inv = np.linalg.inv(h_synth)
 
     # Sample cubes inside 260x140 mm arena (X in [70, 330], Y in [40, 180])

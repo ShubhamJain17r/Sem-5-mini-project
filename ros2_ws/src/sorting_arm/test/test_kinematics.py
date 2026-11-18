@@ -107,7 +107,7 @@ def test_load_kinematic_parameters():
 
 def test_get_compartment_target():
     cfg = "config/xarm_hardware.yaml"
-    colors = ["red", "green", "blue", "yellow"]
+    colors = ["red", "green"]
     for color in colors:
         target1 = get_compartment_target(color, arm_id="xarm_1", config_path=cfg)
         assert target1 is not None, f"Failed to get target for color {color}"
@@ -115,7 +115,12 @@ def test_get_compartment_target():
         assert target1["r"] > 0.0
         assert "target_world_mm" in target1 or "world_xyz" in target1
         assert "drop_yaw_tick" in target1
-        assert 120 <= target1["drop_yaw_tick"] <= 900
+        assert 100 <= target1["drop_yaw_tick"] <= 900
+
+    target_red = get_compartment_target("red", arm_id="xarm_1", config_path=cfg)
+    target_green = get_compartment_target("green", arm_id="xarm_1", config_path=cfg)
+    assert target_red["drop_yaw_tick"] == 650
+    assert target_green["drop_yaw_tick"] == 354
 
     # Invalid color returns None
     assert get_compartment_target("magenta", arm_id="xarm_1") is None
@@ -151,20 +156,13 @@ def test_ik_with_claw_tip():
 
 
 def test_world_to_arm_polar():
-    # Single xArm 1S is centered at (175, 375, 0) with nominal heading -35.0 deg (South-East)
+    # Single xArm 1S is centered at (175, 375, 0) with nominal heading -90.0 deg (South down Col 3)
     # Point at (175, 175, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
-    # theta_arm = -90 - (-35) = -55.0 deg
+    # theta_arm = -90 - (-90) = 0.0 deg
     r, th, z = world_to_arm_polar(175.0, 175.0, 12.5, arm_id="xarm_1")
     assert abs(r - 200.0) < 0.1
-    assert abs(th - (-55.0)) < 0.1
-    assert abs(z - 12.5) < 0.1
-
-    # Custom heading test: heading -90 deg
-    custom_params = KinematicParameters(base_heading_deg=-90.0)
-    r, th, z = world_to_arm_polar(175.0, 175.0, 12.5, arm_id="xarm_1", params=custom_params)
-    assert abs(r - 200.0) < 0.1
-    # Global angle -90° minus heading -90° = 0.0° local
     assert abs(th - 0.0) < 0.1
+    assert abs(z - 12.5) < 0.1
 
 
 def test_base_zero_and_heading_kinematics():

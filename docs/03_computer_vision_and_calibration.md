@@ -155,28 +155,27 @@ Clockwise destination points:
 
 ---
 
-## 4. Color Discrimination Methodology
+## 4. Color Discrimination & Multi-Target Methodology
 
-### 4.1 Target vs. Distractor Discrimination Strategy
+### 4.1 Dual-Color Target Sorting & Chassis Discrimination
 
-In practical robotic workcell operations, non-target objects and structural components frequently confuse single-color computer vision detectors. The single xArm 1S system implements a rigorous three-tier discrimination methodology:
+The xArm 1S workcell operates a dual-color sorting pipeline targeting both Red and Green cubes, while strictly discriminating against and excluding the blue manipulator chassis:
 
-1. **Target Object (Red Craft Cubes)**:
-   - Primary pick target.
+1. **Target Object 1 (Red Craft Cubes)**:
+   - Pick target routed to the **Red Container Box** (Rows 0..1, Cols 0..1, yaw $650$).
    - Segmented using dual HSV hue bands to accommodate the cyclic wrap of red around $180^\circ$:
      - Band 1: $H \in [0, 10], S \in [120, 255], V \in [70, 255]$
      - Band 2: $H \in [170, 180], S \in [120, 255], V \in [70, 255]$
    - Merged via bitwise OR: $\text{Mask}_{\text{red}} = \text{Mask}_1 \lor \text{Mask}_2$.
-   - Validated contours are assigned `color = "red"` and flagged `targetable: true` for the autonomous pick queue.
+   - Validated contours are assigned `color = "red"` and flagged `targetable: true`.
 
-2. **Distractor Object (Green Craft Cubes)**:
-   - Present on the active arena to stress-test discrimination robustness.
-   - Segmented using calibrated green band: $H \in [38, 82], S \in [100, 255], V \in [60, 255]$.
-   - Detected and tracked for telemetry, HUD visualization, and collision modeling, but explicitly flagged **`targetable: false`**.
-   - The autonomous sorter node (`autonomous_sorter_node.py`) strictly rejects green cubes from the execution queue, ensuring they remain undisturbed on the arena floor.
+2. **Target Object 2 (Green Craft Cubes)**:
+   - Pick target routed to the **Green Container Box** (Rows 0..1, Cols 5..6, yaw $354$).
+   - Segmented using calibrated green band: $H \in [38, 85], S \in [100, 255], V \in [60, 255]$.
+   - Validated contours are assigned `color = "green"` and flagged `targetable: true`.
 
 3. **Chassis Elimination (Blue Bypass & Spatial Masking)**:
-   - **Why Blue is Excluded**: The Hiwonder / LewanSoul xArm 1S manipulator chassis is constructed from anodized metallic **blue** aluminum brackets. If blue color segmentation were active, the robot's own links, wrist brackets, and specular LED glints would trigger massive, false-positive object contours, causing erratic tracking and trajectory aborts. Therefore, blue color detection is completely disabled (`enabled: false`).
+   - **Why Blue is Excluded**: The Hiwonder / LewanSoul xArm 1S manipulator chassis is constructed from anodized metallic **blue** aluminum brackets. If blue color segmentation were active, the robot's own links, wrist brackets, and specular LED glints would trigger massive false-positive object contours. Therefore, blue color detection is completely disabled (`enabled: false`).
    - **Chassis Spatial Exclusion Mask**: In addition to color filtering, a geometric exclusion mask is applied in image space over the robot mounting zone (Rows 3..5, Cols 2..4):
      $$X_w \in [100.0, 250.0\text{ mm}], \quad Y_w \in [300.0, 450.0\text{ mm}]$$
      In rectified image coordinates ($u, v$):

@@ -275,17 +275,31 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
             return False
         time.sleep(0.3)
 
-        # Phase 4: Lift & Radial Retract (lift_z, retract_r)
-        print(f"[Phase 4] Lifting to Z={lift_z:.1f}mm and Retracting to R={retract_r:.1f}mm...")
+        # Phase 4: High Vertical Lift
+        lift_z = max(130.0, effective_pick_z + 80.0)
+        retract_r = max(130.0, pick_r - 60.0)
+        print(f"[Phase 4] Lifting to Safe Transit Elevation (Z={lift_z:.1f}mm, R={retract_r:.1f}mm)...")
         if not self.send_ik_target(retract_r, pick_theta, lift_z, self.claw_grip_tick, move_time_ms=1000):
             return False
 
-        # Phase 5: Slew to Collection Container
-        print(f"[Phase 5] Swiveling to Collection Container (Color: {color.upper()})...")
-        target_info = get_compartment_target(color, arm_id=self.arm_id, config_path=self.hardware_yaml)
-        drop_yaw = target_info.get("drop_yaw_tick", self.drop_yaw_tick) if target_info else self.drop_yaw_tick
+        # Phase 4b: Overhead Rear-Flip Stance (pitching arm over shoulder)
+        print("[Phase 4b] Flipping Motors 5, 4, 3 Overhead into Rear Transit Stance...")
+        rear_tuck = {
+            1: self.claw_grip_tick,
+            2: 503,
+            3: 504,
+            4: 350,
+            5: 501,
+            6: 502,
+        }
+        self.send_pose_ticks(rear_tuck, move_time_ms=1200)
 
-        # High clearance drop pose over container box (safe elevation Z ≈ 40mm)
+        # Phase 5: Slew to Collection Container in Rear
+        print(f"[Phase 5] Swiveling to Rear Collection Container (Color: {color.upper()})...")
+        target_info = get_compartment_target(color, arm_id=self.arm_id, config_path=self.hardware_yaml)
+        drop_yaw = target_info.get("drop_yaw_tick", 650 if color.lower() == "red" else 354) if target_info else 650
+
+        # Rear-flip drop pose over container box (safe elevation Z ≈ 45mm)
         preset_ticks = target_info.get("drop_pose_preset") if target_info else None
         if preset_ticks and len(preset_ticks) == 6:
             drop_pose = {
@@ -299,23 +313,25 @@ class PickAndPlaceCommander(Node if HAS_ROS2 else object):
         else:
             drop_pose = {
                 1: self.claw_grip_tick,
-                2: 500,
-                3: 680,
-                4: 154,
-                5: 554,
+                2: 503,
+                3: 704,
+                4: 169,
+                5: 558,
                 6: drop_yaw,
             }
-        self.send_pose_ticks(drop_pose, move_time_ms=1800)
+        self.send_pose_ticks(drop_pose, move_time_ms=1600)
 
         # Phase 6: Release Gripper in Box
-        print("[Phase 6] Opening Claw to Drop Object...")
+        print(f"[Phase 6] Opening Claw to Drop {color.upper()} Object into Container (Base Yaw: {drop_yaw})...")
         drop_pose[1] = self.claw_open_tick
         self.send_pose_ticks(drop_pose, move_time_ms=700)
         time.sleep(0.4)
 
-        # Phase 7: Retract and Return Home
+        # Phase 7: Retract through Rear Stance and Return Home
         print("[Phase 7] Clearing Box Rim and Returning Home...")
-        self.send_pose_ticks(home_ticks, move_time_ms=1600)
+        rear_tuck[1] = self.claw_open_tick
+        self.send_pose_ticks(rear_tuck, move_time_ms=1100)
+        self.send_pose_ticks(home_ticks, move_time_ms=1500)
 
         print("\n>>> Pick-and-Place Cycle Finished Successfully! <<<\n")
         return True

@@ -245,16 +245,17 @@ Direct point-to-point joint jumps cause severe mechanical overshoot, gear tooth 
     └──────────────────────────────────────────────────────────────────────────> r
 ```
 
-### 6.1 Trajectory Sequence Breakdown
+### 6.1 Trajectory Sequence Breakdown (Overhead Rear-Flip)
 
-| Phase                            | Action                                                                                                        | Motor Coordination Details                                                                                                      |               Speed / Duration               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------: |
-| **1. Standoff Approach**         | Arm moves to $(r_{\text{target}} - 30\text{ mm}, \theta_1, z_{\text{pick}} + 15\text{ mm})$                   | Motors 1, 2, 3, 4 interpolate concurrently. Gripper (Motor 6) opens to $55\text{ mm}$.                                          | $800\text{ ms}$ (smooth trapezoidal profile) |
-| **2. Linear Ingress**            | Slides forward radially from $r - 30\text{ mm}$ to $r_{\text{target}}$ at constant height $z_{\text{pick}}$   | Motors 2, 3, 4 perform coordinated differential pitch to maintain linear tip trajectory.                                        |      $400\text{ ms}$ (slow, controlled)      |
-| **3. Grasp Clamping**            | Closes Motor 6 until target PWM or load resistance threshold                                                  | Motors 1–5 hold position stiffness. Motor 6 drives until jaw width reaches $\approx 25\text{ mm}$.                              |               $300\text{ ms}$                |
-| **4. Tactile Verification**      | Read servo position feedback register                                                                         | If position $< 10\text{ mm}$ (empty grip) or $> 35\text{ mm}$ (jam): Abort & re-attempt. If $20\text{--}30\text{ mm}$: Success. |                $50\text{ ms}$                |
-| **5. Vertical Ascent & Retract** | Lifts vertically by $+40\text{ mm}$, retracts radially by $-50\text{ mm}$                                     | Motors 2 and 3 lift load; ensures claw clears surrounding cubes and barriers.                                                   |               $500\text{ ms}$                |
-| **6. 90° Drop Swing**            | Arm tucks into compact pose ($r \approx 130\text{ mm}$) and swings $\approx 90^\circ$ clockwise to Left Flank tray | Low moment of inertia $I = \sum m r^2$ minimizes dynamic torque load on Motor 1.                                                |               $800\text{ ms}$                |
+| Phase | Action | Motor Coordination Details | Speed / Duration |
+| :--- | :--- | :--- | :---: |
+| **1. Standoff Approach** | Arm moves to $(r_{\text{target}} - 35\text{ mm}, \theta_1, z_{\text{pick}} + 25\text{ mm})$ | Motors 1–5 interpolate concurrently. Gripper opens to $226$ ticks. | $1400\text{ ms}$ |
+| **2. Advance & Descend** | Advances to $(r_{\text{target}}, \theta_1, z_{\text{pick}})$ | Coordinated inverse kinematics descent onto cube centroid. | $1200\text{ ms}$ |
+| **3. Grasp Clamping** | Closes gripper jaws around cube | Motor 1 drives to $630$ ticks (clamped grip on $25\text{ mm}$ block). | $800\text{ ms}$ |
+| **4. High Vertical Lift** | Lifts vertically to $Z \ge 130\text{ mm}$, retracts $R \le 160\text{ mm}$ | Motors 3, 4, 5 lift load vertically to clear all tabletop objects. | $1000\text{ ms}$ |
+| **5. Overhead Rear-Flip** | Pitches Motors 5, 4, 3 backward into rear-facing stance (+Y) | Arm transitions over the shoulder while base Motor 6 stays centered. | $1200\text{ ms}$ |
+| **6. Container Slew & Drop** | Slew Motor 6 to container (Red: 650, Green: 354); open claw | Smooth base yaw alignment, drop from $Z = 45\text{ mm}$ standoff height. | $1600\text{ ms}$ |
+| **7. Retract & Reset** | Retract through rear stance and return to upright reset pose | Motors transition back overhead to home position ($502$ ticks). | $1500\text{ ms}$ |
 
 ---
 

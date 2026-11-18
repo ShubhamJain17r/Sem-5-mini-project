@@ -88,14 +88,14 @@ aruco_reference_markers:
       world_z: 0.0
     marker_2:
       id: 2
-      role: bottom_right
-      world_x: 325.0
+      role: bottom_left
+      world_x: 25.0
       world_y: 25.0
       world_z: 0.0
     marker_3:
       id: 3
-      role: bottom_left
-      world_x: 25.0
+      role: bottom_right
+      world_x: 325.0
       world_y: 25.0
       world_z: 0.0
 reprojection_error_px: 0.18

@@ -127,7 +127,10 @@ class AutonomousSorterNode(Node):
             # Filter reachable objects: pick ONLY red color objects, ignore green and others
             filtered = []
             for obj in raw_objects:
-                if obj.get("color", "").lower() != "red":
+                color_name = obj.get("color", "").lower()
+                if color_name not in ("red", "green"):
+                    continue
+                if not obj.get("targetable", True):
                     continue
                 assigned = obj.get("assigned_arm", "xarm_1")
                 if assigned in [self.arm_id, "xarm", "xarm_1", ""]:

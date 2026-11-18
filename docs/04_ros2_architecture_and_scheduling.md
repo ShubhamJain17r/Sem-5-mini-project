@@ -218,11 +218,11 @@ Each sorting transaction executes 5 distinct kinematic phases:
 
 |    Phase    | Description                          |          Altitude $Z$           |             Radial Span $r$              |       Duration / Speed       | Action Details |
 | :---------: | ------------------------------------ | :-----------------------------: | :--------------------------------------: | :--------------------------: | :------------- |
-| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+40.0\text{ mm}$)   | Retracted $\rightarrow r - 30\text{ mm}$ |    Fast ($500\text{ ms}$)    | Slew base yaw to target $\theta$, pre-open claw to 200 ticks |
-| **Phase 2** | **Horizontal Radial Advance**        |   Descent ($+12.5\text{ mm}$)   |     $r - 30\text{ mm} \rightarrow r$     |   Smooth ($450\text{ ms}$)   | Advance claw tip around cube; orient wrist roll to match cube yaw $\psi$ |
-| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+12.5\text{ mm}$)   |              At target $r$               | Grip Pulse ($250\text{ ms}$) | Clamp claw (tick 500); settle against silicone pad |
-| **Phase 4** | **Vertical Lift & Radial Retract**   |     Lift to $+60.0\text{ mm}$   |     $r \rightarrow r - 40\text{ mm}$     |   Smooth ($400\text{ ms}$)   | Lift cube clear of perimeter tape; retract toward shoulder |
-| **Phase 5** | **Flank Swivel & Release**           | Drop altitude ($+45.0\text{ mm}$) |   Swivel to Rear Flank Container Box   |    Fast ($600\text{ ms}$)    | Swing to container (yaw tick 875), open claw (tick 200), return to ready standoff |
+| **Phase 1** | **Azimuth Slew & Standoff Approach** |     Hover ($+35.0\text{ mm}$)   | Retracted $\rightarrow r - 35\text{ mm}$ |    Fast ($500\text{ ms}$)    | Slew base yaw to target $\theta$, pre-open claw to $226$ ticks |
+| **Phase 2** | **Horizontal Radial Advance**        |   Descent ($+10.0\text{ mm}$)   |     $r - 35\text{ mm} \rightarrow r$     |   Smooth ($450\text{ ms}$)   | Advance claw tip around cube; orient wrist roll to match cube yaw $\psi$ |
+| **Phase 3** | **Gripper Clamping & Settling**      |  Clamping ($+10.0\text{ mm}$)   |              At target $r$               | Grip Pulse ($250\text{ ms}$) | Clamp claw ($630$ ticks); settle against silicone pad |
+| **Phase 4** | **High Vertical Lift & Rear-Flip**   |   Lift to $\ge 130.0\text{ mm}$ |        Tuck $R \le 160\text{ mm}$        |   Smooth ($600\text{ ms}$)   | Lift vertically to clear arena; pitch Motors 5, 4, 3 backward into overhead rear stance |
+| **Phase 5** | **Rear Slew & Container Drop**       | Drop altitude ($+45.0\text{ mm}$) |       Rear containers ($R=215.1$)        |    Fast ($700\text{ ms}$)    | Slew base yaw (Red: $650$, Green: $354$), drop object, retract through overhead stance |
 
 ### 4.2 Cycle Timing & Performance
 

@@ -299,7 +299,8 @@ class ArenaVisionPipeline:
             return False
 
         src_pts = np.zeros((4, 2), dtype=np.float32)
-        for i, marker_id in enumerate([0, 1, 2, 3]):
+        # Match dst_pts ordering: [0: TL, 1: TR, 3: BR, 2: BL]
+        for i, marker_id in enumerate([0, 1, 3, 2]):
             idx = np.where(detected_ids == marker_id)[0][0]
             marker_corners = corners[idx][0]
             center = np.mean(marker_corners, axis=0)

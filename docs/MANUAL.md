@@ -103,19 +103,18 @@ python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --
 # Motion 7: Extended Far-Reach Pick (R=260mm, θ=0°, Z=12.5mm)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 7
 
-# Motion 13: Rear Flank Container Box Drop Tour (Yaw tick 875)
+# Motion 13: Rear Flank Dual Container Boxes Drop Tour (Red @ 650, Green @ 354)
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --motion 13
 ```
 
-### Step 4: 5-Phase Pick-and-Place with Trajectory Smoothing & Stall Detection
-Execute a full pick cycle with minimum-jerk polynomial interpolation and closed-loop position verification:
+### Step 4: Pick-and-Place with Overhead Rear-Flip Transfer
+Execute a full pick cycle with minimum-jerk polynomial interpolation and overhead rear-flip drop:
 ```bash
-python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py \
-    --arm xarm_1 \
-    --color red \
-    --r 200.0 \
-    --theta 0.0 \
-    --z 12.5
+# Test Red cube pick and drop (Red container @ yaw 650)
+python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py --arm xarm_1 --color red
+
+# Test Green cube pick and drop (Green container @ yaw 354)
+python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py --arm xarm_1 --color green
 ```
 *Features*:
 - Dynamically ramps velocities via quintic interpolation (eliminating mechanical shudder).
