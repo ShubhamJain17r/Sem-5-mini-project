@@ -1,6 +1,6 @@
 # Stepping Stone 3: Computer Vision & Camera Calibration Pipeline
 
-This document details the complete **optical, algorithmic, and mathematical specifications** for the overhead vision system. It covers camera mounting optics, planar homography rectification using ArUco fiducials, illumination compensation, the **Color Discrimination Methodology** (Red target picking, Green distractor filtering, Blue chassis exclusion, and spatial masking), geometric centroid extraction, cube orientation analysis, and coordinate transformations into robot polar space.
+This document details the complete **optical, algorithmic, and mathematical specifications** for the overhead vision system. It covers camera mounting optics, planar homography rectification using ArUco fiducials, illumination compensation, the **Color Discrimination Methodology** (Red and Green target picking, Blue chassis exclusion, and spatial masking), geometric centroid extraction, cube orientation analysis, and coordinate transformations into robot polar space.
 
 ---
 
@@ -18,7 +18,7 @@ The perception pipeline is built on **pure classical computer vision (OpenCV 4.x
              │                           │
              ▼ (Continuous @ 30 FPS)     ▼ (On-Demand / Streaming Scan)
      [ Web Dashboard Stream ]     [ ArUco Marker Detection ]
-     (Annotated Telemetry)        (DICT_4X4_50, IDs: 0, 1, 2, 3 Clockwise)
+     (Annotated Telemetry)        (DICT_4X4_50, IDs: 0, 1, 3, 2 Rectified)
                                          │
                                          ▼
                                [ Planar Homography H ]
@@ -34,7 +34,7 @@ The perception pipeline is built on **pure classical computer vision (OpenCV 4.x
                                          │
                                          ▼
                              [ HSV Color Segmentation ]
-                             (Red Dual-Band Target | Green Distractor)
+                             (Dual Targets: Red Dual-Band & Green)
                                          │
                                          ▼
                                [ Morphological Clean-Up ]
@@ -53,7 +53,7 @@ The perception pipeline is built on **pure classical computer vision (OpenCV 4.x
                                          │
                                          ▼
                             [ /detected_objects (ROS 2) ]
-                            (Target: Red Only | Distractor: Green)
+                            (Targets: Red & Green | Blue Excluded)
 ```
 
 ### Key Engineering Objectives
@@ -61,7 +61,7 @@ The perception pipeline is built on **pure classical computer vision (OpenCV 4.x
 1. **100% Dedicated Metric Resolution**: The active arena framed by the 4 ArUco markers ($300\text{ mm} \times 400\text{ mm}$) is warped to an exact $600 \times 800\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ pixel} = 0.5\text{ mm}$).
 2. **Deterministic Sub-25 ms Latency**: OpenCV contour moments guarantee scan cycle completion in $< 25\text{ ms}$, ensuring zero motion bottleneck.
 3. **Sub-2 mm Spatial Accuracy**: Sub-pixel ArUco corner refinement combined with coplanar homography guarantees cube centroid error $< 2.0\text{ mm}$.
-4. **Strict Color Discrimination**: Red target cubes are prioritized; green distractor cubes are tracked but excluded from the pick queue; blue metallic reflections and chassis structures are completely eliminated.
+4. **Strict Color Discrimination**: Both Red and Green target cubes are detected, tracked, and queued for sorting into dedicated rear containers; blue metallic reflections and chassis structures are completely eliminated.
 
 ---
 
@@ -222,18 +222,18 @@ $$Z_w = 12.5\text{ mm} \quad (\text{table deck } 0.0\text{ mm} + \text{half cube
 
 ### 6.2 Robot Polar Coordinate Mapping $(r, \theta)$
 
-The single xArm 1S is mounted at $(X_{\text{base}} = 175.0\text{ mm}, Y_{\text{base}} = 375.0\text{ mm})$ with nominal heading $\theta_{\text{nom}} = -35.0^\circ$:
+The single xArm 1S is mounted at $(X_{\text{base}} = 175.0\text{ mm}, Y_{\text{base}} = 375.0\text{ mm})$ with nominal heading $\theta_{\text{nom}} = -90.0^\circ$ (pointing South down Column 3 midline):
 
 $$\Delta X = X_w - 175.0\text{ mm}$$
 $$\Delta Y = Y_w - 375.0\text{ mm}$$
 $$r = \sqrt{(\Delta X)^2 + (\Delta Y)^2}$$
 $$\theta_{\text{world}} = \operatorname{atan2}(\Delta Y, \Delta X) \quad [\text{degrees}]$$
-$$\theta_{\text{arm}} = \theta_{\text{world}} - (-35.0^\circ) = \theta_{\text{world}} + 35.0^\circ$$
+$$\theta_{\text{arm}} = \theta_{\text{world}} - (-90.0^\circ) = \theta_{\text{world}} + 90.0^\circ$$
 Normalize $\theta_{\text{arm}}$ to $[-180^\circ, +180^\circ]$.
 
 ### 6.3 Reach Validation & Safety Clamping
 
-A detected red cube is accepted into the pick queue if and only if:
+A detected target cube (Red or Green) is accepted into the pick queue if and only if:
 $$160.0\text{ mm} \le r \le 300.0\text{ mm}$$
 $$X_w \in [25.0, 325.0\text{ mm}], \quad Y_w \in [25.0, 300.0\text{ mm}]$$
 

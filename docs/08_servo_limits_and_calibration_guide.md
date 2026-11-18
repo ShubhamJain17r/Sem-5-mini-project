@@ -52,7 +52,7 @@ $$\text{Ticks} = \text{Angle (degrees)} \times \left(\frac{1000.0}{240.0^\circ}\
 | **M3** | Wrist Pitch | $-90^\circ\text{ to }+90^\circ$ | $500\text{ ticks}$ | $0^\circ$ (Collinear forearm) | $120$ ($-91.2^\circ$ back) | $865$ ($+87.6^\circ$ down) | Increasing tilts wrist forward/down; decreasing tilts up. |
 | **M4** | Elbow Pitch | $0^\circ\text{ to }180^\circ$ | $500\text{ ticks}$ | $180^\circ$ (Straight arm) | $140$ ($0^\circ$ folded) | $875$ ($+90^\circ$ hyperext.) | Decreasing folds forearm forward; increasing straightens. |
 | **M5** | Shoulder Pitch | $0^\circ\text{ to }180^\circ$ | $500\text{ ticks}$ | $90^\circ$ (Upright vertical) | $120$ ($180^\circ$ back) | $870$ ($0^\circ$ forward horiz) | Increasing tilts upper arm forward; decreasing tilts back. |
-| **M6** | Base Yaw | $\pm 90^\circ$ | $500\text{ ticks}$ | $0^\circ$ (Chassis midline) | $110$ ($-93.6^\circ$ CW) | $885$ ($+92.4^\circ$ CCW) | Increasing rotates CCW; decreasing rotates CW. |
+| **M6** | Base Yaw | $\pm 96.5^\circ$ | $502\text{ ticks}$ | $0^\circ$ (Midline South heading) | $100$ ($-96.5^\circ$ CW) | $900$ ($+95.5^\circ$ CCW) | Increasing rotates CCW; decreasing rotates CW. |
 
 ---
 
@@ -68,11 +68,11 @@ Open **`http://localhost:8000`** in your web browser.
 
 ### 2. Live Tabular Interface Features
 - **Min / Max (ticks / deg)**: Displays both the raw tick clamp and the live calculated physical angle in degrees.
-- **Center (ticks / deg)**: Shows the upright zero reference angle tick (default 500).
+- **Center (ticks / deg)**: Shows the upright zero reference angle tick (default 502 for Base).
 - **Dev**: Software trim added to theoretical commands ($\text{HW} = \text{Theoretical} + \text{Dev}$).
 - **Dir**: Rotation direction multiplier (`+1` standard).
 - **Live (ticks / deg)**: Continuous real-time potentiometer feedback polled from the physical arm at $1.5\text{ s}$ intervals.
-- **Z-Trim (mm)**: Dedicated tabletop height offset to align both arms on uneven surfaces or suction cups.
+- **Z-Trim (mm)**: Dedicated tabletop height offset to align arm on uneven surfaces or suction cups.
 
 ### 3. Step-by-Step Procedure to Safely Find Hardware Limits
 To calibrate limits on a joint without stripping gears or overheating motors:

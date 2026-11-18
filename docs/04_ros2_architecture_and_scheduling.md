@@ -58,7 +58,7 @@ flowchart TD
 | --------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- | :----------------------------------: | :--------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`camera_node`**           | Hardware `/dev/video0`                    | `/camera/image_raw`  `/camera/camera_info`                               |            $30\text{ Hz}$            | SensorData (Best Effort, Depth 1)  | V4L2 video acquisition, exposure lock ($156$), white balance lock ($4500\text{K}$).                                                                  |
 | **`vision_node`**           | `/camera/image_raw`                       | `/vision/detected_objects`  `/vision/annotated_image`                    |      $10\text{--}15\text{ Hz}$       | Reliable, Transient Local, Depth 1 | ArUco 4-point homography warp ($2.0\text{ px/mm}$, $600\times 800\text{ px}$), chassis mask, Red/Green segmentation, centroid $(X_w, Y_w)$, yaw $\psi$. |
-| **`autonomous_sorter_node`**| `/vision/detected_objects`                | `/xarm_1/joint_commands`                                                |         $10\text{ Hz}$ loop          |         Reliable, Depth 10         | Nearest-First red cube ordering, analytical IK for pick & container drop (tick $875$), 5-phase trajectory execution.                                  |
+| **`autonomous_sorter_node`**| `/vision/detected_objects`                | `/xarm_1/joint_commands`                                                |         $10\text{ Hz}$ loop          |         Reliable, Depth 10         | Nearest-First dual-color (Red & Green) cube ordering, analytical IK for pick & overhead rear-flip drop (Red: 650, Green: 354 ticks), 7-phase trajectory execution. |
 | **`driver_node`**           | `/xarm_1/joint_commands`                  | `/xarm_1/joint_states`  `/dev/ttyUSB0` (UART)                           | Event-driven + $50\text{ Hz}$ status |         Reliable, Depth 5          | xArm 1S serial protocol driver: command dispatch, position telemetry feedback, health monitoring & E-Stop interlock.                                 |
 | **`web_config`**            | HTTP / REST API                           | Port 8000 Web Dashboard                                                 |            $2\text{ Hz}$             |            Best Effort             | Real-time calibration, servo min/max adjustments, live potentiometer readouts, and CSV drift telemetry logging.                                      |
 
@@ -77,8 +77,8 @@ Represents an individual physical cube identified on the picking arena.
 # Represents a single detected colored wooden block on the picking arena
 
 uint32 object_id                  # Unique sequential detection ID
-string color                      # Color classification: "RED" (target), "GREEN" (distractor)
-bool targetable                   # True if eligible for picking (Red = True, Green = False)
+string color                      # Color classification: "RED" or "GREEN"
+bool targetable                   # True if eligible for picking (Red & Green = True)
 float64 x_mm                      # Absolute world X coordinate in arena frame [25.0, 325.0 mm]
 float64 y_mm                      # Absolute world Y coordinate in arena frame [25.0, 425.0 mm]
 float64 z_mm                      # Elevation coordinate (nominally +12.5 mm for cube centroid on table)
@@ -118,8 +118,8 @@ float64 target_r_mm               # Polar radius r = sqrt(dx^2 + dy^2) [160.0, 3
 float64 target_theta_deg          # Polar azimuth angle theta relative to heading [degrees]
 
 # Sorting destination parameters
-string destination_box            # Drop target: "CONTAINER_REAR_FLANK"
-float64 drop_theta_deg            # Target base yaw for drop (+89.5° from heading, tick 875)
+string destination_box            # Drop target: "RED_BOX" or "GREEN_BOX"
+float64 drop_theta_deg            # Target base yaw for drop (Red: 650 ticks, Green: 354 ticks)
 ```
 
 ### 2.4 `ArmStatus.msg`
@@ -265,10 +265,10 @@ class AutonomousSorterNode(Node):
 
 #### Core Operational Loop
 1. **Perception Subscription**: Subscribes to `/vision/detected_objects` published by `vision_node`.
-2. **Nearest-First Ordering**: Filters detected cubes and sorts the active queue in ascending order of radial distance $r$. Only target red objects are queued for execution; green distractors are skipped.
+2. **Nearest-First Ordering**: Filters detected cubes and sorts the active queue in ascending order of radial distance $r$. Target Red and Green objects are queued for execution into their respective rear containers; unconfigured/blue colors are skipped.
 3. **Analytical Trajectory Generation**:
    - For pick: Solves `solve_ik(r, theta, z=12.5, roll_tick)` with roll aligned to cube orientation $\psi$.
-   - For drop: Retrieves target from `get_compartment_target(color, arm_id)` targeting the Rear Flank container box at $(300.0, 550.0, 40.0\text{ mm})$ with drop yaw tick $875$.
+   - For drop: Retrieves target from `get_compartment_target(color, arm_id)` targeting either the Red box at $(50.0, 550.0, 45.0\text{ mm})$ (yaw 650 ticks) or Green box at $(300.0, 550.0, 45.0\text{ mm})$ (yaw 354 ticks).
 4. **Trajectory Execution**: Emits interpolated `sensor_msgs/JointState` waypoints to `/{arm_id}/joint_commands`.
 
 
@@ -288,7 +288,7 @@ The perception node interfaces with OpenCV:
 - Detects the 4 ArUco markers (`DICT_4X4_50`, IDs 0..3) coplanar with the arena tabletop ($Z = 0.0\text{ mm}$) in clockwise order.
 - Computes perspective homography matrix $H$ and warps the arena to an exact $2.0\text{ px/mm}$ metric grid ($600 \times 800\text{ px}$).
 - Applies rectangular exclusion mask over arm mounting zone (Rows 3..5, Cols 2..4).
-- Segments Red (target) and Green (distractor) cubes; bypasses blue chassis color.
+- Segments Red and Green target cubes; bypasses blue chassis color.
 - Computes spatial moments to extract cube centroids $(X_w, Y_w)$, yaw orientation $\psi \in [-45^\circ, +45^\circ]$, and radial coordinates $(r, \theta)$.
 - Publishes structured detections to `/vision/detected_objects` and annotated video to `/vision/annotated_image`.
 

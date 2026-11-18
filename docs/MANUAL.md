@@ -159,7 +159,7 @@ Open **`http://localhost:8000`** in Google Chrome or any modern browser.
 
 ## 📷 Phase 2: Computer Vision Calibration & Autonomous Sorting Bridge (Host venv)
 
-The vision system uses pure OpenCV to rectify the $350 \times 600\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid ($600 \times 800\text{ px}$) with strict color discrimination (Red target, Green distractor, Blue chassis bypass & spatial mask).
+The vision system uses pure OpenCV to rectify the $350 \times 600\text{ mm}$ arena to a $2.0\text{ px/mm}$ metric coordinate grid ($600 \times 800\text{ px}$) with strict color discrimination (Red & Green targets, Blue chassis bypass & spatial mask).
 
 ### Step 1: Camera Hardware Exposure & White Balance Lock
 Ambient lighting changes in a university lab cause fatal HSV color drift. Always disable auto-exposure and auto-white-balance before launching vision scripts:

@@ -89,7 +89,7 @@ class ArenaVisionPipeline:
 
         # Base mount and nominal heading in world frame (from xarm_hardware.yaml)
         self.base_mounts = {
-            "xarm_1": {"x": 175.0, "y": 375.0, "z": 0.0, "heading": -35.0},
+            "xarm_1": {"x": 175.0, "y": 375.0, "z": 0.0, "heading": -90.0},
         }
         self.midline_x_mm = 175.0
         self.mutex_corridor = (0.0, 0.0)  # No mutex corridor needed for single arm

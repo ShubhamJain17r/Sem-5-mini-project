@@ -124,7 +124,7 @@ class AutonomousSorterNode(Node):
             data = json.loads(msg.data)
             raw_objects = data.get("objects", [])
 
-            # Filter reachable objects: pick ONLY red color objects, ignore green and others
+            # Filter reachable objects: pick Red and Green targetable objects, ignore blue and unconfigured colors
             filtered = []
             for obj in raw_objects:
                 color_name = obj.get("color", "").lower()

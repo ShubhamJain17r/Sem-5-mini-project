@@ -1,6 +1,6 @@
 # Stepping Stone 1: Arena & Physical Component Placement (Single xArm 1S Setup)
 
-This document details the complete mechanical construction, spatial dimensions, component placements, physical barriers, optical fiducials, wiring layout, and workspace architecture for the single xArm 1S red-object picking robotic workcell.
+This document details the complete mechanical construction, spatial dimensions, component placements, physical barriers, optical fiducials, wiring layout, and workspace architecture for the single xArm 1S dual-color (Red & Green) sorting robotic workcell.
 
 ---
 
@@ -13,24 +13,25 @@ The entire workcell is organized on a single, continuous **flat wooden baseboard
    ^
    │  ┌────────────────────────────────────────────────────────────┐
    │  │ REAR OF WORKSPACE (Row 0, Y = 600 mm)                      │
-   │  │                                  ┌───────────────────────┐ │
-   │  │                                  │ CONTAINER BOX (100x100│ │ (X=300, Y=550)
-   │  │                                  │ Rows 0..1, Cols 5..6) │ │ Drop Yaw: 875 ticks
-   │  │                                  └───────────────────────┘ │
+   │  │ ┌───────────────────────┐        ┌───────────────────────┐ │
+   │  │ │   RED CONTAINER BOX   │        │  GREEN CONTAINER BOX  │ │
+   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │
+   │  │ │ Drop Yaw: 650 ticks   │        │ Drop Yaw: 354 ticks   │ │
+   │  │ └───────────────────────┘        └───────────────────────┘ │
    │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
    │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
    │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
-   │  │                             │ Heading: -35.0 deg│          │
+   │  │                             │ Heading: -90° (S) │          │
    │  │                             └───────────────────┘          │
    │  │                                                            │
    │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
    │  │                     (r = 160..300 mm reach)                │
-   │  │               [Red = Target | Green = Distractor]          │
+   │  │             [Red & Green Targets | Nearest-First]          │
    │  │                                                            │
-   │  │   [ArUco #3] (50x50mm)                            [ArUco #2│
-   │  │   (25, 25) [Row 11, Col 0]                        (325, 25)│
-   │  │                                                   [Row 11, │
-   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)  │
+   │  │   [ArUco #2] (50x50mm)                            [ArUco #3] (50x50mm) │
+   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6│
+   │  │                                                                        │
+   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)              │
    │  └────────────────────────────────────────────────────────────┘
    └───────────────────────────────────────────────────────────────────> X (Width: 350 mm, Cols 0 to 6)
 ```

@@ -76,18 +76,17 @@ This project automates target object sorting using classical computer vision, an
 
 | Component           | Specification                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Manipulator**     | 1× LewanSoul / Hiwonder xArm 1S (Mount at $X=175\text{ mm}, Y=375\text{ mm}$, Heading $-35.0^\circ$)             |
+| **Manipulator**     | 1× LewanSoul / Hiwonder xArm 1S (Mount at $X=175\text{ mm}, Y=375\text{ mm}$, Heading $-90.0^\circ$ South)       |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
 | **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
 | **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics bay)                  |
 | **Camera**          | Overhead camera with Invicto 10" LED ring light on welded scrap aluminum stand @ 65 cm nadir                    |
 | **Base Platform**   | Flat platform board with drawn $7\times 12$ grid ($350\text{ mm} \times 600\text{ mm}$, $5\text{ cm}$ cells)    |
 | **Picking Arena**   | Rows 7..10 active pick zone ($r \in [160, 300\text{ mm}]$) with compliant foam perimeter                       |
-| **Container Box**   | Single physical container box ($100\times 100\times 35\text{ mm}$) at Rear Flank $(X=300, Y=550\text{ mm})$     |
+| **Container Boxes** | Dual physical container boxes ($100\times 100\times 35\text{ mm}$ each) at Rear Flank: Red Box $(X=50, Y=550\text{ mm})$, Green Box $(X=300, Y=550\text{ mm})$ |
 | **Fiducials**       | 4× matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3, $50\times 50\text{ mm}$) coplanar at $Z = 0.0\text{ mm}$|
-| **Target Objects**  | Red wooden craft blocks ($25.4\text{ mm}$, $14\text{--}16\text{ g}$)                                            |
-| **Distractor**      | Green wooden craft blocks (ignored/bypassed by pick scheduler)                                                  |
-| **Chassis Color**   | Blue (disabled in vision; excluded via spatial mask to prevent reflection false-positives)                      |
+| **Target Objects**  | Red and Green wooden craft blocks ($25.4\text{ mm}$, $14\text{--}16\text{ g}$) sorted into dedicated rear boxes |
+| **Distractor / Bypass** | Blue objects & metallic reflections ignored/bypassed (matches blue xArm chassis)                            |
 | **Power Supply**    | Single 7.4V / 5A DC buck regulator with common star ground                                                      |
 | **Communication**   | Direct USB HID / USB-UART serial bus (`/dev/ttyUSB0`) @ 115200 / 9600 baud                                      |
 
@@ -118,7 +117,7 @@ This project automates target object sorting using classical computer vision, an
                     [ vision_node ] (ArUco Homography + Red/Green HSV Detection)
                            │
                            ▼ /detected_objects
-              [ autonomous_sorter_node ] (Red-Only Queue + Nearest-First State Machine)
+              [ autonomous_sorter_node ] (Dual-Color Queue + Nearest-First State Machine)
                            │
                            ▼ /xarm_1/joint_commands
                   [ xarm_driver_node ] (Serial / HID Protocol Driver)
@@ -131,7 +130,7 @@ This project automates target object sorting using classical computer vision, an
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `camera_node`            | Streams raw video frames from overhead camera to `/camera/image_raw`                                                           |
 | `vision_node`            | Detects 4 ArUco markers, rectifies $600\times 800\text{ px}$ metric grid, masks chassis, publishes `/detected_objects`          |
-| `autonomous_sorter_node` | Queues target red cubes in Nearest-First order, solves 5-phase trajectories to container box, handles state machine             |
+| `autonomous_sorter_node` | Queues target Red and Green cubes in Nearest-First order, solves 7-phase overhead rear-flip trajectories to dedicated boxes     |
 | `driver_node`            | Dispatches servo move packets over USB serial/HID, reads position feedback, monitors communication health & handles E-Stop     |
 | `web_config`             | Serves real-time web portal on port 8000 for motor calibration, live potentiometer readouts, and CSV drift telemetry logging     |
 
@@ -144,10 +143,10 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 ### Stepping-Stone Specifications
 
 - 📄 **Stepping Stone 0**: [`docs/00_docker_and_ros2_development_guide.md`](docs/00_docker_and_ros2_development_guide.md) — Docker containerization, hybrid host/container development workflow, Intel GPU acceleration, USB hardware mapping, and ROS 2 Humble package build standards.
-- 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Physical $7\times 12$ grid arena ($350\times 600\text{ mm}$), central xArm 1S mount at $(175, 375)$ with heading $-35.0^\circ$, Rear Flank container box, and $50\text{ mm}$ ArUco fiducials.
-- 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 5-phase trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
-- 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), **Color Discrimination Methodology** (Red target, Green distractor, Blue chassis exclusion), and spatial masking.
-- 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, single-arm red-object picking pipeline, Nearest-First radial queueing, joint trajectory generation, and production Python nodes.
+- 📄 **Stepping Stone 1**: [`docs/01_arena_and_layout.md`](docs/01_arena_and_layout.md) — Physical $7\times 12$ grid arena ($350\times 600\text{ mm}$), central xArm 1S mount at $(175, 375)$ with heading $-90.0^\circ$ (South), dual Rear Flank container boxes, and $50\text{ mm}$ ArUco fiducials.
+- 📄 **Stepping Stone 2**: [`docs/02_kinematics_and_grasp_planning.md`](docs/02_kinematics_and_grasp_planning.md) — Complete mathematical derivations, DH parameters, analytical IK formulas ($\theta_1\text{--}\theta_5$), top-down reach limit proof ($158.7\text{ mm}$), dual-regime wrist roll control, 7-phase overhead rear-flip trajectory waypoint profiling, torque/friction physics, and reference Python IK solver.
+- 📄 **Stepping Stone 3**: [`docs/03_computer_vision_and_calibration.md`](docs/03_computer_vision_and_calibration.md) — Camera mounting optics, 4-point ArUco planar homography ($2.0\text{ px/mm}$), **Color Discrimination Methodology** (Red & Green targets, Blue chassis exclusion), and spatial masking.
+- 📄 **Stepping Stone 4**: [`docs/04_ros2_architecture_and_scheduling.md`](docs/04_ros2_architecture_and_scheduling.md) — Distributed ROS 2 Humble node graph, single-arm dual-color sorting pipeline, Nearest-First radial queueing, joint trajectory generation, and production Python nodes.
 - 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), direct USB-HID/UART bringup, xArm PC App servo calibration, and tick-to-angle conversion.
 - 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 1 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
 - 📄 **Stepping Stone 8**: [`docs/08_servo_limits_and_calibration_guide.md`](docs/08_servo_limits_and_calibration_guide.md) — Comprehensive guide for servo min/max angles, physical-to-tick math ($0.24^\circ/\text{tick}$), safe boundary discovery, Web Config Portal integration, and Cartesian Z-depth trim adjustment.
@@ -207,7 +206,7 @@ Sem-5-mini-project/
 │           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
 │           │   ├── trajectory.py       # Quintic polynomial minimum-jerk trajectory generator
 │           │   ├── vision_node.py      # ROS 2 camera capture & ArUco perception node
-│           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator (red-only)
+│           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator (dual-color Red & Green)
 │           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
 │           ├── test/
 │           │   ├── run_tests.py        # Standalone offline simulation test suite (32 unit tests)
@@ -231,13 +230,6 @@ Sem-5-mini-project/
 │   ├── align_camera.py             # Interactive camera centering & optical tilt alignment tool
 │   ├── arena_vision_pipeline.py    # Core 4-point ArUco homography & HSV segmentation pipeline
 │   ├── calibrate_camera.py         # Interactive checkerboard lens intrinsic calibration
-│   ├── test_aruco_warp.py          # ArUco marker detection & metric grid verification
-│   └── tune_hsv.py                 # Real-time 6-trackbar HSV threshold calibration GUI
-│
-├── .devcontainer/                  # VS Code Dev Container configuration
-│   └── devcontainer.json           # 1-click isolated ROS 2 environment
-├── requirements.txt                # Python host virtual environment dependencies
-└── setup_venv.sh                   # One-click host Python virtual environment setup
 │   ├── test_aruco_warp.py          # ArUco marker detection & metric grid verification
 │   └── tune_hsv.py                 # Real-time 6-trackbar HSV threshold calibration GUI
 │

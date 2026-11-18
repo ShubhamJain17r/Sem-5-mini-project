@@ -2,7 +2,7 @@
 
 This document provides the definitive engineering specification for **Stepping Stone 6: Verification, Diagnostics, and Algorithmic Failure Mitigation**. It addresses the physical realities and failure modes identified during the ideation phase, specifically:
 1. **Nearest-First Corridor Collision Avoidance** (preventing forearm plowing during horizontal picks).
-2. **Software Grip Confirmation via Motor 6 Position Readback** (detecting dropped or missed cubes without extra sensors).
+2. **Software Grip Confirmation via Motor 1 (Claw) Position Readback** (detecting dropped or missed cubes without extra sensors).
 3. **Empirical Z-Sag Compensation** (offsetting linkage flex and gear backlash at extreme reach).
 4. **Camera Lens Undistortion Pipeline** (eliminating metric warping errors at arena boundaries).
 5. **System-wide Fault Diagnostics and Safety Watchdogs**.
@@ -39,12 +39,12 @@ Where:
 
 ### 1.3 The Nearest-First Queue Policy
 
-To guarantee that the corridor $\mathcal{C}_i$ is strictly empty of physical obstacles, the `scheduler_node` enforces a **Nearest-First Sorting Policy**:
+To guarantee that the corridor $\mathcal{C}_i$ is strictly empty of physical obstacles, the `autonomous_sorter_node` enforces a **Nearest-First Sorting Policy**:
 
 $$\text{Queue}_{\text{arm}} = \text{sort}\Big(\mathcal{S}_{\text{assigned\_cubes}}, \;\; \text{key} = r_i, \;\; \text{ascending} = \text{True}\Big)$$
 
 ```python
-# scheduler_node snippet: Deterministic Nearest-First sorting
+# autonomous_sorter_node snippet: Deterministic Nearest-First sorting
 def prioritize_queue(detected_objects, arm_base_xy):
     """
     Sorts target objects by ascending radial distance r from the arm's base.
@@ -64,18 +64,18 @@ def prioritize_queue(detected_objects, arm_base_xy):
 
 ---
 
-## 2. Software Grip Confirmation via Motor 6 Readback
+## 2. Software Grip Confirmation via Motor 1 (Claw Clamp) Readback
 
 ### 2.1 The Open-Loop Problem
 
-Low-cost hobby robotic arms do not feature tactile load cells, optical break-beams, or pressure sensors on their fingertips. If an open-loop arm closes its claw and misses the cube, it will blindly execute a full $205^\circ$ swing to the collection box, open an empty claw, and report task success. The cube remains on the table, causing state desynchronization in the master scheduler.
+Low-cost hobby robotic arms do not feature tactile load cells, optical break-beams, or pressure sensors on their fingertips. If an open-loop arm closes its claw and misses the cube, it will blindly execute a full overhead rear-flip transit to the collection box, open an empty claw, and report task success. The cube remains on the table, causing state desynchronization in the master scheduler.
 
 ### 2.2 Position Readback Grasp Discrimination
 
-The **LewanSoul / Hiwonder LX-15D** bus servo inside the claw (Motor 6) includes an internal magnetic potentiometer. By issuing command `0x15 (CMD_SERVO_POS_READ)`, the controller reads the true shaft position after the clamp command has executed:
+The **LewanSoul / Hiwonder LX-15D** bus servo inside the claw (Hardware ID 1) includes an internal magnetic potentiometer. By issuing command `0x15 (CMD_SERVO_POS_READ)`, the controller reads the true shaft position after the clamp command has executed:
 
 ```text
-    Motor 6 Tick Envelopes (Claw Clamp State):
+    Motor 1 Tick Envelopes (Claw Clamp State):
     
     [0 ticks] ──── [150 ticks] ──────── [420 - 480 ticks] ──────── [750 ticks] ──── [1000 ticks]
                      ▲                        ▲                          ▲
@@ -84,27 +84,27 @@ The **LewanSoul / Hiwonder LX-15D** bus servo inside the claw (Motor 6) includes
                  (Missed Cube)          (Grasp Confirmed)           (Pre-Grasp)
 ```
 
-| Motor 6 Position | Physical Meaning | Software Action |
+| Motor 1 Position | Physical Meaning | Software Action |
 | :---: | :--- | :--- |
-| **$P \le 220\text{ ticks}$** | Jaws closed completely together ($w \approx 0\text{ mm}$). **Object was not captured**. | Set `has_cube = False`. Abort drop swing. Retract arm, increment retry counter, and re-scan arena. |
-| **$380 \le P \le 520\text{ ticks}$** | Jaws stalled against flat faces of $25\text{ mm}$ cube ($w \approx 25\text{ mm}$). **Grasp Successful**. | Set `has_cube = True`. Proceed with transit and $205^\circ$ drop swing. |
+| **$P \le 220\text{ ticks}$** | Jaws closed completely together ($w \approx 0\text{ mm}$). **Object was not captured**. | Set `has_cube = False`. Abort drop transit. Retract arm, increment retry counter, and re-scan arena. |
+| **$380 \le P \le 520\text{ ticks}$** | Jaws stalled against flat faces of $25\text{ mm}$ cube ($w \approx 25\text{ mm}$). **Grasp Successful**. | Set `has_cube = True`. Proceed with overhead rear-flip transit to designated container box. |
 | **$P > 600\text{ ticks}$** | Jaws jammed or obstructed before closing. | Set `error_code = "CLAW_JAMMED"`. Move arm to Home and alert operator. |
 
-### 2.3 Implementation in `arm_node.py`
+### 2.3 Implementation in `driver_node.py` / `pick_and_place_test.py`
 
 ```python
-def verify_grasp(self, serial_port, expected_min=380, expected_max=520, timeout_sec=1.0):
+def verify_grasp(self, expected_min=380, expected_max=520, timeout_sec=1.0):
     """
-    Queries Motor 6 position register to verify physical cube capture.
+    Queries Motor 1 position register to verify physical cube capture.
     Returns: bool (True if cube successfully grasped)
     """
-    # Send CMD_SERVO_POS_READ for Motor 6
-    self.send_packet(servo_id=6, cmd=0x15)
+    # Send CMD_SERVO_POS_READ for Motor 1 (Claw Clamp)
+    self.send_packet(servo_id=1, cmd=0x15)
     
-    pos_ticks = self.read_position_feedback(servo_id=6, timeout=timeout_sec)
+    pos_ticks = self.read_position_feedback(servo_id=1, timeout=timeout_sec)
     
     if expected_min <= pos_ticks <= expected_max:
-        self.get_logger().info(f"Grasp Confirmed: Motor 6 clamped at {pos_ticks} ticks.")
+        self.get_logger().info(f"Grasp Confirmed: Motor 1 clamped at {pos_ticks} ticks.")
         return True
     elif pos_ticks < 220:
         self.get_logger().warn(f"Grasp Failed: Claw fully closed ({pos_ticks} ticks). Cube missed!")

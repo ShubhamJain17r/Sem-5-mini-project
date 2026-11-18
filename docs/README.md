@@ -1,7 +1,7 @@
 # 📚 Project Documentation & Engineering Specifications
-### Single xArm 1S Red-Object Picking Robot
+### Single xArm 1S Dual-Color (Red & Green) Sorting Robot
 
-Welcome to the engineering documentation suite for the autonomous single-arm robotic red-object picking system. This directory contains detailed specifications covering mechanical layout, kinematics, computer vision, ROS 2 architecture, hardware bringup, and system testing.
+Welcome to the engineering documentation suite for the autonomous single-arm robotic dual-color (Red & Green) sorting system. This directory contains detailed specifications covering mechanical layout, kinematics, computer vision, ROS 2 architecture, hardware bringup, and system testing.
 
 ---
 
@@ -24,10 +24,10 @@ docs/
 │   └── 01_arena_and_layout.md                         # Stepping Stone 1: 7x12 Arena, Component Placement & Layout
 │
 ├── 📐 Kinematics, Grasping & Control
-│   └── 02_kinematics_and_grasp_planning.md            # Stepping Stone 2: Analytical IK, Roll Control & 5-Phase Trajectory
+│   └── 02_kinematics_and_grasp_planning.md            # Stepping Stone 2: Analytical IK, Roll Control & 7-Phase Rear-Flip Trajectory
 │
 ├── 👁️ Perception & Calibration
-│   └── 03_computer_vision_and_calibration.md          # Stepping Stone 3: Optical Framing, ArUco Homography & Color Discrimination
+│   └── 03_computer_vision_and_calibration.md          # Stepping Stone 3: Optical Framing, ArUco Homography & Dual-Color Discrimination
 │
 ├── 🤖 ROS 2 & System Coordination
 │   └── 04_ros2_architecture_and_scheduling.md        # Stepping Stone 4: Computation Graph, Message Registry & Sorter
@@ -53,9 +53,9 @@ docs/
 | :--- | :--- | :---: |
 | [**`MANUAL.md`**](MANUAL.md) | **End-to-End Operator Manual & Debugging Guide**: Python venv, Web Server, ROS 2 Docker workflow, and fault troubleshooting | ✅ Complete |
 | [**`00_docker_and_ros2_development_guide.md`**](00_docker_and_ros2_development_guide.md) | Docker workflow, hybrid VS Code editing, package creation, `colcon` build lifecycle, hardware mapping | ✅ Complete |
-| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | Central single xArm 1S at $(175, 375)$ heading $-35^\circ$, $7\times 12$ hand-drawn grid ($350\times 600\text{ mm}$), Rear Flank container box | ✅ Complete |
-| [**`02_kinematics_and_grasp_planning.md`**](02_kinematics_and_grasp_planning.md) | Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime wrist roll, radial approach, 5-phase trajectory | ✅ Complete |
-| [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$, $600\times 800\text{ px}$), **Color Discrimination Methodology** (Red target, Green distractor, Blue chassis exclusion) | ✅ Complete |
+| [**`01_arena_and_layout.md`**](01_arena_and_layout.md) | Central single xArm 1S at $(175, 375)$ heading $-90.0^\circ$ (South), $7\times 12$ hand-drawn grid ($350\times 600\text{ mm}$), dual Rear Flank container boxes | ✅ Complete |
+| [**`02_kinematics_and_grasp_planning.md`**](02_kinematics_and_grasp_planning.md) | Analytical closed-form IK ($\theta_1\text{--}\theta_5$), dual-regime wrist roll, radial approach, 7-phase overhead rear-flip trajectory | ✅ Complete |
+| [**`03_computer_vision_and_calibration.md`**](03_computer_vision_and_calibration.md) | 4-point ArUco homography warp ($2.0\text{ px/mm}$, $600\times 800\text{ px}$), **Color Discrimination Methodology** (Red & Green targets, Blue chassis exclusion) | ✅ Complete |
 | [**`04_ros2_architecture_and_scheduling.md`**](04_ros2_architecture_and_scheduling.md) | Computation graph, `xarm_interfaces`, Nearest-First radial sorting pipeline, autonomous pick-and-place | ✅ Complete |
 | [**`05_hardware_bringup_and_firmware_control.md`**](05_hardware_bringup_and_firmware_control.md) | Hiwonder 115200 baud binary packet framing, Arduino Uno R4 test bench, servo deviation zeroing | ✅ Complete |
 | [**`06_system_testing_diagnostics_and_verification.md`**](06_system_testing_diagnostics_and_verification.md) | Verification runbooks, empirical Z-sag compensation factor ($k_{\text{sag}} \approx 0.07$), claw grasp discrimination | ✅ Complete |

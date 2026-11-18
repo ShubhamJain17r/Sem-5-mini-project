@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Autonomous Vision-Guided Pick-and-Place Bridge (Single xArm 1S Red-Object Picking).
+Autonomous Vision-Guided Pick-and-Place Bridge (Single xArm 1S Dual-Color Sorting).
 
 Workflow:
   1. Captures overhead camera frame and applies 4-point ArUco planar homography.
-  2. Segments colored cubes; filters for target red cubes while ignoring green distractors and blue chassis.
+  2. Segments colored cubes; filters for target red and green cubes while ignoring blue chassis.
   3. Shifts coordinates into arm-relative cylindrical/polar frames (r, theta_arm).
   4. Enforces Nearest-First pick ordering (ascending r) to prevent foreground cube collisions.
-  5. Computes analytical inverse kinematics for pick (r, theta, z=12.5mm) and drop into Rear Flank container box.
-  6. Executes 5-phase minimum-jerk trajectory with Motor 1 clamp readback grip verification.
+  5. Computes analytical inverse kinematics for pick (r, theta, z=12.5mm) and overhead rear-flip drop into designated Rear Flank container box (Red or Green).
+  6. Executes 7-phase trajectory with overhead rear-flip and Motor 1 clamp readback grip verification.
   7. Supports --dry-run and --synthetic modes for offline verification without physical hardware.
 """
 

@@ -1,5 +1,5 @@
 # =====================================================================================
-# Single xArm 1S Red-Object Picking Robot — Unified Hardware & Kinematic Configuration
+# Single xArm 1S Dual-Color (Red & Green) Sorting Robot — Unified Hardware & Kinematic Configuration
 # File: config/xarm_hardware.yaml
 #
 # PURPOSE:
@@ -10,7 +10,7 @@
 #   - Joint travel limits (min_ticks, max_ticks) and nominal centers (from xArm PC App)
 #   - Rotation direction multipliers (+1 / -1) and semantic physical descriptions
 #   - Multi-state waypoint poses (home_tucked, ready_standoff, drop_container)
-#   - Dedicated single container box target on Rear Flank (Red objects)
+#   - Dedicated dual container box targets on Rear Flank (Red and Green objects)
 #
 # CALIBRATION:
 #   Physical servo deviations are calibrated via the official Hiwonder xArm PC App,

@@ -151,39 +151,40 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 > ### 🏁 Gate 2 Exit Criteria (Prerequisites to Enter Phase 3)
 > 1. Intrinsic lens distortion corrected; rectified arena boundaries are perfectly rectangular ($600 \times 800\text{ px}$ at $2.0\text{ px/mm}$).
 > 2. Planar homography matrix locked at startup; zero pixel jitter when table vibrates.
-> 3. HSV color discrimination cleanly segments Red targets, flags Green as distractor, and ignores Blue chassis.
+> 3. HSV color discrimination cleanly segments Red and Green targets, and ignores Blue chassis.
 > 4. Physical cube localization error is $< 2.0\text{ mm}$ in Cartesian arena coordinates.
 
 ---
 
-## 📋 Phase 3: Single-Arm Autonomous Red-Object Picking (Standalone MVP)
+## 📋 Phase 3: Single-Arm Autonomous Dual-Color (Red & Green) Sorting
 
-**Primary Focus**: Closing the perception-action loop on xArm 1; verifying Nearest-First queue sorting and grip confirmation; picking red target blocks while ignoring green distractors into the Rear Flank container box.  
-**Hardware Required**: Single calibrated xArm 1s, Camera setup, $7\times 12$ hand-drawn grid arena with foam border, Rear Flank container box, Red target cubes, Green distractor cubes.  
+**Primary Focus**: Closing the perception-action loop on xArm 1; verifying Nearest-First queue sorting and grip confirmation; sorting Red blocks (to Red box @ 650 ticks) and Green blocks (to Green box @ 354 ticks) via overhead rear-flip transfer while ignoring blue chassis.  
+**Hardware Required**: Single calibrated xArm 1s, Camera setup, $7\times 12$ hand-drawn grid arena with foam border, dual Rear Flank container boxes (Red & Green), Red and Green target cubes.  
 **Reference Document**: [`docs/04_ros2_architecture_and_scheduling.md`](04_ros2_architecture_and_scheduling.md) & [`docs/06_system_testing_diagnostics_and_verification.md`](06_system_testing_diagnostics_and_verification.md).
 
 ### Lab Action Checklist
 
 - [ ] **ROS 2 Vision-to-Arm Pipeline Integration**:
   - [ ] Launch complete system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
-  - [ ] Verify `/vision/detected_objects` topic publishes real-time cube lists with `color` and `targetable` flags.
+  - [ ] Verify `/vision/detected_objects` topic publishes real-time cube lists with `color` and `targetable` flags for both Red and Green.
 - [ ] **Nearest-First Corridor Collision Verification**:
-  - [ ] Place Red Cube B ($r = 250\text{ mm}$) directly behind Red Cube A ($r = 160\text{ mm}$) along the same radial azimuth.
+  - [ ] Place Cube B ($r = 250\text{ mm}$) directly behind Cube A ($r = 160\text{ mm}$) along the same radial azimuth.
   - [ ] Trigger pick cycle. Confirm `autonomous_sorter` prioritizes Cube A first.
-  - [ ] Verify arm picks Cube A, deposits in Rear Flank container box, and then picks Cube B with zero forearm collision.
+  - [ ] Verify arm picks Cube A, deposits via overhead rear-flip into designated container box, and then picks Cube B with zero forearm collision.
 - [ ] **Software Grip Confirmation Integration**:
   - [ ] Verify Motor 1 position feedback executes after clamping.
-  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss, aborts the drop swing, and alerts sorter.
-- [ ] **Red-Only Picking with Green Distractor Run**:
-  - [ ] Scatter Red cubes and Green distractor cubes across active arena rows 7..10.
-  - [ ] Run autonomous picking sequence without human intervention.
-  - [ ] Verify all Red cubes are picked and deposited into the Rear Flank container box at $(300, 550)$ with yaw tick $875$.
-  - [ ] Verify all Green distractor cubes remain untouched on the arena floor.
+  - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss, aborts the drop transit, and alerts sorter.
+- [ ] **Dual-Color Autonomous Sorting Run**:
+  - [ ] Scatter Red and Green target cubes across active arena rows 7..10.
+  - [ ] Run autonomous sorting sequence without human intervention.
+  - [ ] Verify all Red cubes are picked and deposited into the Red container box at $(50, 550)$ with yaw tick $650$.
+  - [ ] Verify all Green cubes are picked and deposited into the Green container box at $(300, 550)$ with yaw tick $354$.
+  - [ ] Verify blue arm chassis and reflections are completely ignored.
   - [ ] Record total cycle time and individual pick-to-drop duration.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 3 Exit Criteria (Standalone MVP Complete)
-> 1. Single arm autonomously picks all red cubes with $\ge 90\%$ success rate without disturbing green distractors.
+> 1. Single arm autonomously sorts both Red and Green cubes with $\ge 90\%$ success rate.
 > 2. Nearest-First sorting eliminates all radial approach collisions.
 > 3. Grip confirmation detects empty claw and prevents false-positive drop swings.
 > 4. Complete system demonstration recorded on video as a baseline project submission.
@@ -193,15 +194,15 @@ Because university coursework, laboratory access schedules, exams, and hardware 
 ## 📋 Phase 4: Full Workcell Assembly, Web Diagnostics & Continuous Benchmark
 
 **Primary Focus**: Final physical integration on the $350\times 600\text{ mm}$ platform board; wiring management; web portal diagnostic tuning; long-term repeatability telemetry.  
-**Hardware Required**: 1× xArm 1s, Single 7.4V/5A power supply, Jetson Orin Nano / RPi 5, Platform Board ($350 \times 600\text{ mm}$) with $7\times 12$ drawn grid, Rear Flank container box, Red and Green craft cubes.  
+**Hardware Required**: 1× xArm 1s, Single 7.4V/5A power supply, Jetson Orin Nano / RPi 5, Platform Board ($350 \times 600\text{ mm}$) with $7\times 12$ drawn grid, dual Rear Flank container boxes, Red and Green craft cubes.  
 **Reference Document**: [`docs/01_arena_and_layout.md`](01_arena_and_layout.md) and [`docs/08_servo_limits_and_calibration_guide.md`](08_servo_limits_and_calibration_guide.md).
 
 ### Lab Action Checklist
 
 - [ ] **Workcell Mechanical & Electrical Assembly**:
   - [ ] Place platform board ($350\times 600\text{ mm}$, $7\times 12$ grid) on workstation.
-  - [ ] Mount xArm 1 in Rows 3..5, Cols 2..4 centered at $(X = 175\text{ mm}, Y = 375\text{ mm})$ with heading $-35.0^\circ$ (South-East).
-  - [ ] Place single container box in Rows 0..1, Cols 5..6 at $(X = 300\text{ mm}, Y = 550\text{ mm})$.
+  - [ ] Mount xArm 1 in Rows 3..5, Cols 2..4 centered at $(X = 175\text{ mm}, Y = 375\text{ mm})$ with heading $-90.0^\circ$ (South).
+  - [ ] Place dual container boxes in Rows 0..1: Red box at Cols 0..1 $(X = 50\text{ mm}, Y = 550\text{ mm})$, Green box at Cols 5..6 $(X = 300\text{ mm}, Y = 550\text{ mm})$.
   - [ ] Apply self-adhesive foam weatherstripping tape to create active arena boundary.
   - [ ] Mount rear electronics ($Y \in [500, 600\text{ mm}]$): connect 7.4V/5A buck regulator with star ground and route cables with surface clips.
 - [ ] **Web Portal & Drift Telemetry Verification**:
@@ -209,16 +210,16 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Verify live potentiometer polling on all 6 joints and validate E-stop responsiveness.
   - [ ] Run automated telemetry scan (`python3 tools/telemetry_logger.py --scan --arm xarm_1`) and log baseline statistics.
 - [ ] **Full Continuous Picking Benchmark**:
-  - [ ] Scatter red target blocks and green distractors across the arena.
+  - [ ] Scatter Red and Green target blocks across the arena.
   - [ ] Launch full system: `ros2 launch sorting_arm xarm.launch.py auto_start:=true`.
-  - [ ] Run 3 back-to-back picking cycles without servo thermal cutoff or communication reset.
+  - [ ] Run 3 back-to-back sorting cycles without servo thermal cutoff or communication reset.
 - [ ] **Final Polish & Operator Documentation**:
   - [ ] Route and clip all wiring neatly with zero overhang.
   - [ ] Capture high-resolution demo video and finalize project report.
 
 > [!IMPORTANT]
 > ### 🏁 Gate 4 Exit Criteria (Final Project Complete)
-> 1. Single arm autonomously picks red cubes across 3 consecutive runs with 100% completion.
-> 2. Zero mechanical binding, zero cable snagging, and clean drop swings to yaw tick $875$.
+> 1. Single arm autonomously sorts Red and Green cubes across 3 consecutive runs with 100% completion.
+> 2. Zero mechanical binding, zero cable snagging, and clean overhead rear-flip drop motions to yaw ticks 650 and 354.
 > 3. Web portal and telemetry logging fully verified with repeatable sub-millimeter positioning accuracy.
 > 4. Demonstration video and engineering report finalized for submission.
