@@ -73,6 +73,7 @@ class ArenaVisualizerNode(Node):
         # Publishers
         self.pub_markers = self.create_publisher(MarkerArray, "/simulation/arena_markers", 10)
         self.pub_cube_markers = self.create_publisher(MarkerArray, "/simulation/cube_markers", 10)
+        self.pub_default_markers = self.create_publisher(MarkerArray, "/visualization_marker_array", 10)
         self.pub_vision = self.create_publisher(String, "/vision/detected_objects", 10)
 
         # Subscribers
@@ -179,6 +180,7 @@ class ArenaVisualizerNode(Node):
         del_array.markers.append(dm)
         self.pub_markers.publish(del_array)
         self.pub_cube_markers.publish(del_array)
+        self.pub_default_markers.publish(del_array)
 
     def handle_clicked_point(self, msg: PointStamped):
         """User clicked in RViz using the 'Publish Point' toolbar tool."""
@@ -681,6 +683,7 @@ class ArenaVisualizerNode(Node):
 
         self.pub_markers.publish(markers)
         self.pub_cube_markers.publish(cube_markers)
+        self.pub_default_markers.publish(markers)
 
 
 def main(args=None):
@@ -692,7 +695,8 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

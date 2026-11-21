@@ -8,7 +8,8 @@ Panels:
         - /Status1
         - /RobotModel1
         - /TF1
-        - /Arena Visuals & Cubes1
+        - /Arena Visuals & Grid1
+        - /Interactive Craft Cubes1
       Splitter Ratio: 0.5
     Tree Height: 600
   - Class: rviz_common/Views
@@ -22,12 +23,6 @@ Visualization Manager:
     - Alpha: 1.0
       Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Marker Topic:
-        Depth: 10
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /simulation/arena_markers
       Name: Arena Visuals & Grid
       Namespaces:
         col_labels: true
@@ -36,19 +31,43 @@ Visualization Manager:
         row_labels: true
         tool_hud: true
         zones: true
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /simulation/arena_markers
       Value: true
     - Alpha: 1.0
       Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Marker Topic:
+      Name: Interactive Craft Cubes
+      Namespaces:
+        craft_cubes: true
+      Topic:
         Depth: 10
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /simulation/cube_markers
-      Name: Interactive Craft Cubes
+      Value: true
+    - Alpha: 1.0
+      Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Standard Visualization Markers
       Namespaces:
+        col_labels: true
         craft_cubes: true
+        grid_lines: true
+        row_labels: true
+        tool_hud: true
+        zones: true
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /visualization_marker_array
       Value: true
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
@@ -115,33 +134,50 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 0.85
-      Focal Pitch: 1.5707963
+      Distance: 0.90
+      Focal Pitch: 0.65
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05
       Focal Yaw: 1.5707963
       Invert Z Axis: false
-      Name: Top-Down (5cm Grid)
+      Name: Perspective Orbit View
       Near Clip Distance: 0.01
-      Pitch: 1.5707963
+      Pitch: 0.65
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
       Yaw: 1.5707963
       Focal Point:
         X: 0.175
         Y: 0.300
-        Z: 0.000
+        Z: 0.050
     Saved:
       - Class: rviz_default_plugins/Orbit
+        Distance: 0.90
+        Focal Pitch: 0.65
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05
+        Focal Yaw: 1.5707963
+        Invert Z Axis: false
+        Name: Perspective Orbit View
+        Near Clip Distance: 0.01
+        Pitch: 0.65
+        Target Frame: world
+        Value: Orbit (rviz_default_plugins)
+        Yaw: 1.5707963
+        Focal Point:
+          X: 0.175
+          Y: 0.300
+          Z: 0.050
+      - Class: rviz_default_plugins/Orbit
         Distance: 0.85
-        Focal Pitch: 1.5707963
+        Focal Pitch: 1.52
         Focal Shape Fixed Size: true
         Focal Shape Size: 0.05
         Focal Yaw: 1.5707963
         Invert Z Axis: false
         Name: Top-Down (5cm Grid)
         Near Clip Distance: 0.01
-        Pitch: 1.5707963
+        Pitch: 1.52
         Target Frame: world
         Value: Orbit (rviz_default_plugins)
         Yaw: 1.5707963
@@ -149,20 +185,3 @@ Visualization Manager:
           X: 0.175
           Y: 0.300
           Z: 0.000
-      - Class: rviz_default_plugins/Orbit
-        Distance: 0.85
-        Focal Pitch: 0.55
-        Focal Shape Fixed Size: true
-        Focal Shape Size: 0.05
-        Focal Yaw: 1.57
-        Invert Z Axis: false
-        Name: Perspective Orbit View
-        Near Clip Distance: 0.01
-        Pitch: 0.55
-        Target Frame: world
-        Value: Orbit (rviz_default_plugins)
-        Yaw: 1.57
-        Focal Point:
-          X: 0.175
-          Y: 0.300
-          Z: 0.080
