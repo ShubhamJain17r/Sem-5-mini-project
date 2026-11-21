@@ -256,7 +256,7 @@
     <parent link="upper_arm_link"/>
     <child link="forearm_link"/>
     <origin xyz="0 0 0.101" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
+    <axis xyz="0 -1 0"/>
     <limit lower="-1.4368" upper="1.5247" effort="4.0" velocity="3.14"/>
   </joint>
 
