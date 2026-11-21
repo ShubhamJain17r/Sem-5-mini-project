@@ -376,6 +376,7 @@ class ArenaVisualizerNode(Node):
                         cube.state = "grabbed"
                         self.gripped_cube_id = cube.id
                         self.get_logger().info(f"Claw gripped {cube.color.upper()} cube #{cube.id}.")
+                        self.publish_detected_objects()
                 elif cube.state == "grabbed" and cube.id == self.gripped_cube_id:
                     if self.claw_is_clamped:
                         # Follow tool_tip
@@ -415,6 +416,7 @@ class ArenaVisualizerNode(Node):
                         else:
                             cube.z_m = 0.0137
                             self.get_logger().info(f"Released {cube.color.upper()} cube #{cube.id} on table.")
+                        self.publish_detected_objects()
 
         # Construct MarkerArray
         markers = MarkerArray()

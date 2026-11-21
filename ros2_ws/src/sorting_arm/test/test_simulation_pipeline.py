@@ -303,3 +303,49 @@ def test_end_to_end_trajectory_simulation(rclpy_context):
         assert abs(driver.sim_current_ticks[sid] - 500.0) < 2.0
 
     driver.destroy_node()
+
+
+def test_autonomous_sorter_no_duplicate_picks(rclpy_context):
+    """Verify that autonomous sorter never picks the same cell coordinate twice even with stale vision messages."""
+    from sorting_arm.autonomous_sorter_node import AutonomousSorterNode
+    node = AutonomousSorterNode()
+    node.dry_run = True  # Dry run mode skips waiting for real servo motions
+
+    # Simulate vision sending 2 objects at (125mm, 225mm) and (225mm, 225mm)
+    msg1 = String()
+    msg1.data = json.dumps({
+        "source": "vision",
+        "objects": [
+            {"color": "red", "world_x_mm": 125.0, "world_y_mm": 225.0, "world_z_mm": 13.7, "target_r_mm": 158.1, "target_theta_deg": -18.4, "targetable": True, "assigned_arm": "xarm_1"},
+            {"color": "green", "world_x_mm": 225.0, "world_y_mm": 225.0, "world_z_mm": 13.7, "target_r_mm": 158.1, "target_theta_deg": 18.4, "targetable": True, "assigned_arm": "xarm_1"},
+        ]
+    })
+    node.vision_callback(msg1)
+    assert len(node.target_queue) == 2
+
+    # Enable and run first executive iteration
+    node.enabled = True
+    node.executive_loop()
+
+    # Cell (2, 4) should now be in sorted_cells
+    assert (2, 4) in node.sorted_cells
+    assert node.cubes_sorted_in_batch == 1
+
+    # Simulate arrival of a STALE vision message that still contains both objects
+    node.vision_callback(msg1)
+
+    # Only the green object at (4, 4) should remain in queue; red at (2, 4) is filtered out
+    assert len(node.target_queue) == 1
+    assert node.target_queue[0]["color"] == "green"
+
+    # Run second executive iteration
+    node.executive_loop()
+    assert (4, 4) in node.sorted_cells
+    assert node.cubes_sorted_in_batch == 2
+
+    # If stale message arrives again, target_queue should be empty
+    node.vision_callback(msg1)
+    assert len(node.target_queue) == 0
+
+    node.destroy_node()
+

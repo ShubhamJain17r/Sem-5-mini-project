@@ -16,10 +16,11 @@ import math
 import os
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from sorting_arm.kinematics import (
     DEG_PER_TICK,
@@ -62,14 +63,21 @@ class AutonomousSorterNode(Node):
 
         # Target queue & batch tracking
         self.target_queue: List[Dict] = []
+        self.sorted_cells: Set[Tuple[int, int]] = set()
         self.is_busy: bool = False
         self.cubes_sorted_in_batch: int = 0
         self.batch_count: int = 1
         self.last_sort_time: float = time.time()
 
-        # Subscribers
+        # Subscribers (QoS depth=1 so old queued messages are discarded while arm is moving)
+        qos_vision = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+            durability=DurabilityPolicy.VOLATILE,
+        )
         self.sub_vision = self.create_subscription(
-            String, "/vision/detected_objects", self.vision_callback, 10
+            String, "/vision/detected_objects", self.vision_callback, qos_vision
         )
         self.sub_joints = self.create_subscription(
             JointState, f"/{self.arm_id}/joint_states", self.joint_state_callback, 10
@@ -143,6 +151,12 @@ class AutonomousSorterNode(Node):
                 if assigned in [self.arm_id, "xarm", "xarm_1", ""]:
                     r = obj.get("target_r_mm", 0.0)
                     if 110.0 <= r <= 340.0:
+                        # Cell deduplication: ignore cell if already sorted in current batch
+                        wx = obj.get("world_x_mm", 0.0)
+                        wy = obj.get("world_y_mm", 0.0)
+                        cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+                        if cell_key in self.sorted_cells:
+                            continue
                         filtered.append(obj)
 
             # Nearest-First policy: sort queue by ascending target_r_mm
@@ -157,7 +171,18 @@ class AutonomousSorterNode(Node):
         if not self.enabled or self.is_busy:
             return
 
-        if not self.target_queue:
+        # Pop nearest target that hasn't been sorted yet
+        target = None
+        while self.target_queue:
+            candidate = self.target_queue.pop(0)
+            wx = candidate.get("world_x_mm", 0.0)
+            wy = candidate.get("world_y_mm", 0.0)
+            cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+            if cell_key not in self.sorted_cells:
+                target = candidate
+                break
+
+        if target is None:
             # Check if previous batch was completed and auto_reseed is enabled
             if self.auto_reseed and self.cubes_sorted_in_batch > 0 and (time.time() - self.last_sort_time > 2.0):
                 self.get_logger().info(
@@ -167,6 +192,7 @@ class AutonomousSorterNode(Node):
                     f"===================================================================="
                 )
                 self.cubes_sorted_in_batch = 0
+                self.sorted_cells.clear()
                 self.batch_count += 1
                 if self.cli_reseed.wait_for_service(timeout_sec=1.0):
                     req = Trigger.Request()
@@ -175,11 +201,18 @@ class AutonomousSorterNode(Node):
                     self.get_logger().warn("/simulation/reseed_grid service not available.")
             return
 
-        # Pop nearest target
-        target = self.target_queue.pop(0)
+        # Mark cell as sorted immediately to lock out duplicate picks from stale vision frames
+        wx = target.get("world_x_mm", 0.0)
+        wy = target.get("world_y_mm", 0.0)
+        cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+        self.sorted_cells.add(cell_key)
+
         self.is_busy = True
-        self.process_target(target)
-        self.is_busy = False
+        try:
+            self.process_target(target)
+        finally:
+            self.is_busy = False
+
 
     def process_target(self, target: Dict):
         """Executes full pick and place for a target cube."""
