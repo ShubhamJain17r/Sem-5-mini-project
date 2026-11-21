@@ -245,14 +245,34 @@ All ROS 2 nodes, drivers, and coordinate pipelines run inside the Docker contain
 ./docker/run.sh bash -c "cd /workspace/ros2_ws && colcon build --symlink-install"
 ```
 
-### Step 2: Launch Complete Single-Arm Sorting Workcell
+### Step 2: Run 3D Digital Twin Simulation in RViz2 (No Hardware Required)
+Test the complete analytical kinematics solver, trajectory generation, and ROS 2 autonomous sorter without connecting a physical robot or camera:
+```bash
+# Launch full 3D digital twin simulation with RViz2 GUI:
+./docker/run.sh ros2 launch sorting_arm simulation.launch.py gui:=true mock_vision:=true auto_start:=true
+
+# Or run headless simulation in background/CI:
+./docker/run.sh ros2 launch sorting_arm simulation.launch.py gui:=false mock_vision:=true auto_start:=true
+
+# Run automated simulation test suite:
+./docker/run.sh python3 -m pytest /workspace/ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py -v
+```
+
+This simulation launch brings up:
+1. `robot_state_publisher`: Loads `urdf/xarm_1s.urdf`, publishing the complete 3D `/tf` transform tree.
+2. `driver_node` (`sim:=true`): Emulates bus-servo motion with 20 Hz feedback, trajectory interpolation, and soft limit clamps.
+3. `autonomous_sorter`: Coordinates Nearest-First cube sorting and 7-phase overhead rear-flip transfer to dedicated containers.
+4. `mock_vision_node`: Injects synthetic target cubes on the 7×12 arena grid (`scenario:=dual_cube`, `four_cubes`, `single_red`, `unreachable`).
+5. `rviz2`: Pre-configured with the 50mm arena grid, table geometry, rear containers, and 3D robot model.
+
+### Step 3: Launch Complete Physical Sorting Workcell (With Hardware)
 ```bash
 ./docker/run.sh ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
 This primary launch file starts:
 1. `driver_node`: Hardware driver for xArm 1 (`/joint_commands`, `/joint_states`).
-2. `vision_node`: Acquires frames from `/dev/video0`, computes 4-point ArUco homography warp, segments Red/Green/Blue/Yellow cubes, and publishes to `/vision/detected_objects` and `/vision/annotated_image`.
-3. `autonomous_sorter`: Subscribes to detected objects, enforces Nearest-First picking order, solves analytical IK, and coordinates pick-and-place into the Left Flank 2×2 tray.
+2. `vision_node`: Acquires frames from `/dev/video0`, computes 4-point ArUco homography warp, segments Red and Green craft cubes, and publishes to `/vision/detected_objects` and `/vision/annotated_image`.
+3. `autonomous_sorter`: Subscribes to detected objects, enforces Nearest-First picking order, solves analytical IK, and coordinates pick-and-place into the Rear Flank container boxes.
 
 *(For perception-only testing without driving physical hardware, use `ros2 launch sorting_arm vision_sorting.launch.py dry_run:=true`).*
 

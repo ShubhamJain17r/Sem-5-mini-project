@@ -13,6 +13,8 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
+        (os.path.join('share', package_name, 'rviz'), glob('rviz/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -34,6 +36,7 @@ setup(
             'motion_test = sorting_arm.motion_test_suite:main',
             'vision_node = sorting_arm.vision_node:main',
             'autonomous_sorter = sorting_arm.autonomous_sorter_node:main',
+            'mock_vision_node = sorting_arm.mock_vision_node:main',
         ],
     },
 )

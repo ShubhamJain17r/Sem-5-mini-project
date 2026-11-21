@@ -70,6 +70,7 @@ class XArmDriverNode(Node):
         self.declare_parameter("stagger_ms", 0)
         self.declare_parameter("synchronized", True)
         self.declare_parameter("adaptive_timing", True)
+        self.declare_parameter("sim", False)
 
         self.port = self.get_parameter("port").get_parameter_value().string_value
         self.baudrate = self.get_parameter("baudrate").get_parameter_value().integer_value
@@ -81,43 +82,64 @@ class XArmDriverNode(Node):
         self.synchronized = self.get_parameter("synchronized").get_parameter_value().bool_value
         adaptive_param = self.get_parameter("adaptive_timing")
         self.adaptive_timing = adaptive_param.get_parameter_value().bool_value
+        self.sim_mode = self.get_parameter("sim").get_parameter_value().bool_value
 
         # Load hardware limits and deviations from unified hardware config
         deviations, min_ticks, max_ticks, max_dev = self._load_hardware_config(
             self.config_path, self.arm_id
         )
+        self.min_ticks = min_ticks
+        self.max_ticks = max_ticks
         self.get_logger().info(
             f"Loaded config for {self.arm_id}: min_ticks={min_ticks}, max_ticks={max_ticks}, max_deviation={max_dev}"
         )
 
         # Resolve target port (single xArm auto detection)
         actual_port = self.port
-        if actual_port in ["auto", "", None]:
-            all_devices = find_all_xarm_devices()
-            if len(all_devices) >= 1:
-                actual_port = all_devices[0][0]
-                self.get_logger().info(
-                    f"Auto-selected xArm interface {actual_port} for {self.arm_id}"
-                )
+        if actual_port in ["mock", "sim"]:
+            self.sim_mode = True
 
-        # Initialize hardware driver
-        self.driver = XArmDriver(
-            port=actual_port,
-            baudrate=self.baudrate,
-            deviations=deviations,
-            min_ticks=min_ticks,
-            max_ticks=max_ticks,
-            max_deviation_ticks=max_dev,
-        )
+        if self.sim_mode:
+            self.driver = None
+            self.sim_current_ticks = {1: 230.0, 2: 500.0, 3: 500.0, 4: 500.0, 5: 500.0, 6: 500.0}
+            self.sim_target_ticks = dict(self.sim_current_ticks)
+            self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
+            self.sim_is_estopped = False
+            self.last_sim_time = self.get_clock().now()
+            self.get_logger().info(f"xArm Driver Node [{self.arm_id}] running in SIMULATION mode.")
+        else:
+            if actual_port in ["auto", "", None]:
+                all_devices = find_all_xarm_devices()
+                if len(all_devices) >= 1:
+                    actual_port = all_devices[0][0]
+                    self.get_logger().info(
+                        f"Auto-selected xArm interface {actual_port} for {self.arm_id}"
+                    )
 
-        self.get_logger().info(
-            f"Attempting to connect to xArm on {actual_port} @ {self.baudrate} baud..."
-        )
-        connected = self.driver.connect()
-        if not connected:
-            self.get_logger().error(
-                f"Failed to connect to xArm on {actual_port}. Driver running in offline mode."
+            # Initialize hardware driver
+            self.driver = XArmDriver(
+                port=actual_port,
+                baudrate=self.baudrate,
+                deviations=deviations,
+                min_ticks=min_ticks,
+                max_ticks=max_ticks,
+                max_deviation_ticks=max_dev,
             )
+
+            self.get_logger().info(
+                f"Attempting to connect to xArm on {actual_port} @ {self.baudrate} baud..."
+            )
+            connected = self.driver.connect()
+            if not connected:
+                self.get_logger().warn(
+                    f"Failed to connect to xArm on {actual_port}. Falling back to simulation mode."
+                )
+                self.sim_mode = True
+                self.sim_current_ticks = {1: 230.0, 2: 500.0, 3: 500.0, 4: 500.0, 5: 500.0, 6: 500.0}
+                self.sim_target_ticks = dict(self.sim_current_ticks)
+                self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
+                self.sim_is_estopped = False
+                self.last_sim_time = self.get_clock().now()
 
         # Subscribers: Use depth 1 QoS to avoid stale buffered commands
         cmd_qos = QoSProfile(
@@ -132,9 +154,9 @@ class XArmDriverNode(Node):
             cmd_qos,
         )
 
-        # Publishers
+        # Publishers (20 Hz timer for smooth updates and visual simulation)
         self.state_pub = self.create_publisher(JointState, "joint_states", 10)
-        self.state_timer = self.create_timer(0.1, self.publish_joint_states)  # 10 Hz
+        self.state_timer = self.create_timer(0.05, self.publish_joint_states)  # 20 Hz
 
         # Services
         self.estop_srv = self.create_service(
@@ -208,14 +230,18 @@ class XArmDriverNode(Node):
         return devs
 
     def joint_command_callback(self, msg: JointState):
-        """Process incoming JointState message and dispatch serial commands."""
-        if self.driver.is_estopped:
-            self.get_logger().warn("Command dropped: E-Stop is active.")
-            return
-
-        if not self.driver.is_connected:
-            if not self.driver.connect():
+        """Process incoming JointState message and dispatch serial commands or step simulation."""
+        if self.sim_mode:
+            if self.sim_is_estopped:
+                self.get_logger().warn("Command dropped: Simulation E-Stop is active.")
                 return
+        else:
+            if self.driver and self.driver.is_estopped:
+                self.get_logger().warn("Command dropped: E-Stop is active.")
+                return
+            if not self.driver or not self.driver.is_connected:
+                if not self.driver or not self.driver.connect():
+                    return
 
         target_ticks = {}
 
@@ -232,7 +258,7 @@ class XArmDriverNode(Node):
                 continue
 
             # Convert radian angle or direct ticks to integer ticks
-            if abs(val) <= 2.0 * math.pi and sid != 1:
+            if abs(val) <= 2.0 * math.pi:
                 deg = math.degrees(val)
                 tick = int(round(500 + deg * TICKS_PER_DEG))
             else:
@@ -241,6 +267,29 @@ class XArmDriverNode(Node):
             target_ticks[sid] = tick
 
         if not target_ticks:
+            return
+
+        if self.sim_mode:
+            max_delta = 0.0
+            for sid, tick in target_ticks.items():
+                min_t = self.min_ticks.get(sid, 150)
+                max_t = self.max_ticks.get(sid, 850)
+                clamped = max(min_t, min(max_t, tick))
+                target_ticks[sid] = clamped
+                delta = abs(clamped - self.sim_current_ticks.get(sid, 500.0))
+                if delta > max_delta:
+                    max_delta = delta
+
+            if self.adaptive_timing:
+                move_time = int(min(1500, max(70, 50 + max_delta * 1.5)))
+            else:
+                move_time = self.move_time_ms
+
+            duration_sec = max(0.05, move_time / 1000.0)
+            for sid, clamped in target_ticks.items():
+                self.sim_target_ticks[sid] = float(clamped)
+                delta = float(clamped) - self.sim_current_ticks.get(sid, 500.0)
+                self.sim_step_rates[sid] = delta / duration_sec
             return
 
         # Deadband filter: identify which servos actually changed target
@@ -277,8 +326,44 @@ class XArmDriverNode(Node):
 
     def publish_joint_states(self):
         """Publish real-time joint states to namespaced joint_states topic."""
-        # Staggered live readback: query one servo potentiometer per 10Hz tick to avoid packet collision
-        if getattr(self, "live_readback", True) and self.driver.is_connected:
+        if self.sim_mode:
+            now = self.get_clock().now()
+            dt = (now - self.last_sim_time).nanoseconds / 1e9
+            self.last_sim_time = now
+
+            # Step simulated servos toward target ticks
+            for sid in range(1, 7):
+                cur = self.sim_current_ticks.get(sid, 500.0)
+                target = self.sim_target_ticks.get(sid, 500.0)
+                rate = self.sim_step_rates.get(sid, 0.0)
+
+                if rate != 0.0 and cur != target:
+                    step = rate * dt
+                    new_val = cur + step
+                    if (rate > 0.0 and new_val >= target) or (rate < 0.0 and new_val <= target):
+                        self.sim_current_ticks[sid] = target
+                        self.sim_step_rates[sid] = 0.0
+                    else:
+                        self.sim_current_ticks[sid] = new_val
+
+            msg = JointState()
+            msg.header.stamp = now.to_msg()
+            msg.header.frame_id = f"{self.arm_id}_base_link"
+            msg.name = STANDARD_JOINT_NAMES
+            msg.position = []
+
+            for name in STANDARD_JOINT_NAMES:
+                sid = JOINT_NAME_TO_ID[name]
+                cur_tick = self.sim_current_ticks.get(sid, 500.0)
+                deg = (cur_tick - 500.0) * DEG_PER_TICK
+                rad = math.radians(deg)
+                msg.position.append(rad)
+
+            self.state_pub.publish(msg)
+            return
+
+        # Staggered live readback: query one servo potentiometer per tick to avoid packet collision
+        if getattr(self, "live_readback", True) and self.driver and self.driver.is_connected:
             try:
                 sid = getattr(self, "_readback_sid", 1)
                 actual_pos = self.driver.read_servo_position(sid, timeout_sec=0.02)
@@ -295,20 +380,28 @@ class XArmDriverNode(Node):
         msg.name = STANDARD_JOINT_NAMES
         msg.position = []
 
-        for sid in range(1, 7):
-            cur_tick = self.driver.current_ticks.get(sid, 500)
-            if sid == 1:
-                msg.position.append(float(cur_tick))
-            else:
-                deg = (cur_tick - 500) * DEG_PER_TICK
-                rad = math.radians(deg)
-                msg.position.append(rad)
+        for name in STANDARD_JOINT_NAMES:
+            sid = JOINT_NAME_TO_ID[name]
+            cur_tick = self.driver.current_ticks.get(sid, 500) if self.driver else 500
+            deg = (cur_tick - 500) * DEG_PER_TICK
+            rad = math.radians(deg)
+            msg.position.append(rad)
 
         self.state_pub.publish(msg)
 
     def estop_callback(self, request: Trigger.Request, response: Trigger.Response):
         """Trigger emergency torque cutoff service."""
-        success = self.driver.emergency_stop()
+        if self.sim_mode:
+            self.sim_is_estopped = True
+            for sid in range(1, 7):
+                self.sim_target_ticks[sid] = self.sim_current_ticks[sid]
+                self.sim_step_rates[sid] = 0.0
+            response.success = True
+            response.message = "Emergency Stop triggered: simulation motion halted."
+            self.get_logger().warn(response.message)
+            return response
+
+        success = self.driver.emergency_stop() if self.driver else True
         response.success = success
         response.message = "Emergency Stop triggered: all motor torque unloaded."
         self.get_logger().warn(response.message)
@@ -316,7 +409,15 @@ class XArmDriverNode(Node):
 
     def re_enable_callback(self, request: Trigger.Request, response: Trigger.Response):
         """Clear emergency stop and re-enable motor control."""
-        self.driver.clear_emergency_stop()
+        if self.sim_mode:
+            self.sim_is_estopped = False
+            response.success = True
+            response.message = "E-Stop cleared: simulation motion re-enabled."
+            self.get_logger().info(response.message)
+            return response
+
+        if self.driver:
+            self.driver.clear_emergency_stop()
         response.success = True
         response.message = "E-Stop cleared: motor torque re-enabled."
         self.get_logger().info(response.message)
@@ -324,7 +425,7 @@ class XArmDriverNode(Node):
 
     def destroy_node(self):
         """Perform safe teardown and disconnection upon node termination."""
-        if self.driver:
+        if not self.sim_mode and self.driver:
             self.driver.emergency_stop()
             self.driver.disconnect()
         super().destroy_node()

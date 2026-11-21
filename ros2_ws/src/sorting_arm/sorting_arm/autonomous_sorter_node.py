@@ -110,7 +110,7 @@ class AutonomousSorterNode(Node):
                 continue
 
             pos_deg = math.degrees(pos_rad)
-            ticks = int(round(pos_deg * TICKS_PER_DEG))
+            ticks = int(round(500 + pos_deg * TICKS_PER_DEG))
             self.current_joint_ticks[m_id] = ticks
 
         self.has_joint_feedback = True
@@ -244,7 +244,7 @@ class AutonomousSorterNode(Node):
             "elbow_pitch", "shoulder_pitch", "base_yaw"
         ]
         msg.position = [
-            math.radians(float(ticks.get(i, 500)) * DEG_PER_TICK) for i in range(1, 7)
+            math.radians(float(ticks.get(i, 500) - 500) * DEG_PER_TICK) for i in range(1, 7)
         ]
         self.pub_commands.publish(msg)
 

@@ -494,8 +494,8 @@ def world_to_arm_polar(
     """
     p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
 
-    base_x = 200.0
-    base_y = 280.0
+    base_x = 175.0
+    base_y = 375.0
     base_z = 0.0
 
     candidates = [

@@ -196,23 +196,30 @@ Sem-5-mini-project/
 │   └── src/
 │       └── sorting_arm/            # Hardware driver node, analytical polar IK, trajectory & autonomous sorter
 │           ├── launch/
+│           │   ├── simulation.launch.py # Full 3D digital twin simulation (mock driver, URDF, RViz2, sorter)
 │           │   ├── xarm.launch.py  # Full system launch (driver, vision, autonomous sorter)
 │           │   ├── xarm_driver.launch.py
 │           │   └── vision_sorting.launch.py # Vision perception & autonomous sorter launch
+│           ├── urdf/
+│           │   └── xarm_1s.urdf    # Parametric DH workcell URDF (arena grid, containers, xArm links)
+│           ├── rviz/
+│           │   └── xarm_simulation.rviz # Pre-configured RViz2 3D digital twin scene
 │           ├── sorting_arm/
 │           │   ├── direct_test.py      # Standalone USB HID/serial driver test
-│           │   ├── driver_node.py      # ROS 2 hardware driver node with E-Stop
+│           │   ├── driver_node.py      # ROS 2 hardware driver node with mock simulation & E-Stop
 │           │   ├── kinematics.py       # Closed-form analytical polar IK solver
+│           │   ├── mock_vision_node.py # Synthetic vision perception & scenario generator
 │           │   ├── polar_teleop_node.py# Keyboard polar coordinate teleop
 │           │   ├── trajectory.py       # Quintic polynomial minimum-jerk trajectory generator
 │           │   ├── vision_node.py      # ROS 2 camera capture & ArUco perception node
 │           │   ├── autonomous_sorter_node.py # ROS 2 autonomous sorting coordinator (dual-color Red & Green)
 │           │   └── xarm_protocol.py    # Multi-interface serial/HID communication protocol
 │           ├── test/
-│           │   ├── run_tests.py        # Standalone offline simulation test suite (32 unit tests)
+│           │   ├── run_tests.py        # Standalone offline simulation test suite (38 unit tests)
 │           │   ├── test_calibration_and_features.py # Hardware & driver unit tests
 │           │   ├── test_camera_alignment.py # Interactive camera alignment unit tests
 │           │   ├── test_kinematics.py  # 11 analytical polar IK verification tests
+│           │   ├── test_simulation_pipeline.py # 6 automated mock driver & trajectory simulation tests
 │           │   └── test_vision_pipeline.py # 6 ArUco homography & color detection tests
 │           ├── package.xml
 │           ├── setup.cfg
@@ -280,13 +287,19 @@ source install/setup.bash
 # 2. Run automated analytical kinematics tests
 pytest src/sorting_arm/test/test_kinematics.py
 
-# 3. Launch xArm 1S hardware driver node (auto-detects USB HID / serial)
+# 3. 3D Digital Twin Simulation & RViz2 (NO physical hardware required):
+ros2 launch sorting_arm simulation.launch.py gui:=true mock_vision:=true auto_start:=true
+
+# Or run headless simulation in background/CI:
+ros2 launch sorting_arm simulation.launch.py gui:=false mock_vision:=true auto_start:=true
+
+# 4. Launch xArm 1S hardware driver node (auto-detects USB HID / serial)
 ros2 launch sorting_arm xarm_driver.launch.py
 
-# 4. Or run interactive polar teleoperation node
+# 5. Or run interactive polar teleoperation node
 ros2 run sorting_arm polar_teleop_node
 
-# 5. Full Autonomous Vision-Guided Sorting Pipeline:
+# 6. Full Physical Vision-Guided Sorting Pipeline:
 ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
 
