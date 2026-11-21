@@ -45,9 +45,14 @@ def generate_launch_description():
         default_value="true",
         description="Launch RViz2 3D digital twin visualizer",
     )
+    visualizer_arg = DeclareLaunchArgument(
+        "visualizer",
+        default_value="true",
+        description="Launch arena 5cm grid and interactive cube visualizer",
+    )
     mock_vision_arg = DeclareLaunchArgument(
         "mock_vision",
-        default_value="true",
+        default_value="false",
         description="Launch mock vision node to publish test object scenarios",
     )
     scenario_arg = DeclareLaunchArgument(
@@ -137,7 +142,21 @@ def generate_launch_description():
         }],
     )
 
-    # 5. RViz2 3D Digital Twin Visualizer
+    # 5. Arena Grid & Cube Visualizer Node
+    arena_visualizer_node = Node(
+        package="sorting_arm",
+        executable="arena_visualizer",
+        name="arena_visualizer_node",
+        output="screen",
+        condition=IfCondition(LaunchConfiguration("visualizer")),
+        parameters=[{
+            "arm_id": arm_id,
+            "config_dir": "config",
+            "default_cubes": True,
+        }],
+    )
+
+    # 6. RViz2 3D Digital Twin Visualizer
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -151,6 +170,7 @@ def generate_launch_description():
         arm_id_arg,
         sim_arg,
         gui_arg,
+        visualizer_arg,
         mock_vision_arg,
         scenario_arg,
         auto_start_arg,
@@ -158,6 +178,7 @@ def generate_launch_description():
         robot_state_publisher_node,
         driver_node,
         sorter_node,
+        arena_visualizer_node,
         mock_vision_node,
         rviz_node,
     ])

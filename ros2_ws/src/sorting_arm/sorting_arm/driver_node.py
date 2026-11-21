@@ -85,13 +85,14 @@ class XArmDriverNode(Node):
         self.sim_mode = self.get_parameter("sim").get_parameter_value().bool_value
 
         # Load hardware limits and deviations from unified hardware config
-        deviations, min_ticks, max_ticks, max_dev = self._load_hardware_config(
+        deviations, min_ticks, max_ticks, max_dev, center_ticks = self._load_hardware_config(
             self.config_path, self.arm_id
         )
         self.min_ticks = min_ticks
         self.max_ticks = max_ticks
+        self.center_ticks = center_ticks
         self.get_logger().info(
-            f"Loaded config for {self.arm_id}: min_ticks={min_ticks}, max_ticks={max_ticks}, max_deviation={max_dev}"
+            f"Loaded config for {self.arm_id}: min_ticks={min_ticks}, max_ticks={max_ticks}, center_ticks={center_ticks}, max_deviation={max_dev}"
         )
 
         # Resolve target port (single xArm auto detection)
@@ -101,7 +102,14 @@ class XArmDriverNode(Node):
 
         if self.sim_mode:
             self.driver = None
-            self.sim_current_ticks = {1: 230.0, 2: 500.0, 3: 500.0, 4: 500.0, 5: 500.0, 6: 500.0}
+            self.sim_current_ticks = {
+                1: float(self.min_ticks.get(1, 226)),
+                2: float(self.center_ticks.get(2, 503)),
+                3: float(self.center_ticks.get(3, 504)),
+                4: float(self.center_ticks.get(4, 496)),
+                5: float(self.center_ticks.get(5, 501)),
+                6: float(self.center_ticks.get(6, 502)),
+            }
             self.sim_target_ticks = dict(self.sim_current_ticks)
             self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
             self.sim_is_estopped = False
@@ -135,7 +143,14 @@ class XArmDriverNode(Node):
                     f"Failed to connect to xArm on {actual_port}. Falling back to simulation mode."
                 )
                 self.sim_mode = True
-                self.sim_current_ticks = {1: 230.0, 2: 500.0, 3: 500.0, 4: 500.0, 5: 500.0, 6: 500.0}
+                self.sim_current_ticks = {
+                    1: float(self.min_ticks.get(1, 226)),
+                    2: float(self.center_ticks.get(2, 503)),
+                    3: float(self.center_ticks.get(3, 504)),
+                    4: float(self.center_ticks.get(4, 496)),
+                    5: float(self.center_ticks.get(5, 501)),
+                    6: float(self.center_ticks.get(6, 502)),
+                }
                 self.sim_target_ticks = dict(self.sim_current_ticks)
                 self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
                 self.sim_is_estopped = False
@@ -174,7 +189,7 @@ class XArmDriverNode(Node):
 
     def _load_hardware_config(
         self, config_file: str, arm_name: str
-    ) -> Tuple[Dict[int, int], Dict[int, int], Dict[int, int], int]:
+    ) -> Tuple[Dict[int, int], Dict[int, int], Dict[int, int], int, Dict[int, int]]:
         """Load joint travel limits, deviations, and max deviation threshold from hardware config."""
         candidates = [
             config_file,
@@ -192,13 +207,14 @@ class XArmDriverNode(Node):
         default_min = {1: 150, 2: 200, 3: 150, 4: 150, 5: 200, 6: 150}
         default_max = {1: 800, 2: 800, 3: 850, 4: 850, 5: 850, 6: 850}
         default_devs = {i: 0 for i in range(1, 7)}
+        default_centers = {1: 517, 2: 503, 3: 504, 4: 496, 5: 501, 6: 502}
         default_max_dev = 25
 
         if not chosen:
             self.get_logger().warn(
                 f"Hardware config file not found at {config_file}. Using safe defaults."
             )
-            return default_devs, default_min, default_max, default_max_dev
+            return default_devs, default_min, default_max, default_max_dev, default_centers
 
         try:
             with open(chosen, "r") as f:
@@ -212,21 +228,23 @@ class XArmDriverNode(Node):
             min_ticks = {}
             max_ticks = {}
             deviations = {}
+            center_ticks = {}
 
             for sid in range(1, 7):
                 m_cfg = motors.get(f"motor_{sid}", {})
                 min_ticks[sid] = int(m_cfg.get("min_tick", default_min[sid]))
                 max_ticks[sid] = int(m_cfg.get("max_tick", default_max[sid]))
                 deviations[sid] = int(m_cfg.get("deviation", 0))
+                center_ticks[sid] = int(m_cfg.get("nominal_center_tick", default_centers[sid]))
 
-            return deviations, min_ticks, max_ticks, max_dev
+            return deviations, min_ticks, max_ticks, max_dev, center_ticks
         except Exception as e:
             self.get_logger().warn(f"Error loading hardware YAML: {e}. Using safe defaults.")
-            return default_devs, default_min, default_max, default_max_dev
+            return default_devs, default_min, default_max, default_max_dev, default_centers
 
     def _load_deviations(self, config_file: str, arm_name: str) -> Dict[int, int]:
         """Backward-compatibility wrapper."""
-        devs, _, _, _ = self._load_hardware_config(config_file, arm_name)
+        devs, _, _, _, _ = self._load_hardware_config(config_file, arm_name)
         return devs
 
     def joint_command_callback(self, msg: JointState):
@@ -258,9 +276,10 @@ class XArmDriverNode(Node):
                 continue
 
             # Convert radian angle or direct ticks to integer ticks
+            center = self.center_ticks.get(sid, 500)
             if abs(val) <= 2.0 * math.pi:
                 deg = math.degrees(val)
-                tick = int(round(500 + deg * TICKS_PER_DEG))
+                tick = int(round(center + deg * TICKS_PER_DEG))
             else:
                 tick = int(round(val))
 
@@ -276,7 +295,7 @@ class XArmDriverNode(Node):
                 max_t = self.max_ticks.get(sid, 850)
                 clamped = max(min_t, min(max_t, tick))
                 target_ticks[sid] = clamped
-                delta = abs(clamped - self.sim_current_ticks.get(sid, 500.0))
+                delta = abs(clamped - self.sim_current_ticks.get(sid, float(self.center_ticks.get(sid, 500))))
                 if delta > max_delta:
                     max_delta = delta
 
@@ -288,7 +307,7 @@ class XArmDriverNode(Node):
             duration_sec = max(0.05, move_time / 1000.0)
             for sid, clamped in target_ticks.items():
                 self.sim_target_ticks[sid] = float(clamped)
-                delta = float(clamped) - self.sim_current_ticks.get(sid, 500.0)
+                delta = float(clamped) - self.sim_current_ticks.get(sid, float(self.center_ticks.get(sid, 500)))
                 self.sim_step_rates[sid] = delta / duration_sec
             return
 
@@ -296,7 +315,7 @@ class XArmDriverNode(Node):
         # Filtering out servos with 0 tick change prevents continuous hunting/buzzing
         changed_ticks = {}
         for sid, tick in target_ticks.items():
-            prev = self.driver.current_ticks.get(sid, 500)
+            prev = self.driver.current_ticks.get(sid, self.center_ticks.get(sid, 500))
             if abs(tick - prev) >= 1:
                 changed_ticks[sid] = tick
 
@@ -307,7 +326,7 @@ class XArmDriverNode(Node):
         # Adaptive duration: calculate smooth execution duration based on max displacement
         if self.adaptive_timing:
             max_delta = max(
-                abs(tick - self.driver.current_ticks.get(sid, 500))
+                abs(tick - self.driver.current_ticks.get(sid, self.center_ticks.get(sid, 500)))
                 for sid, tick in changed_ticks.items()
             )
             # Minimum 70ms for hardware interpolation, + 1.5ms per tick
@@ -333,8 +352,9 @@ class XArmDriverNode(Node):
 
             # Step simulated servos toward target ticks
             for sid in range(1, 7):
-                cur = self.sim_current_ticks.get(sid, 500.0)
-                target = self.sim_target_ticks.get(sid, 500.0)
+                center = float(self.center_ticks.get(sid, 500))
+                cur = self.sim_current_ticks.get(sid, center)
+                target = self.sim_target_ticks.get(sid, center)
                 rate = self.sim_step_rates.get(sid, 0.0)
 
                 if rate != 0.0 and cur != target:
@@ -354,8 +374,9 @@ class XArmDriverNode(Node):
 
             for name in STANDARD_JOINT_NAMES:
                 sid = JOINT_NAME_TO_ID[name]
-                cur_tick = self.sim_current_ticks.get(sid, 500.0)
-                deg = (cur_tick - 500.0) * DEG_PER_TICK
+                center = float(self.center_ticks.get(sid, 500))
+                cur_tick = self.sim_current_ticks.get(sid, center)
+                deg = (cur_tick - center) * DEG_PER_TICK
                 rad = math.radians(deg)
                 msg.position.append(rad)
 
@@ -382,8 +403,9 @@ class XArmDriverNode(Node):
 
         for name in STANDARD_JOINT_NAMES:
             sid = JOINT_NAME_TO_ID[name]
-            cur_tick = self.driver.current_ticks.get(sid, 500) if self.driver else 500
-            deg = (cur_tick - 500) * DEG_PER_TICK
+            center = float(self.center_ticks.get(sid, 500))
+            cur_tick = float(self.driver.current_ticks.get(sid, center)) if self.driver else center
+            deg = (cur_tick - center) * DEG_PER_TICK
             rad = math.radians(deg)
             msg.position.append(rad)
 

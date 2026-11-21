@@ -13,7 +13,6 @@ Verifies:
 
 import json
 import math
-import os
 import time
 import pytest
 
@@ -23,7 +22,6 @@ from sensor_msgs.msg import JointState
 from sorting_arm.driver_node import STANDARD_JOINT_NAMES, XArmDriverNode
 from sorting_arm.kinematics import (
     DEG_PER_TICK,
-    TICKS_PER_DEG,
     get_compartment_target,
     load_kinematic_parameters,
     solve_ik,
@@ -35,7 +33,7 @@ from std_srvs.srv import Trigger
 
 @pytest.fixture(scope="module")
 def rclpy_context():
-    """Initializes rclpy context once for the test module."""
+    """Initialize rclpy context once for the test module."""
     rclpy.init()
     yield
     rclpy.shutdown()
@@ -55,7 +53,7 @@ def test_mock_driver_bringup_and_feedback(rclpy_context):
     def state_cb(msg: JointState):
         received_states.append(msg)
 
-    test_sub = node.create_subscription(JointState, "joint_states", state_cb, 10)
+    node.create_subscription(JointState, "joint_states", state_cb, 10)
 
     executor = SingleThreadedExecutor()
     executor.add_node(node)
@@ -70,12 +68,15 @@ def test_mock_driver_bringup_and_feedback(rclpy_context):
     assert len(latest.name) == 6
     assert latest.name == STANDARD_JOINT_NAMES
 
-    # Claw should be at nominal open (230 ticks -> (230 - 500) * 0.24 = -64.8 deg)
-    expected_claw_rad = math.radians((230.0 - 500.0) * DEG_PER_TICK)
+    # Claw should be at nominal open
+    center_1 = float(node.center_ticks.get(1, 517))
+    expected_claw_rad = math.radians((230.0 - center_1) * DEG_PER_TICK)
     assert abs(latest.position[0] - expected_claw_rad) < 0.01
 
-    # Base yaw should be at center (500 ticks -> 0 rad)
-    assert abs(latest.position[5] - 0.0) < 0.01
+    # Base yaw should be at center
+    center_6 = float(node.center_ticks.get(6, 502))
+    expected_base_rad = math.radians((500.0 - center_6) * DEG_PER_TICK)
+    assert abs(latest.position[5] - expected_base_rad) < 0.01
 
     node.destroy_node()
 
@@ -92,7 +93,8 @@ def test_simulation_joint_command_interpolation(rclpy_context):
     # Send command: move base_yaw (Motor 6) from 500 to 600 ticks over 100ms
     cmd = JointState()
     cmd.name = ["base_yaw"]
-    target_yaw_rad = math.radians((600.0 - 500.0) * DEG_PER_TICK)
+    center_6 = float(node.center_ticks.get(6, 502))
+    target_yaw_rad = math.radians((600.0 - center_6) * DEG_PER_TICK)
     cmd.position = [target_yaw_rad]
 
     node.joint_command_callback(cmd)
@@ -157,7 +159,8 @@ def test_simulation_estop_and_recovery(rclpy_context):
     # Attempt to send command while estopped
     cmd = JointState()
     cmd.name = ["base_yaw"]
-    cmd.position = [math.radians((700.0 - 500.0) * DEG_PER_TICK)]
+    center_6 = float(node.center_ticks.get(6, 502))
+    cmd.position = [math.radians((700.0 - center_6) * DEG_PER_TICK)]
     node.joint_command_callback(cmd)
     assert node.sim_target_ticks[6] == 500.0, "Command should have been dropped while estopped"
 
@@ -183,7 +186,7 @@ def test_mock_vision_node_scenarios(rclpy_context):
     def vision_cb(msg: String):
         received_msgs.append(msg)
 
-    sub = v_node.create_subscription(String, "/vision/detected_objects", vision_cb, 10)
+    v_node.create_subscription(String, "/vision/detected_objects", vision_cb, 10)
 
     executor = SingleThreadedExecutor()
     executor.add_node(v_node)
@@ -220,7 +223,9 @@ def test_end_to_end_trajectory_simulation(rclpy_context):
     assert pick_sol.success, f"Pick IK failed: {pick_sol.message}"
 
     # Drop target for Red cube (Rear Flank Red container box)
-    red_target = get_compartment_target("red", arm_id="xarm_1", config_path="config/xarm_hardware.yaml")
+    red_target = get_compartment_target(
+        "red", arm_id="xarm_1", config_path="config/xarm_hardware.yaml"
+    )
     assert red_target is not None
     assert red_target["drop_yaw_tick"] == 650
 
@@ -235,17 +240,25 @@ def test_end_to_end_trajectory_simulation(rclpy_context):
     executor = SingleThreadedExecutor()
     executor.add_node(driver)
 
+    centers = driver.center_ticks
+
     def dispatch_and_wait(ticks, move_time_ms=100, timeout_sec=1.5):
         cmd = JointState()
         cmd.name = STANDARD_JOINT_NAMES
-        cmd.position = [
-            math.radians(float(ticks.get(i, 500) - 500) * DEG_PER_TICK) for i in range(1, 7)
+        pos_rads = [
+            math.radians(float(ticks.get(i, centers.get(i, 500)) - centers.get(i, 500)) * DEG_PER_TICK)
+            for i in range(1, 7)
         ]
+        cmd.position = pos_rads
         driver.joint_command_callback(cmd)
         t0 = time.time()
         while time.time() - t0 < timeout_sec:
             executor.spin_once(timeout_sec=0.02)
-            if all(abs(driver.sim_current_ticks[sid] - driver.sim_target_ticks[sid]) < 0.5 for sid in range(1, 7)):
+            all_arrived = all(
+                abs(driver.sim_current_ticks[sid] - driver.sim_target_ticks[sid]) < 0.5
+                for sid in range(1, 7)
+            )
+            if all_arrived:
                 break
 
     # Phase 1: Standoff

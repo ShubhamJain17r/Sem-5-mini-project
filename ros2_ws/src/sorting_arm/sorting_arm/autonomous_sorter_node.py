@@ -109,8 +109,9 @@ class AutonomousSorterNode(Node):
             else:
                 continue
 
+            centers = self.params.nominal_center_ticks if hasattr(self.params, "nominal_center_ticks") and self.params.nominal_center_ticks else {1: 517, 2: 503, 3: 504, 4: 496, 5: 501, 6: 502}
             pos_deg = math.degrees(pos_rad)
-            ticks = int(round(500 + pos_deg * TICKS_PER_DEG))
+            ticks = int(round(centers.get(m_id, 500) + pos_deg * TICKS_PER_DEG))
             self.current_joint_ticks[m_id] = ticks
 
         self.has_joint_feedback = True
@@ -170,7 +171,11 @@ class AutonomousSorterNode(Node):
         self.get_logger().info(f"Sorting {color.upper()} cube: r={r:.1f}mm, th={theta:+.1f}deg...")
 
         # 1. Compute Pick IK with wrist roll aligned to cube orientation
-        roll_tick = int(round(500 + yaw * (1000.0 / 240.0)))
+        centers = self.params.nominal_center_ticks if hasattr(self.params, "nominal_center_ticks") and self.params.nominal_center_ticks else {1: 517, 2: 503, 3: 504, 4: 496, 5: 501, 6: 502}
+        open_claw_tick = self.params.min_safe_ticks.get(1, 226) if hasattr(self.params, "min_safe_ticks") and self.params.min_safe_ticks else 226
+        clamp_claw_tick = 610
+
+        roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
         pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params)
         if not pick_ik.success:
             self.get_logger().warn(f"Pick IK failed: {pick_ik.message}")
@@ -204,32 +209,32 @@ class AutonomousSorterNode(Node):
 
         # Step C: Clamp claw
         clamp_ticks = dict(pick_ik.ticks)
-        clamp_ticks[1] = 610  # Standard 25mm grasp tick
+        clamp_ticks[1] = clamp_claw_tick  # Standard 25mm grasp tick
         self.dispatch_joint_command(clamp_ticks, time_ms=400)
         time.sleep(0.5)
 
         # Step D: Lift and retract
         if standoff_ik.success:
             lift_ticks = dict(standoff_ik.ticks)
-            lift_ticks[1] = 610
+            lift_ticks[1] = clamp_claw_tick
             self.dispatch_joint_command(lift_ticks, time_ms=800)
             time.sleep(0.9)
 
         # Step E: Move to drop compartment
         if drop_ticks:
             target_drop = dict(drop_ticks) if isinstance(drop_ticks, dict) else {i + 1: drop_ticks[i] for i in range(6)}
-            target_drop[1] = 610  # Keep clamped during swing
+            target_drop[1] = clamp_claw_tick  # Keep clamped during swing
             self.dispatch_joint_command(target_drop, time_ms=1500)
             time.sleep(1.6)
 
             # Step F: Release
-            target_drop[1] = 230  # Open claw
+            target_drop[1] = open_claw_tick  # Open claw
             self.dispatch_joint_command(target_drop, time_ms=400)
             time.sleep(0.5)
 
         # Step G: Return to upright home
-        home_ticks = {i: 500 for i in range(1, 7)}
-        home_ticks[1] = 230
+        home_ticks = dict(centers)
+        home_ticks[1] = open_claw_tick
         self.dispatch_joint_command(home_ticks, time_ms=1200)
         time.sleep(1.3)
 
@@ -243,8 +248,9 @@ class AutonomousSorterNode(Node):
             "claw_gripper", "wrist_roll", "wrist_pitch",
             "elbow_pitch", "shoulder_pitch", "base_yaw"
         ]
+        centers = self.params.nominal_center_ticks if hasattr(self.params, "nominal_center_ticks") and self.params.nominal_center_ticks else {1: 517, 2: 503, 3: 504, 4: 496, 5: 501, 6: 502}
         msg.position = [
-            math.radians(float(ticks.get(i, 500) - 500) * DEG_PER_TICK) for i in range(1, 7)
+            math.radians(float(ticks.get(i, centers.get(i, 500)) - centers.get(i, 500)) * DEG_PER_TICK) for i in range(1, 7)
         ]
         self.pub_commands.publish(msg)
 

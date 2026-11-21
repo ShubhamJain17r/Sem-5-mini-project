@@ -186,7 +186,7 @@
     <child link="shoulder_pedestal_link"/>
     <origin xyz="0 0 0.020" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-2.0944" upper="2.0944" effort="3.0" velocity="3.14"/>
+    <limit lower="-1.6839" upper="1.6671" effort="3.0" velocity="3.14"/>
   </joint>
 
   <!-- Base-to-Shoulder Pedestal (Height d1 = 65mm total from table to Motor 5 axis) -->
@@ -222,7 +222,7 @@
     <child link="upper_arm_link"/>
     <origin xyz="0 0 0.045" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.60" upper="2.0944" effort="5.0" velocity="3.14"/>
+    <limit lower="-1.5750" upper="1.4786" effort="5.0" velocity="3.14"/>
   </joint>
 
   <!-- Upper Arm Link (Length L1 = 101mm between shoulder axis and elbow axis) -->
@@ -257,7 +257,7 @@
     <child link="forearm_link"/>
     <origin xyz="0 0 0.101" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-2.0944" upper="1.05" effort="4.0" velocity="3.14"/>
+    <limit lower="-1.4368" upper="1.5247" effort="4.0" velocity="3.14"/>
   </joint>
 
   <!-- Forearm Link (Length L2 = 95mm between elbow axis and wrist pitch axis) -->
@@ -292,7 +292,7 @@
     <child link="wrist_pitch_link"/>
     <origin xyz="0 0 0.095" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-1.92" upper="1.92" effort="2.5" velocity="3.14"/>
+    <limit lower="-1.6043" upper="1.5080" effort="2.5" velocity="3.14"/>
   </joint>
 
   <link name="wrist_pitch_link">
@@ -326,7 +326,7 @@
     <child link="gripper_base_link"/>
     <origin xyz="0 0 0.035" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-2.0944" upper="2.0944" effort="2.0" velocity="3.14"/>
+    <limit lower="-1.5876" upper="1.5959" effort="2.0" velocity="3.14"/>
   </joint>
 
   <!-- Gripper Base & Motor 1 Housing (Length to grip center L3 = 150mm total from wrist pitch) -->
@@ -362,7 +362,7 @@
     <child link="claw_left_finger"/>
     <origin xyz="-0.015 0 0.075" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="-0.85" upper="0.85" effort="2.0" velocity="3.14"/>
+    <limit lower="-1.2189" upper="1.1100" effort="2.0" velocity="3.14"/>
   </joint>
 
   <link name="claw_left_finger">
@@ -397,7 +397,7 @@
     <origin xyz="0.015 0 0.075" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <mimic joint="claw_gripper" multiplier="-1.0" offset="0.0"/>
-    <limit lower="-0.85" upper="0.85" effort="2.0" velocity="3.14"/>
+    <limit lower="-1.2189" upper="1.1100" effort="2.0" velocity="3.14"/>
   </joint>
 
   <link name="claw_right_finger">

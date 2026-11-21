@@ -37,6 +37,7 @@ setup(
             'vision_node = sorting_arm.vision_node:main',
             'autonomous_sorter = sorting_arm.autonomous_sorter_node:main',
             'mock_vision_node = sorting_arm.mock_vision_node:main',
+            'arena_visualizer = sorting_arm.arena_visualizer_node:main',
         ],
     },
 )
