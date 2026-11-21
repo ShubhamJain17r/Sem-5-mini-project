@@ -48,7 +48,7 @@ Visualization Manager:
         Value: /simulation/cube_markers
       Name: Interactive Craft Cubes
       Namespaces:
-        {}
+        craft_cubes: true
       Value: true
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel

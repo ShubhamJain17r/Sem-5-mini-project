@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import json
 import math
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from geometry_msgs.msg import Point, PointStamped
 import rclpy
@@ -56,10 +56,12 @@ class ArenaVisualizerNode(Node):
         self.declare_parameter("arm_id", "xarm_1")
         self.declare_parameter("config_dir", "config")
         self.declare_parameter("default_cubes", True)
+        self.declare_parameter("grid_mode", "full_grid")
 
         self.arm_id = self.get_parameter("arm_id").get_parameter_value().string_value
         self.config_dir = self.get_parameter("config_dir").get_parameter_value().string_value
         self.spawn_default_cubes = self.get_parameter("default_cubes").get_parameter_value().bool_value
+        self.grid_mode = self.get_parameter("grid_mode").get_parameter_value().string_value
 
         hardware_yaml = os.path.join(self.config_dir, "xarm_hardware.yaml")
         self.params = load_kinematic_parameters(hardware_yaml, arm_id=self.arm_id)
@@ -87,6 +89,8 @@ class ArenaVisualizerNode(Node):
         # Services
         self.srv_spawn = self.create_service(Trigger, "/simulation/spawn_cube", self.handle_spawn_cube_srv)
         self.srv_clear = self.create_service(Trigger, "/simulation/clear_cubes", self.handle_clear_cubes_srv)
+        self.srv_reseed = self.create_service(Trigger, "/simulation/reseed_grid", self.handle_reseed_grid_srv)
+        self.srv_populate = self.create_service(Trigger, "/simulation/populate_grid", self.handle_populate_grid_srv)
 
         # State tracking
         self.claw_state = "OPEN"
@@ -100,9 +104,12 @@ class ArenaVisualizerNode(Node):
         self.next_color = "red"
 
         if self.spawn_default_cubes:
-            # Default dual cubes: Red at (Row 8, Col 2), Green at (Row 8, Col 4)
-            self._add_cube("red", 0.130, 0.200)
-            self._add_cube("green", 0.220, 0.200)
+            if self.grid_mode == "full_grid":
+                self.populate_full_grid(randomize=True)
+            else:
+                # Default dual cubes: Red at (Row 8, Col 2), Green at (Row 8, Col 4)
+                self._add_cube("red", 0.125, 0.175)
+                self._add_cube("green", 0.225, 0.175)
 
         # Timer for RViz marker updates (10 Hz)
         self.marker_timer = self.create_timer(0.10, self.update_and_publish_markers)
@@ -111,7 +118,7 @@ class ArenaVisualizerNode(Node):
         self.vision_timer = self.create_timer(1.0, self.publish_detected_objects)
 
         self.get_logger().info(
-            f"Arena Visualizer Node active for {self.arm_id}. 5cm Grid, HUD, and Cubes enabled."
+            f"Arena Visualizer Node active for {self.arm_id} (Grid Mode: {self.grid_mode}, 5cm Grid, HUD, and Cubes enabled)."
         )
 
     def _add_cube(self, color: str, x_m: float, y_m: float) -> VisualCube:
@@ -126,7 +133,7 @@ class ArenaVisualizerNode(Node):
             color=color.lower(),
             x_m=float(x_m),
             y_m=float(y_m),
-            z_m=0.0127,
+            z_m=0.0137,
             state="in_cell",
             initial_col=col,
             initial_row=row,
@@ -137,6 +144,41 @@ class ArenaVisualizerNode(Node):
             f"Spawned {color.upper()} cube #{cube.id} at ({x_m*1000.0:.1f}mm, {y_m*1000.0:.1f}mm) [Col {col}, Row {row}]."
         )
         return cube
+
+    def populate_full_grid(self, randomize: bool = True) -> Tuple[int, int]:
+        """Populates all 28 picking cells (Rows 7..10, Cols 0..6) with randomly assigned Red and Green craft cubes."""
+        import random
+        red_cnt = 0
+        grn_cnt = 0
+        for r in [7, 8, 9, 10]:
+            for c in range(7):
+                if randomize:
+                    color = random.choice(["red", "green"])
+                else:
+                    color = "red" if (r + c) % 2 == 0 else "green"
+
+                if color == "red":
+                    red_cnt += 1
+                else:
+                    grn_cnt += 1
+
+                x_m = (c + 0.5) * 0.050
+                y_m = (11 - r + 0.5) * 0.050
+                self._add_cube(color, x_m, y_m)
+
+        self.get_logger().info(
+            f"Populated 28-cell grid (Rows 7..10, Cols 0..6): {red_cnt} RED, {grn_cnt} GREEN cubes."
+        )
+        return red_cnt, grn_cnt
+
+    def _publish_delete_all_markers(self):
+        """Sends DELETEALL to RViz so old markers are flushed immediately."""
+        del_array = MarkerArray()
+        dm = Marker()
+        dm.action = Marker.DELETEALL
+        del_array.markers.append(dm)
+        self.pub_markers.publish(del_array)
+        self.pub_cube_markers.publish(del_array)
 
     def handle_clicked_point(self, msg: PointStamped):
         """User clicked in RViz using the 'Publish Point' toolbar tool."""
@@ -157,8 +199,9 @@ class ArenaVisualizerNode(Node):
         cell_center_x = (col + 0.5) * 0.050
         cell_center_y = (11 - row + 0.5) * 0.050
 
-        # Alternate colors or pick by side: left side red, right side green
-        color = "red" if cell_center_x < 0.175 else "green"
+        # Alternate colors on successive clicks
+        color = self.next_color
+        self.next_color = "green" if color == "red" else "red"
 
         self._add_cube(color, cell_center_x, cell_center_y)
         self.publish_detected_objects()
@@ -190,7 +233,7 @@ class ArenaVisualizerNode(Node):
         occupied = {(c.initial_col, c.initial_row) for c in self.cubes if c.state == "in_cell"}
         spawned = False
         for r in [8, 9, 7, 10]:
-            for c in [2, 4, 3, 1, 5]:
+            for c in [2, 4, 3, 1, 5, 0, 6]:
                 if (c, r) not in occupied:
                     x = (c + 0.5) * 0.050
                     y = (11 - r + 0.5) * 0.050
@@ -210,11 +253,40 @@ class ArenaVisualizerNode(Node):
         return response
 
     def handle_clear_cubes_srv(self, request, response):
-        """Removes all cubes from the arena."""
+        """Removes all cubes from the arena and clears RViz markers."""
         self.cubes.clear()
+        self.gripped_cube_id = None
+        self._publish_delete_all_markers()
         self.publish_detected_objects()
         response.success = True
         response.message = "All visual cubes cleared."
+        return response
+
+    def handle_reseed_grid_srv(self, request, response):
+        """Service callback to clear placed cubes and reseed all 28 cells with a fresh scattered pattern."""
+        self.cubes.clear()
+        self.gripped_cube_id = None
+        self._publish_delete_all_markers()
+        r_cnt, g_cnt = self.populate_full_grid(randomize=True)
+        self.publish_detected_objects()
+        response.success = True
+        response.message = f"Reseeded 28 grid cells: {r_cnt} RED, {g_cnt} GREEN."
+        self.get_logger().info(response.message)
+        return response
+
+    def handle_populate_grid_srv(self, request, response):
+        """Service callback to populate grid if currently empty."""
+        if not any(c.state == "in_cell" for c in self.cubes):
+            self.cubes.clear()
+            self.gripped_cube_id = None
+            self._publish_delete_all_markers()
+            r_cnt, g_cnt = self.populate_full_grid(randomize=True)
+            self.publish_detected_objects()
+            response.success = True
+            response.message = f"Populated 28 cells with {r_cnt} RED and {g_cnt} GREEN cubes."
+        else:
+            response.success = False
+            response.message = "Grid already contains active cubes."
         return response
 
     def handle_vision_telemetry(self, msg: String):
@@ -312,20 +384,34 @@ class ArenaVisualizerNode(Node):
                         # Released! Determine drop location
                         cube.state = "placed"
                         self.gripped_cube_id = None
-                        # Check if near Red Box (X ~ 0.05, Y ~ 0.55)
-                        if cube.x_m <= 0.120 and cube.y_m >= 0.450:
-                            cube.x_m = 0.050
-                            cube.y_m = 0.550
-                            cube.z_m = 0.035
-                            self.get_logger().info(f"Deposited {cube.color.upper()} cube #{cube.id} in RED TRAY.")
-                        # Check if near Green Box (X ~ 0.30, Y ~ 0.55)
-                        elif cube.x_m >= 0.220 and cube.y_m >= 0.450:
-                            cube.x_m = 0.300
-                            cube.y_m = 0.550
-                            cube.z_m = 0.035
-                            self.get_logger().info(f"Deposited {cube.color.upper()} cube #{cube.id} in GREEN TRAY.")
+                        # Check if near Red Box (X <= 0.175, Y >= 0.450)
+                        if cube.x_m <= 0.175 and cube.y_m >= 0.450:
+                            red_count = sum(1 for c in self.cubes if c.state == "placed" and c.x_m <= 0.175)
+                            if red_count <= 1:
+                                ox, oy, oz = 0.0, 0.0, 0.035
+                            else:
+                                ox = (((red_count - 2) % 3) - 1) * 0.022
+                                oy = ((((red_count - 2) // 3) % 3) - 1) * 0.022
+                                oz = 0.035 + (((red_count - 2) // 9) * 0.020)
+                            cube.x_m = 0.050 + ox
+                            cube.y_m = 0.550 + oy
+                            cube.z_m = oz
+                            self.get_logger().info(f"Deposited {cube.color.upper()} cube #{cube.id} in RED TRAY (X={cube.x_m*1000:.1f}mm, Y={cube.y_m*1000:.1f}mm).")
+                        # Check if near Green Box (X > 0.175, Y >= 0.450)
+                        elif cube.x_m > 0.175 and cube.y_m >= 0.450:
+                            green_count = sum(1 for c in self.cubes if c.state == "placed" and c.x_m > 0.175)
+                            if green_count <= 1:
+                                ox, oy, oz = 0.0, 0.0, 0.035
+                            else:
+                                ox = (((green_count - 2) % 3) - 1) * 0.022
+                                oy = ((((green_count - 2) // 3) % 3) - 1) * 0.022
+                                oz = 0.035 + (((green_count - 2) // 9) * 0.020)
+                            cube.x_m = 0.300 + ox
+                            cube.y_m = 0.550 + oy
+                            cube.z_m = oz
+                            self.get_logger().info(f"Deposited {cube.color.upper()} cube #{cube.id} in GREEN TRAY (X={cube.x_m*1000:.1f}mm, Y={cube.y_m*1000:.1f}mm).")
                         else:
-                            cube.z_m = 0.0127
+                            cube.z_m = 0.0137
                             self.get_logger().info(f"Released {cube.color.upper()} cube #{cube.id} on table.")
 
         # Construct MarkerArray
@@ -556,8 +642,8 @@ class ArenaVisualizerNode(Node):
             m.pose.orientation.y = 0.0
             m.pose.orientation.z = 0.0
             m.pose.orientation.w = 1.0
-            m.scale.x = 0.0254
-            m.scale.y = 0.0254
+            m.scale.x = 0.032
+            m.scale.y = 0.032
             m.scale.z = 0.0254
 
             if cube.color == "red":

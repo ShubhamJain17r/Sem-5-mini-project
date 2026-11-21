@@ -42,6 +42,8 @@ class SimCubeCommander(Node):
         self.cli_stop_sorting = self.create_client(Trigger, f"/{self.arm_id}/stop_sorting")
         self.cli_spawn_cube = self.create_client(Trigger, "/simulation/spawn_cube")
         self.cli_clear_cubes = self.create_client(Trigger, "/simulation/clear_cubes")
+        self.cli_reseed = self.create_client(Trigger, "/simulation/reseed_grid")
+        self.cli_populate = self.create_client(Trigger, "/simulation/populate_grid")
 
     def call_trigger(self, client, timeout_sec: float = 2.0) -> bool:
         """Call a std_srvs/Trigger service synchronously."""
@@ -107,6 +109,8 @@ def run_interactive(commander: SimCubeCommander):
     print_grid()
     while rclpy.ok():
         print("\nCommands:")
+        print("  [p] Populate All 28 Cells with Random Red/Green Cubes")
+        print("  [r] Reseed Grid with New Scattered Red/Green Pattern")
         print("  [1] Spawn Red Cube at Col 2, Row 8 (X=125mm, Y=225mm)")
         print("  [2] Spawn Green Cube at Col 4, Row 8 (X=225mm, Y=225mm)")
         print("  [3] Custom Spawn: Select Color (red/green), Column (0..6), Row (7..10)")
@@ -121,7 +125,13 @@ def run_interactive(commander: SimCubeCommander):
         except (KeyboardInterrupt, EOFError):
             break
 
-        if choice == "1":
+        if choice in ("p", "populate"):
+            print("  --> Triggering /simulation/populate_grid...")
+            commander.call_trigger(commander.cli_populate)
+        elif choice in ("r", "reseed"):
+            print("  --> Triggering /simulation/reseed_grid...")
+            commander.call_trigger(commander.cli_reseed)
+        elif choice == "1":
             commander.spawn_cube("red", col=2, row=8)
         elif choice == "2":
             commander.spawn_cube("green", col=4, row=8)
@@ -135,10 +145,10 @@ def run_interactive(commander: SimCubeCommander):
             except ValueError:
                 print("  [!] Invalid number entered.")
         elif choice == "4":
-            print("  --> Triggering /{arm_id}/start_sorting...")
+            print(f"  --> Triggering /{commander.arm_id}/start_sorting...")
             commander.call_trigger(commander.cli_start_sorting)
         elif choice == "5":
-            print("  --> Triggering /{arm_id}/stop_sorting...")
+            print(f"  --> Triggering /{commander.arm_id}/stop_sorting...")
             commander.call_trigger(commander.cli_stop_sorting)
         elif choice == "6":
             print("  --> Clearing visual cubes...")
@@ -154,6 +164,8 @@ def run_interactive(commander: SimCubeCommander):
 def main():
     parser = argparse.ArgumentParser(description="Simulated Cube Commander for xArm 1S RViz Grid")
     parser.add_argument("--arm-id", default="xarm_1", help="xArm instance name (default: xarm_1)")
+    parser.add_argument("--populate", action="store_true", help="Populate all 28 cells with random Red/Green cubes")
+    parser.add_argument("--reseed", action="store_true", help="Reseed all 28 cells with a new random Red/Green pattern")
     parser.add_argument("--spawn-red", action="store_true", help="Spawn red cube and exit")
     parser.add_argument("--spawn-green", action="store_true", help="Spawn green cube and exit")
     parser.add_argument("--col", type=int, default=2, help="Grid column (0..6)")
@@ -164,7 +176,11 @@ def main():
     rclpy.init()
     commander = SimCubeCommander(arm_id=args.arm_id)
 
-    if args.spawn_red:
+    if args.populate:
+        commander.call_trigger(commander.cli_populate)
+    elif args.reseed:
+        commander.call_trigger(commander.cli_reseed)
+    elif args.spawn_red:
         commander.spawn_cube("red", col=args.col, row=args.row)
         time.sleep(0.5)
     elif args.spawn_green:

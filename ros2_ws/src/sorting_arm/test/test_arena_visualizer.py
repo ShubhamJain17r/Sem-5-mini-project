@@ -150,3 +150,41 @@ def test_arena_visualizer_grasp_and_deposit(rclpy_context):
     assert cube.z_m == 0.035
 
     node.destroy_node()
+
+
+def test_arena_visualizer_full_grid_and_reseed(rclpy_context):
+    """Verify that full_grid mode populates 28 cells with red/green cubes and reseed works."""
+    from std_srvs.srv import Trigger
+
+    node = ArenaVisualizerNode()
+
+
+    # Initial full grid should have exactly 28 cubes across Rows 7..10 and Cols 0..6
+    assert len(node.cubes) == 28
+    active_cubes = [c for c in node.cubes if c.state == "in_cell"]
+    assert len(active_cubes) == 28
+
+    # Check colors: only red and green
+    reds = [c for c in node.cubes if c.color == "red"]
+    greens = [c for c in node.cubes if c.color == "green"]
+    assert len(reds) + len(greens) == 28
+    assert len(reds) > 0
+    assert len(greens) > 0
+
+    # Check coordinate bounds: Cols 0..6 (0.025 to 0.325m), Rows 7..10 (0.075 to 0.225m)
+    for c in node.cubes:
+        assert 0.020 <= c.x_m <= 0.330
+        assert 0.070 <= c.y_m <= 0.230
+        assert c.initial_row in [7, 8, 9, 10]
+        assert 0 <= c.initial_col <= 6
+
+    # Test reseed service
+    req = Trigger.Request()
+    resp = Trigger.Response()
+    node.handle_reseed_grid_srv(req, resp)
+    assert resp.success
+    assert "Reseeded 28 grid cells" in resp.message
+    assert len(node.cubes) == 28
+
+    node.destroy_node()
+

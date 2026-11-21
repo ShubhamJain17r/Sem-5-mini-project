@@ -260,8 +260,8 @@ def solve_ik(
     sol = _solve_ik_internal(r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
     if not sol.success and auto_pitch_fallback:
         # Search nearby pitch offsets if default natural pitch hit a joint limit
-        for delta in [-5.0, 5.0, -10.0, 10.0, -15.0, 15.0]:
-            candidate_phi = clip(target_phi + delta, -75.0, 0.0)
+        for delta in [-5.0, 5.0, -10.0, 10.0, -15.0, 15.0, -20.0, 20.0]:
+            candidate_phi = clip(target_phi + delta, -85.0, 0.0)
             alt_sol = _solve_ik_internal(
                 r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip
             )
@@ -612,9 +612,19 @@ def get_compartment_target(
         ik_sol = solve_ik(r=r, theta=theta_arm, z=rel_z, params=params)
 
         # Color-specific drop pose preset (e.g. drop_container_red, drop_container_green)
-        pose_key = f"drop_container_{norm_color}"
-        drop_pose = arm_cfg.get("poses", {}).get(pose_key, arm_cfg.get("poses", {}).get("drop_container", {}))
-        preset_yaw = matched.get("drop_yaw_tick", arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 650 if norm_color == "red" else 354))
+        if norm_color == "red":
+            drop_ticks_list = arm_cfg.get("poses", {}).get("drop_container_red", {}).get("ticks", [226, 503, 149, 629, 347, 650])
+            preset_yaw = 650
+        elif norm_color == "green":
+            drop_ticks_list = arm_cfg.get("poses", {}).get("drop_container_green", {}).get("ticks", [226, 503, 149, 629, 347, 354])
+            preset_yaw = 354
+        else:
+            pose_key = f"drop_container_{norm_color}"
+            drop_pose = arm_cfg.get("poses", {}).get(pose_key, arm_cfg.get("poses", {}).get("drop_container", {}))
+            drop_ticks_list = drop_pose.get("ticks", [226, 503, 149, 629, 347, 650])
+            preset_yaw = matched.get("drop_yaw_tick", 650)
+
+        calibrated_ticks = {i + 1: drop_ticks_list[i] for i in range(min(6, len(drop_ticks_list)))}
 
         return {
             "color": norm_color,
@@ -626,10 +636,10 @@ def get_compartment_target(
             "theta_arm_deg": theta_arm,
             "z": rel_z,
             "drop_yaw_tick": preset_yaw,
-            "ik_success": ik_sol.success or (drop_pose.get("ticks") is not None),
-            "ik_ticks": ik_sol.ticks if ik_sol.success else {i: drop_pose["ticks"][i-1] for i in range(1, 7)} if drop_pose.get("ticks") else None,
-            "ik_message": ik_sol.message if ik_sol.success else "Using rear-flip calibrated drop preset",
-            "drop_pose_preset": drop_pose.get("ticks", None),
+            "ik_success": True,
+            "ik_ticks": calibrated_ticks,
+            "ik_message": f"Using calibrated rear-flip drop preset for {norm_color.upper()} container",
+            "drop_pose_preset": drop_ticks_list,
         }
     except Exception:
         return None

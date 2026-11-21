@@ -70,6 +70,16 @@ def generate_launch_description():
         default_value="false",
         description="Run sorter in dry-run mode without publishing joint commands",
     )
+    grid_mode_arg = DeclareLaunchArgument(
+        "grid_mode",
+        default_value="full_grid",
+        description="Grid population mode: 'full_grid' (all 28 cells) or 'dual' (2 test cubes)",
+    )
+    auto_reseed_arg = DeclareLaunchArgument(
+        "auto_reseed",
+        default_value="true",
+        description="Automatically reseed and re-run with new scattered pattern when all objects are sorted",
+    )
 
     urdf_file = get_asset_path(os.path.join("urdf", "xarm_1s.urdf"))
     rviz_config_file = get_asset_path(os.path.join("rviz", "xarm_simulation.rviz"))
@@ -123,6 +133,7 @@ def generate_launch_description():
             "config_dir": "config",
             "auto_start": LaunchConfiguration("auto_start"),
             "dry_run": LaunchConfiguration("dry_run"),
+            "auto_reseed": LaunchConfiguration("auto_reseed"),
         }],
     )
 
@@ -153,6 +164,7 @@ def generate_launch_description():
             "arm_id": arm_id,
             "config_dir": "config",
             "default_cubes": True,
+            "grid_mode": LaunchConfiguration("grid_mode"),
         }],
     )
 
@@ -175,6 +187,8 @@ def generate_launch_description():
         scenario_arg,
         auto_start_arg,
         dry_run_arg,
+        grid_mode_arg,
+        auto_reseed_arg,
         robot_state_publisher_node,
         driver_node,
         sorter_node,

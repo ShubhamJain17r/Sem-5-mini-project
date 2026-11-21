@@ -742,14 +742,29 @@ def main():
     parser.add_argument("--loop", action="store_true", help="Continuously render from ROS 2 topics")
     parser.add_argument("--pose", choices=["all", "pick", "standoff", "home", "drop_red", "drop_green"],
                         default="all", help="Static pose to render (or 'all' to generate progression gallery)")
+    parser.add_argument("--grid", choices=["full_grid", "dual"], default="full_grid",
+                        help="Cube configuration: 'full_grid' (all 28 picking cells) or 'dual' (2 test cubes)")
     args = parser.parse_args()
 
     renderer = MultiViewRenderer(output_dir=args.output_dir)
 
-    cubes = [
-        {"id": 1, "color": "red", "x": 130.0, "y": 200.0},
-        {"id": 2, "color": "green", "x": 220.0, "y": 200.0},
-    ]
+    if args.grid == "full_grid":
+        cubes = []
+        cube_id = 1
+        import random
+        rng = random.Random(42)  # Balanced scattered pattern for gallery
+        for r in [7, 8, 9, 10]:
+            for c in range(7):
+                color = "red" if rng.random() < 0.5 else "green"
+                x_m = (c + 0.5) * 50.0
+                y_m = (11 - r + 0.5) * 50.0
+                cubes.append({"id": cube_id, "color": color, "x": x_m, "y": y_m})
+                cube_id += 1
+    else:
+        cubes = [
+            {"id": 1, "color": "red", "x": 125.0, "y": 175.0},
+            {"id": 2, "color": "green", "x": 225.0, "y": 175.0},
+        ]
 
     poses = {
         "standoff": {

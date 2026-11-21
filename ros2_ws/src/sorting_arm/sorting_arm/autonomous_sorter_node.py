@@ -45,11 +45,13 @@ class AutonomousSorterNode(Node):
         self.declare_parameter("config_dir", "config")
         self.declare_parameter("auto_start", False)
         self.declare_parameter("dry_run", False)
+        self.declare_parameter("auto_reseed", True)
 
         self.arm_id = self.get_parameter("arm_id").get_parameter_value().string_value
         self.config_dir = self.get_parameter("config_dir").get_parameter_value().string_value
         self.auto_start = self.get_parameter("auto_start").get_parameter_value().bool_value
         self.dry_run = self.get_parameter("dry_run").get_parameter_value().bool_value
+        self.auto_reseed = self.get_parameter("auto_reseed").get_parameter_value().bool_value
 
         self.hardware_yaml = os.path.join(self.config_dir, "xarm_hardware.yaml")
         self.params = load_kinematic_parameters(self.hardware_yaml, arm_id=self.arm_id)
@@ -58,9 +60,12 @@ class AutonomousSorterNode(Node):
         self.current_joint_ticks: Dict[int, int] = {i: 500 for i in range(1, 7)}
         self.has_joint_feedback: bool = False
 
-        # Target queue
+        # Target queue & batch tracking
         self.target_queue: List[Dict] = []
         self.is_busy: bool = False
+        self.cubes_sorted_in_batch: int = 0
+        self.batch_count: int = 1
+        self.last_sort_time: float = time.time()
 
         # Subscribers
         self.sub_vision = self.create_subscription(
@@ -78,16 +83,17 @@ class AutonomousSorterNode(Node):
             String, f"/{self.arm_id}/sorting_status", 10
         )
 
-        # Services
+        # Services & Clients
         self.srv_start = self.create_service(Trigger, f"/{self.arm_id}/start_sorting", self.handle_start_sorting)
         self.srv_stop = self.create_service(Trigger, f"/{self.arm_id}/stop_sorting", self.handle_stop_sorting)
+        self.cli_reseed = self.create_client(Trigger, "/simulation/reseed_grid")
 
         # Main executive loop timer (1 Hz)
         self.timer = self.create_timer(1.0, self.executive_loop)
 
         self.enabled = self.auto_start
         self.get_logger().info(
-            f"Autonomous Sorter Node initialized for {self.arm_id} (Enabled: {self.enabled}, Dry-Run: {self.dry_run})."
+            f"Autonomous Sorter Node initialized for {self.arm_id} (Enabled: {self.enabled}, Dry-Run: {self.dry_run}, Auto-Reseed: {self.auto_reseed})."
         )
 
     def joint_state_callback(self, msg: JointState):
@@ -136,7 +142,7 @@ class AutonomousSorterNode(Node):
                 assigned = obj.get("assigned_arm", "xarm_1")
                 if assigned in [self.arm_id, "xarm", "xarm_1", ""]:
                     r = obj.get("target_r_mm", 0.0)
-                    if 110.0 <= r <= 325.0:
+                    if 110.0 <= r <= 340.0:
                         filtered.append(obj)
 
             # Nearest-First policy: sort queue by ascending target_r_mm
@@ -147,11 +153,26 @@ class AutonomousSorterNode(Node):
             self.get_logger().error(f"Error parsing vision telemetry: {e}")
 
     def executive_loop(self):
-        """Executive state machine: picks and sorts cubes sequentially."""
+        """Executive state machine: picks and sorts cubes sequentially, then reseeds upon batch completion."""
         if not self.enabled or self.is_busy:
             return
 
         if not self.target_queue:
+            # Check if previous batch was completed and auto_reseed is enabled
+            if self.auto_reseed and self.cubes_sorted_in_batch > 0 and (time.time() - self.last_sort_time > 2.0):
+                self.get_logger().info(
+                    f"====================================================================\n"
+                    f"  BATCH {self.batch_count} COMPLETED: All {self.cubes_sorted_in_batch} objects successfully sorted!\n"
+                    f"  Triggering /simulation/reseed_grid for new scattered Red/Green pattern...\n"
+                    f"===================================================================="
+                )
+                self.cubes_sorted_in_batch = 0
+                self.batch_count += 1
+                if self.cli_reseed.wait_for_service(timeout_sec=1.0):
+                    req = Trigger.Request()
+                    self.cli_reseed.call_async(req)
+                else:
+                    self.get_logger().warn("/simulation/reseed_grid service not available.")
             return
 
         # Pop nearest target
@@ -168,8 +189,6 @@ class AutonomousSorterNode(Node):
         z = target.get("world_z_mm", 9.53)
         yaw = target.get("yaw_deg", 0.0)
 
-        self.get_logger().info(f"Sorting {color.upper()} cube: r={r:.1f}mm, th={theta:+.1f}deg...")
-
         # 1. Compute Pick IK with wrist roll aligned to cube orientation
         centers = self.params.nominal_center_ticks if hasattr(self.params, "nominal_center_ticks") and self.params.nominal_center_ticks else {1: 517, 2: 503, 3: 504, 4: 496, 5: 501, 6: 502}
         open_claw_tick = self.params.min_safe_ticks.get(1, 226) if hasattr(self.params, "min_safe_ticks") and self.params.min_safe_ticks else 226
@@ -178,11 +197,11 @@ class AutonomousSorterNode(Node):
         roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
         pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params)
         if not pick_ik.success:
-            self.get_logger().warn(f"Pick IK failed: {pick_ik.message}")
+            self.get_logger().warn(f"Pick IK failed for {color.upper()} at r={r:.1f}mm, th={theta:+.1f}deg: {pick_ik.message}")
             return
 
         # 2. Compute Drop Target
-        drop_target = get_compartment_target(self.arm_id, color)
+        drop_target = get_compartment_target(color=color, arm_id=self.arm_id)
         if not drop_target:
             self.get_logger().warn(f"Drop target not found for {color}")
             return
@@ -191,14 +210,23 @@ class AutonomousSorterNode(Node):
         if not drop_ticks:
             drop_ticks = drop_target.get("drop_pose_preset", [500, 500, 500, 500, 500, 500])
 
+        self.cubes_sorted_in_batch += 1
+        self.last_sort_time = time.time()
+        self.get_logger().info(
+            f"--> [Batch {self.batch_count} | #{self.cubes_sorted_in_batch}] Sorting {color.upper()} cube:\n"
+            f"    Pick: r={r:.1f}mm, th={theta:+.1f}deg, Z={z:.1f}mm\n"
+            f"    Drop: {color.upper()} CONTAINER at {drop_target['world_xyz']} (M6 Base Yaw: {drop_ticks[6]})"
+        )
+
         if self.dry_run:
             self.get_logger().info(f"[Dry-Run] Target processed successfully: Pick ticks {pick_ik.ticks}")
             return
 
         # 3. Publish Trajectory Steps
         # Standoff -> Grasp -> Lift -> Drop -> Home
-        # Step A: Standoff
-        standoff_ik = solve_ik(r=r - 35.0, theta=theta, z=z + 25.0, params=self.params)
+        # Step A: Standoff (adapt for near-base radial reach)
+        standoff_r = r - 35.0 if r >= 180.0 else r
+        standoff_ik = solve_ik(r=standoff_r, theta=theta, z=z + 25.0, params=self.params)
         if standoff_ik.success:
             self.dispatch_joint_command(standoff_ik.ticks, time_ms=1200)
             time.sleep(1.3)
