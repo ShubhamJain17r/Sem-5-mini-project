@@ -213,30 +213,49 @@ class AutonomousSorterNode(Node):
         self.dispatch_joint_command(clamp_ticks, time_ms=400)
         time.sleep(0.5)
 
-        # Step D: Lift and retract
+        # Step D: Lift to standoff
         if standoff_ik.success:
             lift_ticks = dict(standoff_ik.ticks)
             lift_ticks[1] = clamp_claw_tick
             self.dispatch_joint_command(lift_ticks, time_ms=800)
             time.sleep(0.9)
 
-        # Step E: Move to drop compartment
+        # Step E: Move to drop compartment via high-clearance overhead transit
         if drop_ticks:
             target_drop = dict(drop_ticks) if isinstance(drop_ticks, dict) else {i + 1: drop_ticks[i] for i in range(6)}
-            target_drop[1] = clamp_claw_tick  # Keep clamped during swing
-            self.dispatch_joint_command(target_drop, time_ms=1500)
-            time.sleep(1.6)
 
-            # Step F: Release
+            # High overhead transit pose: clears table surface, foam barrier, and adjacent cubes
+            transit_ticks = {
+                1: clamp_claw_tick,
+                2: 503,
+                3: 350,
+                4: 496,
+                5: 450,
+                6: target_drop[6],  # Align base yaw toward target container while high
+            }
+            self.dispatch_joint_command(transit_ticks, time_ms=1000)
+            time.sleep(1.1)
+
+            # Descend into rear container box
+            target_drop[1] = clamp_claw_tick  # Keep clamped during descent
+            self.dispatch_joint_command(target_drop, time_ms=1200)
+            time.sleep(1.3)
+
+            # Step F: Release into container
             target_drop[1] = open_claw_tick  # Open claw
             self.dispatch_joint_command(target_drop, time_ms=400)
             time.sleep(0.5)
 
+            # Lift out of container back to high transit
+            transit_ticks[1] = open_claw_tick
+            self.dispatch_joint_command(transit_ticks, time_ms=1000)
+            time.sleep(1.1)
+
         # Step G: Return to upright home
         home_ticks = dict(centers)
         home_ticks[1] = open_claw_tick
-        self.dispatch_joint_command(home_ticks, time_ms=1200)
-        time.sleep(1.3)
+        self.dispatch_joint_command(home_ticks, time_ms=1000)
+        time.sleep(1.1)
 
         self.get_logger().info(f"Target {color.upper()} successfully placed in flank tray.")
 

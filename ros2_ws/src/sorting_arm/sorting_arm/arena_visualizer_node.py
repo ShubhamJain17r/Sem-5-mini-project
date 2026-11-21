@@ -70,6 +70,7 @@ class ArenaVisualizerNode(Node):
 
         # Publishers
         self.pub_markers = self.create_publisher(MarkerArray, "/simulation/arena_markers", 10)
+        self.pub_cube_markers = self.create_publisher(MarkerArray, "/simulation/cube_markers", 10)
         self.pub_vision = self.create_publisher(String, "/vision/detected_objects", 10)
 
         # Subscribers
@@ -91,6 +92,7 @@ class ArenaVisualizerNode(Node):
         self.claw_state = "OPEN"
         self.claw_tick = 226
         self.claw_is_clamped = False
+        self.gripped_cube_id: Optional[int] = None
         self.current_ee_pos: Optional[Point] = None
 
         self.cubes: List[VisualCube] = []
@@ -296,10 +298,11 @@ class ArenaVisualizerNode(Node):
                 if cube.state == "in_cell":
                     # Check distance to claw
                     dist = math.hypot(ee_x - cube.x_m, ee_y - cube.y_m, ee_z - cube.z_m)
-                    if dist <= 0.040 and self.claw_is_clamped:
+                    if dist <= 0.040 and self.claw_is_clamped and self.gripped_cube_id is None:
                         cube.state = "grabbed"
+                        self.gripped_cube_id = cube.id
                         self.get_logger().info(f"Claw gripped {cube.color.upper()} cube #{cube.id}.")
-                elif cube.state == "grabbed":
+                elif cube.state == "grabbed" and cube.id == self.gripped_cube_id:
                     if self.claw_is_clamped:
                         # Follow tool_tip
                         cube.x_m = ee_x
@@ -308,6 +311,7 @@ class ArenaVisualizerNode(Node):
                     else:
                         # Released! Determine drop location
                         cube.state = "placed"
+                        self.gripped_cube_id = None
                         # Check if near Red Box (X ~ 0.05, Y ~ 0.55)
                         if cube.x_m <= 0.120 and cube.y_m >= 0.450:
                             cube.x_m = 0.050
@@ -326,6 +330,7 @@ class ArenaVisualizerNode(Node):
 
         # Construct MarkerArray
         markers = MarkerArray()
+        cube_markers = MarkerArray()
         now = self.get_clock().now().to_msg()
 
         # 1. 5cm Grid Lines (Marker.LINE_LIST)
@@ -336,6 +341,7 @@ class ArenaVisualizerNode(Node):
         grid_marker.id = 1
         grid_marker.type = Marker.LINE_LIST
         grid_marker.action = Marker.ADD
+        grid_marker.pose.orientation.w = 1.0
         grid_marker.scale.x = 0.0015  # Line thickness (1.5mm)
         grid_marker.color = ColorRGBA(r=0.25, g=0.55, b=0.85, a=0.65)  # Blueprint cyan
 
@@ -370,6 +376,7 @@ class ArenaVisualizerNode(Node):
             lbl.pose.position.x = x
             lbl.pose.position.y = -0.018  # Front edge
             lbl.pose.position.z = 0.005
+            lbl.pose.orientation.w = 1.0
             lbl.scale.z = 0.016  # Text height
             lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.6, a=0.9)
             lbl.text = f"C{c}"
@@ -390,13 +397,14 @@ class ArenaVisualizerNode(Node):
             lbl.pose.position.x = -0.018  # Left edge
             lbl.pose.position.y = y
             lbl.pose.position.z = 0.005
+            lbl.pose.orientation.w = 1.0
             lbl.scale.z = 0.014
             lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.6, a=0.9)
             lbl.text = f"R{r}"
             markers.markers.append(lbl)
 
         # 3. Zone Boundaries & Labels
-        # Picking Zone Outline (Rows 7..10 -> Y in [0.050, 0.250] or [0.05, 0.30])
+        # Picking Zone Outline (Rows 7..10 -> Y in [0.100, 0.300])
         pz_marker = Marker()
         pz_marker.header.frame_id = "world"
         pz_marker.header.stamp = now
@@ -404,14 +412,15 @@ class ArenaVisualizerNode(Node):
         pz_marker.id = 50
         pz_marker.type = Marker.LINE_STRIP
         pz_marker.action = Marker.ADD
+        pz_marker.pose.orientation.w = 1.0
         pz_marker.scale.x = 0.003
         pz_marker.color = ColorRGBA(r=0.1, g=0.8, b=0.3, a=0.8)  # Green border
         pz_marker.points = [
-            Point(x=0.025, y=0.050, z=0.003),
-            Point(x=0.325, y=0.050, z=0.003),
-            Point(x=0.325, y=0.250, z=0.003),
-            Point(x=0.025, y=0.250, z=0.003),
-            Point(x=0.025, y=0.050, z=0.003),
+            Point(x=0.025, y=0.100, z=0.003),
+            Point(x=0.325, y=0.100, z=0.003),
+            Point(x=0.325, y=0.300, z=0.003),
+            Point(x=0.025, y=0.300, z=0.003),
+            Point(x=0.025, y=0.100, z=0.003),
         ]
         markers.markers.append(pz_marker)
 
@@ -424,8 +433,9 @@ class ArenaVisualizerNode(Node):
         pz_lbl.type = Marker.TEXT_VIEW_FACING
         pz_lbl.action = Marker.ADD
         pz_lbl.pose.position.x = 0.175
-        pz_lbl.pose.position.y = 0.040
+        pz_lbl.pose.position.y = 0.090
         pz_lbl.pose.position.z = 0.008
+        pz_lbl.pose.orientation.w = 1.0
         pz_lbl.scale.z = 0.018
         pz_lbl.color = ColorRGBA(r=0.0, g=0.6, b=0.2, a=0.9)
         pz_lbl.text = "PICKING ZONE (Rows 7..10)"
@@ -442,6 +452,7 @@ class ArenaVisualizerNode(Node):
         mount_lbl.pose.position.x = 0.175
         mount_lbl.pose.position.y = 0.375
         mount_lbl.pose.position.z = 0.035
+        mount_lbl.pose.orientation.w = 1.0
         mount_lbl.scale.z = 0.016
         mount_lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.8, a=0.95)
         mount_lbl.text = "xArm 1S MOUNT (175, 375)"
@@ -458,6 +469,7 @@ class ArenaVisualizerNode(Node):
         red_box_lbl.pose.position.x = 0.050
         red_box_lbl.pose.position.y = 0.550
         red_box_lbl.pose.position.z = 0.050
+        red_box_lbl.pose.orientation.w = 1.0
         red_box_lbl.scale.z = 0.018
         red_box_lbl.color = ColorRGBA(r=0.9, g=0.1, b=0.1, a=1.0)
         red_box_lbl.text = "RED TRAY (Rows 0..1)"
@@ -473,6 +485,7 @@ class ArenaVisualizerNode(Node):
         green_box_lbl.pose.position.x = 0.300
         green_box_lbl.pose.position.y = 0.550
         green_box_lbl.pose.position.z = 0.050
+        green_box_lbl.pose.orientation.w = 1.0
         green_box_lbl.scale.z = 0.018
         green_box_lbl.color = ColorRGBA(r=0.1, g=0.8, b=0.2, a=1.0)
         green_box_lbl.text = "GREEN TRAY (Rows 0..1)"
@@ -500,6 +513,7 @@ class ArenaVisualizerNode(Node):
             hud.pose.position.x = 0.175
             hud.pose.position.y = 0.650
             hud.pose.position.z = 0.220
+            hud.pose.orientation.w = 1.0
             hud.scale.z = 0.024
             hud.color = ColorRGBA(r=0.05, g=0.05, b=0.05, a=1.0)
             hud.text = (
@@ -519,6 +533,7 @@ class ArenaVisualizerNode(Node):
             shadow.pose.position.x = ee_x
             shadow.pose.position.y = ee_y
             shadow.pose.position.z = 0.002
+            shadow.pose.orientation.w = 1.0
             shadow.scale.x = 0.030
             shadow.scale.y = 0.030
             shadow.scale.z = 0.001
@@ -537,15 +552,20 @@ class ArenaVisualizerNode(Node):
             m.pose.position.x = cube.x_m
             m.pose.position.y = cube.y_m
             m.pose.position.z = cube.z_m
+            m.pose.orientation.x = 0.0
+            m.pose.orientation.y = 0.0
+            m.pose.orientation.z = 0.0
+            m.pose.orientation.w = 1.0
             m.scale.x = 0.0254
             m.scale.y = 0.0254
             m.scale.z = 0.0254
 
             if cube.color == "red":
-                m.color = ColorRGBA(r=0.90, g=0.12, b=0.12, a=0.95)
+                m.color = ColorRGBA(r=0.95, g=0.12, b=0.12, a=1.0)
             else:
-                m.color = ColorRGBA(r=0.12, g=0.85, b=0.20, a=0.95)
+                m.color = ColorRGBA(r=0.12, g=0.88, b=0.20, a=1.0)
             markers.markers.append(m)
+            cube_markers.markers.append(m)
 
             # Text tag floating over cube
             txt = Marker()
@@ -558,8 +578,12 @@ class ArenaVisualizerNode(Node):
             txt.pose.position.x = cube.x_m
             txt.pose.position.y = cube.y_m
             txt.pose.position.z = cube.z_m + 0.028
+            txt.pose.orientation.x = 0.0
+            txt.pose.orientation.y = 0.0
+            txt.pose.orientation.z = 0.0
+            txt.pose.orientation.w = 1.0
             txt.scale.z = 0.014
-            txt.color = ColorRGBA(r=0.1, g=0.1, b=0.1, a=0.95)
+            txt.color = ColorRGBA(r=0.05, g=0.05, b=0.05, a=0.95)
             status_txt = f"{cube.color.upper()} #{cube.id}"
             if cube.state == "in_cell":
                 status_txt += f" [R{cube.initial_row}, C{cube.initial_col}]"
@@ -567,8 +591,10 @@ class ArenaVisualizerNode(Node):
                 status_txt += " (HELD)"
             txt.text = status_txt
             markers.markers.append(txt)
+            cube_markers.markers.append(txt)
 
         self.pub_markers.publish(markers)
+        self.pub_cube_markers.publish(cube_markers)
 
 
 def main(args=None):

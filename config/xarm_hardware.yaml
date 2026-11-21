@@ -185,18 +185,18 @@ manipulators:
         description: "Hovering safely above arena picking zone awaiting commands (Zw ≈ 165mm)"
         transit_time_ms: 1600
       rear_transit_tuck:
-        ticks: [630, 503, 504, 350, 501, 502]
+        ticks: [610, 503, 350, 496, 450, 502]
         description: "High upright clearance pose while flipping from front arena to rear containers"
         transit_time_ms: 1200
       drop_container_red:
-        ticks: [226, 503, 704, 169, 558, 650]
-        description: "Hovering over Rear-Left Red container box (Zw ≈ 45mm, yaw tick 650)"
+        ticks: [226, 503, 149, 629, 347, 650]
+        description: "Overhead rear-flip: Red container box (X=50mm, Y=550mm, Z=45mm, yaw tick 650)"
         transit_time_ms: 1600
       drop_container_green:
-        ticks: [226, 503, 704, 169, 558, 354]
-        description: "Hovering over Rear-Right Green container box (Zw ≈ 45mm, yaw tick 354)"
+        ticks: [226, 503, 149, 629, 347, 354]
+        description: "Overhead rear-flip: Green container box (X=300mm, Y=550mm, Z=45mm, yaw tick 354)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [226, 503, 704, 169, 558, 650]
+        ticks: [226, 503, 149, 629, 347, 650]
         description: "Default rear drop container pose (Red box)"
         transit_time_ms: 1600

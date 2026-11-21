@@ -761,8 +761,12 @@ def main():
             "status": "PHASE 2: PICK GRASP AT TABLE SURFACE (Z = 9.72mm, Pitch = -69.8 deg)",
         },
         "drop_red": {
-            "ticks": {1: 610, 2: 503, 3: 280, 4: 750, 5: 320, 6: 650},
-            "status": "PHASE 5: OVERHEAD REAR-FLIP: RED CONTAINER DROP (Z = 45.0mm)",
+            "ticks": {1: 610, 2: 503, 3: 149, 4: 629, 5: 347, 6: 650},
+            "status": "PHASE 5: OVERHEAD REAR-FLIP: RED CONTAINER DROP (X=50.1mm, Y=549.9mm, Z=45.0mm)",
+        },
+        "drop_green": {
+            "ticks": {1: 610, 2: 503, 3: 149, 4: 629, 5: 347, 6: 354},
+            "status": "PHASE 5: OVERHEAD REAR-FLIP: GREEN CONTAINER DROP (X=299.9mm, Y=549.9mm, Z=45.0mm)",
         },
     }
 
