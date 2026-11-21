@@ -189,3 +189,67 @@ def test_compartment_target_fallback():
     assert "theta_world_deg" in target
     assert "ik_success" in target
 
+
+def test_hard_to_pick_zones_ik():
+    """Verify analytical IK solves successfully for difficult near-base and far-reach coordinates."""
+    cfg = "config/xarm_hardware.yaml"
+    params = load_kinematic_parameters(config_path=cfg, arm_id="xarm_1")
+
+    # Hard zone test cases (world_x, world_y, world_z, expected_min_r, expected_max_r)
+    hard_points = [
+        # Near-base cells (Row 6)
+        (75.0, 275.0, 12.5, 140.0, 145.0),   # Row 6 Col 1: West near-base
+        (275.0, 275.0, 12.5, 140.0, 145.0),  # Row 6 Col 5: East near-base
+        (175.0, 225.0, 12.5, 148.0, 152.0),  # Row 7 Col 3: South close
+        # Far-reach corners (Row 10, 97% extension)
+        (25.0, 75.0, 12.5, 330.0, 340.0),    # Row 10 Col 0: Northwest corner
+        (325.0, 75.0, 12.5, 330.0, 340.0),   # Row 10 Col 6: Northeast corner
+    ]
+
+    for wx, wy, wz, min_r, max_r in hard_points:
+        r, theta, z = world_to_arm_polar(wx, wy, wz, params=params)
+        assert min_r <= r <= max_r, f"Unexpected radial reach {r} for ({wx}, {wy})"
+
+        # Tabletop pick IK
+        sol_pick = solve_ik(r=r, theta=theta, z=z, params=params)
+        assert sol_pick.success, f"Pick IK failed for hard coordinate ({wx}, {wy}): {sol_pick.message}"
+
+        # Standoff IK
+        standoff_r = r - 35.0 if r >= 180.0 else r
+        sol_standoff = solve_ik(r=standoff_r, theta=theta, z=z + 25.0, params=params)
+        assert sol_standoff.success, f"Standoff IK failed for ({wx}, {wy}): {sol_standoff.message}"
+
+        # Verify all ticks are within hardware limits
+        for mid in range(1, 7):
+            min_t = params.min_safe_ticks[mid]
+            max_t = params.max_safe_ticks[mid]
+            assert min_t <= sol_pick.ticks[mid] <= max_t, (
+                f"Pick Motor {mid} tick {sol_pick.ticks[mid]} out of [{min_t}, {max_t}]"
+            )
+            assert min_t <= sol_standoff.ticks[mid] <= max_t, (
+                f"Standoff Motor {mid} tick {sol_standoff.ticks[mid]} out of [{min_t}, {max_t}]"
+            )
+
+
+def test_dynamic_tick_adaptation():
+    """Verify that kinematics adapts seamlessly when tick limits and nominal centers are changed."""
+    # Custom calibration profile with altered centers and boundaries
+    custom_params = KinematicParameters(
+        nominal_center_ticks={1: 520, 2: 510, 3: 495, 4: 505, 5: 490, 6: 515},
+        min_safe_ticks={1: 180, 2: 150, 3: 100, 4: 120, 5: 110, 6: 100},
+        max_safe_ticks={1: 820, 2: 850, 3: 880, 4: 870, 5: 860, 6: 910},
+    )
+
+    r, theta, z = 220.0, 0.0, 50.0
+    sol = solve_ik(r=r, theta=theta, z=z, params=custom_params)
+    assert sol.success
+
+    # Base yaw tick should center at 515 for theta=0
+    assert sol.ticks[6] == 515
+
+    # FK roundtrip with custom centers
+    fk = solve_fk(sol.ticks[6], sol.ticks[5], sol.ticks[4], sol.ticks[3], params=custom_params)
+    assert abs(fk.r - r) < 1.0
+    assert abs(fk.theta - theta) < 0.5
+    assert abs(fk.z - z) < 1.0
+

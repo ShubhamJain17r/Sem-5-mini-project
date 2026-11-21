@@ -25,10 +25,8 @@ Visualization Manager:
       Enabled: true
       Name: Arena Visuals & Grid
       Namespaces:
-        col_labels: true
         craft_cubes: true
         grid_lines: true
-        row_labels: true
         tool_hud: true
         zones: true
       Topic:
@@ -56,10 +54,8 @@ Visualization Manager:
       Enabled: true
       Name: Standard Visualization Markers
       Namespaces:
-        col_labels: true
         craft_cubes: true
         grid_lines: true
-        row_labels: true
         tool_hud: true
         zones: true
       Topic:

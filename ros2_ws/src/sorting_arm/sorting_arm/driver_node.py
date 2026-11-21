@@ -104,11 +104,7 @@ class XArmDriverNode(Node):
             self.driver = None
             self.sim_current_ticks = {
                 1: float(self.min_ticks.get(1, 226)),
-                2: float(self.center_ticks.get(2, 503)),
-                3: float(self.center_ticks.get(3, 504)),
-                4: float(self.center_ticks.get(4, 496)),
-                5: float(self.center_ticks.get(5, 501)),
-                6: float(self.center_ticks.get(6, 502)),
+                **{i: float(self.center_ticks.get(i, 500)) for i in range(2, 7)},
             }
             self.sim_target_ticks = dict(self.sim_current_ticks)
             self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
@@ -145,11 +141,7 @@ class XArmDriverNode(Node):
                 self.sim_mode = True
                 self.sim_current_ticks = {
                     1: float(self.min_ticks.get(1, 226)),
-                    2: float(self.center_ticks.get(2, 503)),
-                    3: float(self.center_ticks.get(3, 504)),
-                    4: float(self.center_ticks.get(4, 496)),
-                    5: float(self.center_ticks.get(5, 501)),
-                    6: float(self.center_ticks.get(6, 502)),
+                    **{i: float(self.center_ticks.get(i, 500)) for i in range(2, 7)},
                 }
                 self.sim_target_ticks = dict(self.sim_current_ticks)
                 self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
@@ -169,9 +161,9 @@ class XArmDriverNode(Node):
             cmd_qos,
         )
 
-        # Publishers (20 Hz timer for smooth updates and visual simulation)
+        # Publishers (40 Hz timer for fluid visual simulation without lag)
         self.state_pub = self.create_publisher(JointState, "joint_states", 10)
-        self.state_timer = self.create_timer(0.05, self.publish_joint_states)  # 20 Hz
+        self.state_timer = self.create_timer(0.025, self.publish_joint_states)  # 40 Hz
 
         # Services
         self.estop_srv = self.create_service(

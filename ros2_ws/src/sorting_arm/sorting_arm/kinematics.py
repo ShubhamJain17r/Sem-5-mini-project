@@ -205,18 +205,21 @@ def compute_natural_pitch(r: float, z: float) -> float:
     """
     Compute kinematically optimal approach pitch phi (degrees) based on reach and height.
 
-    - For tabletop picking and approach (Z < 50mm): generates a steep downward approach
-      angle (-40° to -70°) so the gripper descends onto objects cleanly from above.
-      This elevates the wrist pitch axis comfortably above the table surface (Zw > 115mm)
-      and keeps Motors 3, 4, 5 well within safe mechanical bounds.
+    - For near-base picking (r < 160mm, Z < 50mm): targets -74.0° to keep elbow pitch
+      (Motor 4) safely above its 153-tick hardware limit while keeping wrist pitch (Motor 3) safe.
+    - For tabletop picking and approach (Z < 50mm): generates steep downward approach
+      angle (-40° to -75°) so the gripper descends onto objects cleanly from above.
     - For elevated transit (Z >= 50mm): transitions smoothly toward shallower angles.
     """
+    if r < 160.0 and z < 50.0:
+        return -74.0
+
     if r < 190.0 and z < 30.0:
         return -70.0
 
     if z < 50.0:
         phi = -55.0 + 0.22 * (r - 220.0) + 0.25 * (z - 12.5)
-        return clip(phi, -70.0, -25.0)
+        return clip(phi, -75.0, -25.0)
 
     # Elevated heights
     phi = -35.0 + 0.20 * (r - 220.0) + 0.25 * (z - 50.0)
@@ -259,8 +262,9 @@ def solve_ik(
 
     sol = _solve_ik_internal(r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
     if not sol.success and auto_pitch_fallback:
-        # Search nearby pitch offsets if default natural pitch hit a joint limit
-        for delta in [-5.0, 5.0, -10.0, 10.0, -15.0, 15.0, -20.0, 20.0]:
+        # Fine-grained outward pitch search (±1° to ±25°) to guarantee convergence in tight near-base envelopes
+        search_deltas = [d for delta in range(1, 26) for d in (-delta, delta)]
+        for delta in search_deltas:
             candidate_phi = clip(target_phi + delta, -85.0, 0.0)
             alt_sol = _solve_ik_internal(
                 r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip

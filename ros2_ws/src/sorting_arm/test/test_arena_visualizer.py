@@ -24,8 +24,8 @@ def rclpy_context():
     rclpy.shutdown()
 
 
-def test_arena_visualizer_grid_and_labels(rclpy_context):
-    """Verify that arena visualizer generates 5cm grid lines and coordinate labels."""
+def test_arena_visualizer_grid_and_zero_text(rclpy_context):
+    """Verify that arena visualizer generates 5cm grid lines, zone borders, and ZERO text markers."""
     node = ArenaVisualizerNode()
     received_markers = []
 
@@ -51,11 +51,38 @@ def test_arena_visualizer_grid_and_labels(rclpy_context):
     assert len(grid_markers[0].points) == 42
     assert grid_markers[0].type == Marker.LINE_LIST
 
-    # Find column and row labels
-    col_labels = [m for m in latest.markers if m.ns == "col_labels"]
-    row_labels = [m for m in latest.markers if m.ns == "row_labels"]
-    assert len(col_labels) == 7
-    assert len(row_labels) == 12
+    # Verify zero TEXT_VIEW_FACING markers exist (clean, high-performance rendering)
+    text_markers = [m for m in latest.markers if m.type == Marker.TEXT_VIEW_FACING]
+    assert len(text_markers) == 0, f"Expected 0 text markers, found {len(text_markers)}"
+
+    # Verify picking zone boundary exists
+    zone_markers = [m for m in latest.markers if m.ns == "zones" and m.type == Marker.LINE_STRIP]
+    assert len(zone_markers) == 1
+
+    node.destroy_node()
+
+
+def test_arena_visualizer_hard_zones(rclpy_context):
+    """Verify that hard zones mode spawns cubes at near-base and far-corner stress coordinates."""
+    from std_srvs.srv import Trigger
+
+    node = ArenaVisualizerNode()
+    node.cubes.clear()
+
+    # Trigger hard zones spawn
+    req = Trigger.Request()
+    resp = Trigger.Response()
+    node.handle_spawn_hard_zones_srv(req, resp)
+    assert resp.success
+    assert len(node.cubes) == 5
+
+    # Check near-base coordinates (Row 6 Col 1, Row 6 Col 5, Row 7 Col 3)
+    near_base = [c for c in node.cubes if c.initial_row in (6, 7)]
+    assert len(near_base) == 3
+
+    # Check far-corner coordinates (Row 10 Col 0, Row 10 Col 6)
+    far_corners = [c for c in node.cubes if c.initial_row == 10]
+    assert len(far_corners) == 2
 
     node.destroy_node()
 

@@ -92,10 +92,11 @@ class ArenaVisualizerNode(Node):
         self.srv_clear = self.create_service(Trigger, "/simulation/clear_cubes", self.handle_clear_cubes_srv)
         self.srv_reseed = self.create_service(Trigger, "/simulation/reseed_grid", self.handle_reseed_grid_srv)
         self.srv_populate = self.create_service(Trigger, "/simulation/populate_grid", self.handle_populate_grid_srv)
+        self.srv_hard_zones = self.create_service(Trigger, "/simulation/spawn_hard_zones", self.handle_spawn_hard_zones_srv)
 
         # State tracking
         self.claw_state = "OPEN"
-        self.claw_tick = 226
+        self.claw_tick = self.params.min_safe_ticks.get(1, 226)
         self.claw_is_clamped = False
         self.gripped_cube_id: Optional[int] = None
         self.current_ee_pos: Optional[Point] = None
@@ -105,7 +106,9 @@ class ArenaVisualizerNode(Node):
         self.next_color = "red"
 
         if self.spawn_default_cubes:
-            if self.grid_mode == "full_grid":
+            if self.grid_mode == "hard_zones":
+                self.populate_hard_zones()
+            elif self.grid_mode == "full_grid":
                 self.populate_full_grid(randomize=True)
             else:
                 # Default dual cubes: Red at (Row 8, Col 2), Green at (Row 8, Col 4)
@@ -119,7 +122,7 @@ class ArenaVisualizerNode(Node):
         self.vision_timer = self.create_timer(1.0, self.publish_detected_objects)
 
         self.get_logger().info(
-            f"Arena Visualizer Node active for {self.arm_id} (Grid Mode: {self.grid_mode}, 5cm Grid, HUD, and Cubes enabled)."
+            f"Arena Visualizer Node active for {self.arm_id} (Grid Mode: {self.grid_mode}, 5cm Grid, Zero-Text 3D View enabled)."
         )
 
     def _add_cube(self, color: str, x_m: float, y_m: float) -> VisualCube:
@@ -172,6 +175,35 @@ class ArenaVisualizerNode(Node):
         )
         return red_cnt, grn_cnt
 
+    def populate_hard_zones(self) -> Tuple[int, int]:
+        """
+        Populates high-difficulty picking cells to stress-test kinematics and reach:
+          - Near xArm base: Row 6 Col 1 (Red, r=141.4mm), Row 6 Col 5 (Green, r=141.4mm), Row 7 Col 3 (Red, r=150.0mm)
+          - Extreme far corners: Row 10 Col 0 (Green, r=335.4mm), Row 10 Col 6 (Red, r=335.4mm)
+        """
+        hard_cells = [
+            ("red", 1, 6),    # Near-base West: X=75mm, Y=275mm (r=141.4mm)
+            ("green", 5, 6),  # Near-base East: X=275mm, Y=275mm (r=141.4mm)
+            ("red", 3, 7),    # Direct South close: X=175mm, Y=225mm (r=150.0mm)
+            ("green", 0, 10), # Far Northwest corner: X=25mm, Y=75mm (r=335.4mm)
+            ("red", 6, 10),   # Far Northeast corner: X=325mm, Y=75mm (r=335.4mm)
+        ]
+        red_cnt = 0
+        grn_cnt = 0
+        for color, c, r in hard_cells:
+            if color == "red":
+                red_cnt += 1
+            else:
+                grn_cnt += 1
+            x_m = (c + 0.5) * 0.050
+            y_m = (11 - r + 0.5) * 0.050
+            self._add_cube(color, x_m, y_m)
+
+        self.get_logger().info(
+            f"Populated hard-to-pick zones (Near base & far corners): {red_cnt} RED, {grn_cnt} GREEN cubes."
+        )
+        return red_cnt, grn_cnt
+
     def _publish_delete_all_markers(self):
         """Sends DELETEALL to RViz so old markers are flushed immediately."""
         del_array = MarkerArray()
@@ -209,19 +241,20 @@ class ArenaVisualizerNode(Node):
         self.publish_detected_objects()
 
     def handle_joint_states(self, msg: JointState):
-        """Caches claw joint position to detect clamp vs release."""
+        """Caches claw joint position to detect clamp vs release dynamically."""
         for name, val in zip(msg.name, msg.position):
             if "claw" in name or "motor_1" in name:
-                # Claw closed tick > 550, open tick ~ 226
-                # Center is 517 ticks. val is radians relative to center
-                # deg = math.degrees(val), tick = center + deg * TICKS_PER_DEG
                 center = self.params.nominal_center_ticks.get(1, 517)
                 tick = int(round(center + math.degrees(val) * TICKS_PER_DEG))
                 self.claw_tick = tick
-                if tick >= 570 or val > 0.15:
+                min_t = self.params.min_safe_ticks.get(1, 226)
+                max_t = self.params.max_safe_ticks.get(1, 782)
+                clamp_thresh = min_t + 0.48 * (max_t - min_t)
+                open_thresh = min_t + 0.22 * (max_t - min_t)
+                if tick >= clamp_thresh or val > 0.12:
                     self.claw_is_clamped = True
                     self.claw_state = "CLAMPED"
-                elif tick <= 350 or val < -0.20:
+                elif tick <= open_thresh or val < -0.15:
                     self.claw_is_clamped = False
                     self.claw_state = "OPEN"
                 break
@@ -289,6 +322,17 @@ class ArenaVisualizerNode(Node):
         else:
             response.success = False
             response.message = "Grid already contains active cubes."
+        return response
+
+    def handle_spawn_hard_zones_srv(self, request, response):
+        """Service callback to clear grid and spawn cubes in hard-to-pick zones."""
+        self.cubes.clear()
+        self.gripped_cube_id = None
+        self._publish_delete_all_markers()
+        r_cnt, g_cnt = self.populate_hard_zones()
+        self.publish_detected_objects()
+        response.success = True
+        response.message = f"Spawned {r_cnt} RED and {g_cnt} GREEN cubes in hard-to-pick zones."
         return response
 
     def handle_vision_telemetry(self, msg: String):
@@ -450,51 +494,7 @@ class ArenaVisualizerNode(Node):
 
         markers.markers.append(grid_marker)
 
-        # 2. Grid Labels (Columns C0..C6 and Rows R0..R11)
-        label_id = 10
-        # Columns
-        for c in range(7):
-            x = (c + 0.5) * 0.050
-            lbl = Marker()
-            lbl.header.frame_id = "world"
-            lbl.header.stamp = now
-            lbl.ns = "col_labels"
-            lbl.id = label_id
-            label_id += 1
-            lbl.type = Marker.TEXT_VIEW_FACING
-            lbl.action = Marker.ADD
-            lbl.pose.position.x = x
-            lbl.pose.position.y = -0.018  # Front edge
-            lbl.pose.position.z = 0.005
-            lbl.pose.orientation.w = 1.0
-            lbl.scale.z = 0.016  # Text height
-            lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.6, a=0.9)
-            lbl.text = f"C{c}"
-            markers.markers.append(lbl)
-
-        # Rows
-        for r in range(12):
-            # Row 11 is front (Y=0..50), Row 0 is rear (Y=550..600)
-            y = (11 - r + 0.5) * 0.050
-            lbl = Marker()
-            lbl.header.frame_id = "world"
-            lbl.header.stamp = now
-            lbl.ns = "row_labels"
-            lbl.id = label_id
-            label_id += 1
-            lbl.type = Marker.TEXT_VIEW_FACING
-            lbl.action = Marker.ADD
-            lbl.pose.position.x = -0.018  # Left edge
-            lbl.pose.position.y = y
-            lbl.pose.position.z = 0.005
-            lbl.pose.orientation.w = 1.0
-            lbl.scale.z = 0.014
-            lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.6, a=0.9)
-            lbl.text = f"R{r}"
-            markers.markers.append(lbl)
-
-        # 3. Zone Boundaries & Labels
-        # Picking Zone Outline (Rows 7..10 -> Y in [0.100, 0.300])
+        # 2. Picking Zone Boundary Outline (Marker.LINE_STRIP)
         pz_marker = Marker()
         pz_marker.header.frame_id = "world"
         pz_marker.header.stamp = now
@@ -514,105 +514,8 @@ class ArenaVisualizerNode(Node):
         ]
         markers.markers.append(pz_marker)
 
-        # Picking Zone Label
-        pz_lbl = Marker()
-        pz_lbl.header.frame_id = "world"
-        pz_lbl.header.stamp = now
-        pz_lbl.ns = "zones"
-        pz_lbl.id = 51
-        pz_lbl.type = Marker.TEXT_VIEW_FACING
-        pz_lbl.action = Marker.ADD
-        pz_lbl.pose.position.x = 0.175
-        pz_lbl.pose.position.y = 0.090
-        pz_lbl.pose.position.z = 0.008
-        pz_lbl.pose.orientation.w = 1.0
-        pz_lbl.scale.z = 0.018
-        pz_lbl.color = ColorRGBA(r=0.0, g=0.6, b=0.2, a=0.9)
-        pz_lbl.text = "PICKING ZONE (Rows 7..10)"
-        markers.markers.append(pz_lbl)
-
-        # xArm Mount Marker
-        mount_lbl = Marker()
-        mount_lbl.header.frame_id = "world"
-        mount_lbl.header.stamp = now
-        mount_lbl.ns = "zones"
-        mount_lbl.id = 52
-        mount_lbl.type = Marker.TEXT_VIEW_FACING
-        mount_lbl.action = Marker.ADD
-        mount_lbl.pose.position.x = 0.175
-        mount_lbl.pose.position.y = 0.375
-        mount_lbl.pose.position.z = 0.035
-        mount_lbl.pose.orientation.w = 1.0
-        mount_lbl.scale.z = 0.016
-        mount_lbl.color = ColorRGBA(r=0.1, g=0.3, b=0.8, a=0.95)
-        mount_lbl.text = "xArm 1S MOUNT (175, 375)"
-        markers.markers.append(mount_lbl)
-
-        # Container Tray Labels
-        red_box_lbl = Marker()
-        red_box_lbl.header.frame_id = "world"
-        red_box_lbl.header.stamp = now
-        red_box_lbl.ns = "zones"
-        red_box_lbl.id = 53
-        red_box_lbl.type = Marker.TEXT_VIEW_FACING
-        red_box_lbl.action = Marker.ADD
-        red_box_lbl.pose.position.x = 0.050
-        red_box_lbl.pose.position.y = 0.550
-        red_box_lbl.pose.position.z = 0.050
-        red_box_lbl.pose.orientation.w = 1.0
-        red_box_lbl.scale.z = 0.018
-        red_box_lbl.color = ColorRGBA(r=0.9, g=0.1, b=0.1, a=1.0)
-        red_box_lbl.text = "RED TRAY (Rows 0..1)"
-        markers.markers.append(red_box_lbl)
-
-        green_box_lbl = Marker()
-        green_box_lbl.header.frame_id = "world"
-        green_box_lbl.header.stamp = now
-        green_box_lbl.ns = "zones"
-        green_box_lbl.id = 54
-        green_box_lbl.type = Marker.TEXT_VIEW_FACING
-        green_box_lbl.action = Marker.ADD
-        green_box_lbl.pose.position.x = 0.300
-        green_box_lbl.pose.position.y = 0.550
-        green_box_lbl.pose.position.z = 0.050
-        green_box_lbl.pose.orientation.w = 1.0
-        green_box_lbl.scale.z = 0.018
-        green_box_lbl.color = ColorRGBA(r=0.1, g=0.8, b=0.2, a=1.0)
-        green_box_lbl.text = "GREEN TRAY (Rows 0..1)"
-        markers.markers.append(green_box_lbl)
-
-        # 4. Live Tool Tip HUD & Table Projection Crosshair
+        # 3. Live Tool Tip Table Ground Shadow / Crosshair circle
         if self.current_ee_pos:
-            ee_x = self.current_ee_pos.x
-            ee_y = self.current_ee_pos.y
-            ee_z = self.current_ee_pos.z
-
-            curr_col = int(math.floor(ee_x / 0.050))
-            curr_row = 11 - int(math.floor(ee_y / 0.050))
-            curr_col = max(0, min(6, curr_col))
-            curr_row = max(0, min(11, curr_row))
-
-            # Floating HUD Banner
-            hud = Marker()
-            hud.header.frame_id = "world"
-            hud.header.stamp = now
-            hud.ns = "tool_hud"
-            hud.id = 100
-            hud.type = Marker.TEXT_VIEW_FACING
-            hud.action = Marker.ADD
-            hud.pose.position.x = 0.175
-            hud.pose.position.y = 0.650
-            hud.pose.position.z = 0.220
-            hud.pose.orientation.w = 1.0
-            hud.scale.z = 0.024
-            hud.color = ColorRGBA(r=0.05, g=0.05, b=0.05, a=1.0)
-            hud.text = (
-                f"xArm Tool Tip: X={ee_x*1000.0:5.1f}mm | Y={ee_y*1000.0:5.1f}mm | Z={ee_z*1000.0:5.1f}mm\n"
-                f"Grid Cell: [Col {curr_col}, Row {curr_row}]  |  Claw: {self.claw_state} ({self.claw_tick} ticks)"
-            )
-            markers.markers.append(hud)
-
-            # Table Ground Shadow / Crosshair circle
             shadow = Marker()
             shadow.header.frame_id = "world"
             shadow.header.stamp = now
@@ -620,8 +523,8 @@ class ArenaVisualizerNode(Node):
             shadow.id = 101
             shadow.type = Marker.CYLINDER
             shadow.action = Marker.ADD
-            shadow.pose.position.x = ee_x
-            shadow.pose.position.y = ee_y
+            shadow.pose.position.x = self.current_ee_pos.x
+            shadow.pose.position.y = self.current_ee_pos.y
             shadow.pose.position.z = 0.002
             shadow.pose.orientation.w = 1.0
             shadow.scale.x = 0.030
@@ -630,7 +533,7 @@ class ArenaVisualizerNode(Node):
             shadow.color = ColorRGBA(r=1.0, g=0.6, b=0.0, a=0.65)  # Translucent amber shadow
             markers.markers.append(shadow)
 
-        # 5. Visual Craft Cubes (25.4mm x 25.4mm x 25.4mm 3D Boxes)
+        # 4. Visual Craft Cubes (3D Solid Colored Blocks)
         for cube in self.cubes:
             m = Marker()
             m.header.frame_id = "world"
@@ -642,9 +545,6 @@ class ArenaVisualizerNode(Node):
             m.pose.position.x = cube.x_m
             m.pose.position.y = cube.y_m
             m.pose.position.z = cube.z_m
-            m.pose.orientation.x = 0.0
-            m.pose.orientation.y = 0.0
-            m.pose.orientation.z = 0.0
             m.pose.orientation.w = 1.0
             m.scale.x = 0.032
             m.scale.y = 0.032
@@ -656,32 +556,6 @@ class ArenaVisualizerNode(Node):
                 m.color = ColorRGBA(r=0.12, g=0.88, b=0.20, a=1.0)
             markers.markers.append(m)
             cube_markers.markers.append(m)
-
-            # Text tag floating over cube
-            txt = Marker()
-            txt.header.frame_id = "world"
-            txt.header.stamp = now
-            txt.ns = "craft_cubes"
-            txt.id = cube.id * 10 + 1
-            txt.type = Marker.TEXT_VIEW_FACING
-            txt.action = Marker.ADD
-            txt.pose.position.x = cube.x_m
-            txt.pose.position.y = cube.y_m
-            txt.pose.position.z = cube.z_m + 0.028
-            txt.pose.orientation.x = 0.0
-            txt.pose.orientation.y = 0.0
-            txt.pose.orientation.z = 0.0
-            txt.pose.orientation.w = 1.0
-            txt.scale.z = 0.014
-            txt.color = ColorRGBA(r=0.05, g=0.05, b=0.05, a=0.95)
-            status_txt = f"{cube.color.upper()} #{cube.id}"
-            if cube.state == "in_cell":
-                status_txt += f" [R{cube.initial_row}, C{cube.initial_col}]"
-            elif cube.state == "grabbed":
-                status_txt += " (HELD)"
-            txt.text = status_txt
-            markers.markers.append(txt)
-            cube_markers.markers.append(txt)
 
         self.pub_markers.publish(markers)
         self.pub_cube_markers.publish(cube_markers)
