@@ -130,6 +130,11 @@ class AutonomousSorterNode(Node):
 
         self.has_joint_feedback = True
 
+    @staticmethod
+    def get_cell_key(wx: float, wy: float) -> Tuple[int, int]:
+        """Maps world coordinates (mm) to unique 5cm grid cell column and row."""
+        return (int(math.floor(wx / 50.0)), int(math.floor(wy / 50.0)))
+
     def vision_callback(self, msg: String):
         """Processes telemetry from /vision/detected_objects and updates queue."""
         if self.is_busy:
@@ -154,7 +159,7 @@ class AutonomousSorterNode(Node):
                         # Cell deduplication: ignore cell if already sorted in current batch
                         wx = obj.get("world_x_mm", 0.0)
                         wy = obj.get("world_y_mm", 0.0)
-                        cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+                        cell_key = self.get_cell_key(wx, wy)
                         if cell_key in self.sorted_cells:
                             continue
                         filtered.append(obj)
@@ -177,7 +182,7 @@ class AutonomousSorterNode(Node):
             candidate = self.target_queue.pop(0)
             wx = candidate.get("world_x_mm", 0.0)
             wy = candidate.get("world_y_mm", 0.0)
-            cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+            cell_key = self.get_cell_key(wx, wy)
             if cell_key not in self.sorted_cells:
                 target = candidate
                 break
@@ -204,7 +209,7 @@ class AutonomousSorterNode(Node):
         # Mark cell as sorted immediately to lock out duplicate picks from stale vision frames
         wx = target.get("world_x_mm", 0.0)
         wy = target.get("world_y_mm", 0.0)
-        cell_key = (int(round(wx / 50.0)), int(round(wy / 50.0)))
+        cell_key = self.get_cell_key(wx, wy)
         self.sorted_cells.add(cell_key)
 
         self.is_busy = True
@@ -212,6 +217,7 @@ class AutonomousSorterNode(Node):
             self.process_target(target)
         finally:
             self.is_busy = False
+
 
 
     def process_target(self, target: Dict):

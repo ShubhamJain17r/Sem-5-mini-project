@@ -349,3 +349,53 @@ def test_autonomous_sorter_no_duplicate_picks(rclpy_context):
 
     node.destroy_node()
 
+
+def test_all_28_cells_unique_keys_and_sorting(rclpy_context):
+    """Verify that all 28 grid cells generate distinct keys and are queued without skipping."""
+    from sorting_arm.autonomous_sorter_node import AutonomousSorterNode
+    node = AutonomousSorterNode()
+    node.dry_run = True
+
+    # Generate all 28 picking cells: Cols 0..6, Rows 7..10
+    objects = []
+    expected_keys = set()
+    for r in [7, 8, 9, 10]:
+        for c in range(7):
+            wx = (c + 0.5) * 50.0
+            wy = (11 - r + 0.5) * 50.0
+            key = AutonomousSorterNode.get_cell_key(wx, wy)
+            expected_keys.add(key)
+            objects.append({
+                "color": "red" if (r + c) % 2 == 0 else "green",
+                "world_x_mm": wx,
+                "world_y_mm": wy,
+                "world_z_mm": 13.7,
+                "target_r_mm": math.hypot(wx - 175.0, wy - 375.0),
+                "target_theta_deg": 0.0,
+                "targetable": True,
+                "assigned_arm": "xarm_1",
+            })
+
+    # Exactly 28 unique cell keys must exist (none collapsed by rounding)
+    assert len(expected_keys) == 28, f"Expected 28 unique keys, got {len(expected_keys)}: {expected_keys}"
+
+    msg = String()
+    msg.data = json.dumps({"source": "vision", "objects": objects})
+    node.vision_callback(msg)
+
+    # All 28 objects must be admitted into target_queue
+    assert len(node.target_queue) == 28
+
+    node.enabled = True
+    # Run executive_loop 28 times; every object must be sorted
+    for i in range(28):
+        node.executive_loop()
+
+    assert node.cubes_sorted_in_batch == 28
+    assert len(node.sorted_cells) == 28
+    assert node.sorted_cells == expected_keys
+    assert len(node.target_queue) == 0
+
+    node.destroy_node()
+
+
