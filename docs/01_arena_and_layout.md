@@ -18,18 +18,19 @@ The entire workcell is organized on a single, continuous **flat wooden baseboard
    │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │
    │  │ │ Drop Yaw: 650 ticks   │        │ Drop Yaw: 354 ticks   │ │
    │  │ └───────────────────────┘        └───────────────────────┘ │
-   │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
-   │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
-   │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
-   │  │                             │ Heading: -90° (S) │          │
-   │  │                             └───────────────────┘          │
-   │  │                                                            │
-   │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
-   │  │                     (r = 160..300 mm reach)                │
-   │  │             [Red & Green Targets | Nearest-First]          │
-   │  │                                                            │
+   │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1] (50x50mm) │
+   │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425) [Row 3, C6]│
+   │  │                             │ (X=175.0, Y=375.0)│                       │
+   │  │   EXTENDED PICKING ARENA    │ Heading: -90° (S) │ EXTENDED PICKING ARENA│
+   │  │   (Rows 3..6, Cols 0, 1)    │ (Rows 3..5, C2..4)│ (Rows 3..6, Cols 5, 6)│
+   │  │                             └───────────────────┘                       │
+   │  │                                                                        │
+   │  │               EXTENDED FULL PICKING ARENA (Rows 7..10)                  │
+   │  │                     (r = 124.5..335.5 mm reach, 45 Cells)               │
+   │  │             [Red & Green Targets | Nearest-First Sorting]               │
+   │  │                                                                        │
    │  │   [ArUco #2] (50x50mm)                            [ArUco #3] (50x50mm) │
-   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6│
+   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6]│
    │  │                                                                        │
    │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)              │
    │  └────────────────────────────────────────────────────────────┘
@@ -40,7 +41,7 @@ The entire workcell is organized on a single, continuous **flat wooden baseboard
 - **$+X$**: Left to right across columns 0 to 6 ($0\text{ to }350\text{ mm}$). Workcell center is at $X = 175.0\text{ mm}$.
 - **$+Y$**: Front to rear across rows 11 to 0 ($0\text{ to }600\text{ mm}$).
 - **$+Z$**: Extends vertically upward from platform top face ($Z = 0.0\text{ mm}$).
-- **ArUco Markers**: $50\text{ mm} \times 50\text{ mm}$ markers in cells (3,0), (3,6), (11,6), (11,0).
+- **ArUco Markers**: $50\text{ mm} \times 50\text{ mm}$ markers in cells (3,0), (3,6), (11,0), (11,6) (DICT_4X4_50). Objects are strictly excluded from ArUco cells.
 
 ---
 
@@ -52,11 +53,17 @@ The single xArm 1S manipulator is mounted in Rows 3..5, Columns 2..4:
 | :--- | :---: | :---: | :---: | :--- |
 | **xArm 1S (Central)** | $(175.0\text{ mm}, 375.0\text{ mm})$ | $Z = 0.0\text{ mm}$ | **$-90.0^\circ$** (South down Col 3) | Picks Red & Green cubes from arena; deposits into rear containers via overhead rear-flip |
 
-### 2.1 Kinematic Reach Verification
+### 2.1 Kinematic Reach & Extended 45-Cell Grid Verification
 - **Base Center Position**: $(X = 175.0\text{ mm}, Y = 375.0\text{ mm})$.
-- **Baseplate Dimensions**: $140.0\text{ mm} \times 154.0\text{ mm}$ within $150\times 150\text{ mm}$ zone (Cols 2..4, Rows 3..5).
-- **Radial Reach Envelope**: $R \in [160, 300\text{ mm}]$.
-- **Picking Coverage**: Rows 7..10 ($Y \in [50, 250\text{ mm}]$) are 100% reachable.
+- **Baseplate Dimensions**: $140.0\text{ mm} \times 154.0\text{ mm}$ within $150\times 150\text{ mm}$ exclusion zone (Cols 2..4, Rows 3..5).
+- **Radial Reach Envelope**: $R \in [124.5, 335.5\text{ mm}]$.
+- **45 Valid Picking Cells (Rows 3..10)**:
+  - Row 3: Cols 1, 5 (2 cells; ArUco 0 & 1 and xArm base excluded)
+  - Row 4: Cols 0, 1, 5, 6 (4 cells; xArm base excluded)
+  - Row 5: Cols 0, 1, 5, 6 (4 cells; xArm base excluded)
+  - Row 6: Cols 0..6 (7 cells; near-pedestal offsets applied)
+  - Rows 7, 8, 9, 10: Cols 0..6 each (28 cells)
+  - Total: **45 picking cells (100% reachable with analytical IK)**.
 - **Red Container Reach**: $(X = 50.0, Y = 550.0) \to R = 215.1\text{ mm}$, rear-flip drop yaw tick $650$.
 - **Green Container Reach**: $(X = 300.0, Y = 550.0) \to R = 215.1\text{ mm}$, rear-flip drop yaw tick $354$.
 
