@@ -1,0 +1,183 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /RobotModel1
+        - /TF1
+        - /Arena Visuals & Grid1
+        - /Interactive Craft Cubes1
+      Splitter Ratio: 0.5
+    Tree Height: 600
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1.0
+      Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Arena Visuals & Grid
+      Namespaces:
+        craft_cubes: true
+        grid_lines: true
+        tool_hud: true
+        zones: true
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /simulation/arena_markers
+      Value: true
+    - Alpha: 1.0
+      Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Interactive Craft Cubes
+      Namespaces:
+        craft_cubes: true
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /simulation/cube_markers
+      Value: true
+    - Alpha: 1.0
+      Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Standard Visualization Markers
+      Namespaces:
+        craft_cubes: true
+        grid_lines: true
+        tool_hud: true
+        zones: true
+      Topic:
+        Depth: 10
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /visualization_marker_array
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: true
+      Name: RobotModel
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        world:
+          Value: true
+        table_board:
+          Value: false
+        xarm_1_base_link:
+          Value: true
+        tool_tip:
+          Value: true
+      Marker Scale: 0.04
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        {}
+      Update Interval: 0
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 240; 242; 245
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 0.90
+      Focal Pitch: 0.65
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Focal Yaw: 1.5707963
+      Invert Z Axis: false
+      Name: Perspective Orbit View
+      Near Clip Distance: 0.01
+      Pitch: 0.65
+      Target Frame: world
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 1.5707963
+      Focal Point:
+        X: 0.175
+        Y: 0.300
+        Z: 0.050
+    Saved:
+      - Class: rviz_default_plugins/Orbit
+        Distance: 0.90
+        Focal Pitch: 0.65
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05
+        Focal Yaw: 1.5707963
+        Invert Z Axis: false
+        Name: Perspective Orbit View
+        Near Clip Distance: 0.01
+        Pitch: 0.65
+        Target Frame: world
+        Value: Orbit (rviz_default_plugins)
+        Yaw: 1.5707963
+        Focal Point:
+          X: 0.175
+          Y: 0.300
+          Z: 0.050
+      - Class: rviz_default_plugins/Orbit
+        Distance: 0.85
+        Focal Pitch: 1.52
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05
+        Focal Yaw: 1.5707963
+        Invert Z Axis: false
+        Name: Top-Down (5cm Grid)
+        Near Clip Distance: 0.01
+        Pitch: 1.52
+        Target Frame: world
+        Value: Orbit (rviz_default_plugins)
+        Yaw: 1.5707963
+        Focal Point:
+          X: 0.175
+          Y: 0.300
+          Z: 0.000

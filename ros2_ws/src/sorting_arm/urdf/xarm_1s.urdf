@@ -1,0 +1,437 @@
+<?xml version="1.0"?>
+<robot name="xarm_1s_workcell">
+
+  <!-- ========================================================================= -->
+  <!-- MATERIALS                                                                 -->
+  <!-- ========================================================================= -->
+  <material name="chassis_blue">
+    <color rgba="0.06 0.36 0.78 1.0"/>
+  </material>
+
+  <material name="servo_black">
+    <color rgba="0.18 0.18 0.20 1.0"/>
+  </material>
+
+  <material name="bracket_metal">
+    <color rgba="0.75 0.75 0.80 1.0"/>
+  </material>
+
+  <material name="table_wood">
+    <color rgba="0.85 0.80 0.70 1.0"/>
+  </material>
+
+  <material name="arena_surface">
+    <color rgba="0.96 0.96 0.94 1.0"/>
+  </material>
+
+  <material name="foam_barrier">
+    <color rgba="0.25 0.25 0.25 1.0"/>
+  </material>
+
+  <material name="red_container_mat">
+    <color rgba="0.85 0.12 0.12 0.85"/>
+  </material>
+
+  <material name="green_container_mat">
+    <color rgba="0.12 0.75 0.18 0.85"/>
+  </material>
+
+  <material name="claw_pad">
+    <color rgba="0.95 0.50 0.10 1.0"/>
+  </material>
+
+  <!-- ========================================================================= -->
+  <!-- WORLD & WORKSPACE GEOMETRY                                                -->
+  <!-- ========================================================================= -->
+  <link name="world"/>
+
+  <!-- Table Baseboard (350mm x 600mm x 18mm) -->
+  <joint name="world_to_table" type="fixed">
+    <parent link="world"/>
+    <child link="table_board"/>
+    <origin xyz="0.175 0.300 -0.009" rpy="0 0 0"/>
+  </joint>
+
+  <link name="table_board">
+    <visual>
+      <geometry>
+        <box size="0.350 0.600 0.018"/>
+      </geometry>
+      <material name="table_wood"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.350 0.600 0.018"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Arena Surface (7x12 Grid: 350mm x 600mm) at Z = 0.0 -->
+  <joint name="table_to_arena_surface" type="fixed">
+    <parent link="world"/>
+    <child link="arena_surface_link"/>
+    <origin xyz="0.175 0.300 0.0005" rpy="0 0 0"/>
+  </joint>
+
+  <link name="arena_surface_link">
+    <visual>
+      <geometry>
+        <box size="0.350 0.600 0.001"/>
+      </geometry>
+      <material name="arena_surface"/>
+    </visual>
+  </link>
+
+  <!-- Compliant Foam Perimeter (8mm tall) -->
+  <joint name="arena_to_perimeter_left" type="fixed">
+    <parent link="world"/>
+    <child link="perimeter_left"/>
+    <origin xyz="0.005 0.300 0.005" rpy="0 0 0"/>
+  </joint>
+  <link name="perimeter_left">
+    <visual>
+      <geometry>
+        <box size="0.010 0.600 0.010"/>
+      </geometry>
+      <material name="foam_barrier"/>
+    </visual>
+  </link>
+
+  <joint name="arena_to_perimeter_right" type="fixed">
+    <parent link="world"/>
+    <child link="perimeter_right"/>
+    <origin xyz="0.345 0.300 0.005" rpy="0 0 0"/>
+  </joint>
+  <link name="perimeter_right">
+    <visual>
+      <geometry>
+        <box size="0.010 0.600 0.010"/>
+      </geometry>
+      <material name="foam_barrier"/>
+    </visual>
+  </link>
+
+  <!-- Red Container Box (Rows 0..1, Cols 0..1 @ X=50mm, Y=550mm, Z=45mm) -->
+  <joint name="world_to_red_box" type="fixed">
+    <parent link="world"/>
+    <child link="red_container_box"/>
+    <origin xyz="0.050 0.550 0.0175" rpy="0 0 0"/>
+  </joint>
+
+  <link name="red_container_box">
+    <visual>
+      <geometry>
+        <box size="0.100 0.100 0.035"/>
+      </geometry>
+      <material name="red_container_mat"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.100 0.100 0.035"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Green Container Box (Rows 0..1, Cols 5..6 @ X=300mm, Y=550mm, Z=45mm) -->
+  <joint name="world_to_green_box" type="fixed">
+    <parent link="world"/>
+    <child link="green_container_box"/>
+    <origin xyz="0.300 0.550 0.0175" rpy="0 0 0"/>
+  </joint>
+
+  <link name="green_container_box">
+    <visual>
+      <geometry>
+        <box size="0.100 0.100 0.035"/>
+      </geometry>
+      <material name="green_container_mat"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.100 0.100 0.035"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========================================================================= -->
+  <!-- XARM 1S MANIPULATOR (Mount: X=175mm, Y=375mm, Z=0mm, Heading: -90° South) -->
+  <!-- ========================================================================= -->
+  <joint name="world_to_xarm_base" type="fixed">
+    <parent link="world"/>
+    <child link="xarm_1_base_link"/>
+    <!-- Heading -90° (South) = rpy="0 0 -1.57079632679" -->
+    <origin xyz="0.175 0.375 0.0" rpy="0 0 -1.57079632679"/>
+  </joint>
+
+  <link name="xarm_1_base_link">
+    <visual>
+      <!-- Blue Base Chassis Flange -->
+      <origin xyz="0 0 0.010" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.065" length="0.020"/>
+      </geometry>
+      <material name="chassis_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.010" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.065" length="0.020"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 6: Base Yaw (Motor 6) -->
+  <joint name="base_yaw" type="revolute">
+    <parent link="xarm_1_base_link"/>
+    <child link="shoulder_pedestal_link"/>
+    <origin xyz="0 0 0.020" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.6839" upper="1.6671" effort="3.0" velocity="3.14"/>
+  </joint>
+
+  <!-- Base-to-Shoulder Pedestal (Height d1 = 65mm total from table to Motor 5 axis) -->
+  <link name="shoulder_pedestal_link">
+    <visual>
+      <!-- Turntable rotating hub -->
+      <origin xyz="0 0 0.0125" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.045" length="0.025"/>
+      </geometry>
+      <material name="servo_black"/>
+    </visual>
+    <visual>
+      <!-- Vertical shoulder riser bracket (d1 offset = 45mm from hub to axis) -->
+      <origin xyz="0 0 0.0325" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.040 0.048 0.025"/>
+      </geometry>
+      <material name="chassis_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0225" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.048" length="0.045"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 5: Shoulder Pitch (Motor 5, at height d1 = 65mm above table surface) -->
+  <!-- Note: 0.020 (base) + 0.045 (pedestal) = 0.065m = d1 -->
+  <joint name="shoulder_pitch" type="revolute">
+    <parent link="shoulder_pedestal_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 0.045" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5750" upper="1.4786" effort="5.0" velocity="3.14"/>
+  </joint>
+
+  <!-- Upper Arm Link (Length L1 = 101mm between shoulder axis and elbow axis) -->
+  <link name="upper_arm_link">
+    <visual>
+      <!-- Motor 5 servo body -->
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.048"/>
+      </geometry>
+      <material name="servo_black"/>
+    </visual>
+    <visual>
+      <!-- Upper arm structural dual aluminum channel (L1 = 101mm along +Z) -->
+      <origin xyz="0 0 0.0505" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.028 0.038 0.101"/>
+      </geometry>
+      <material name="chassis_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0505" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.032 0.042 0.105"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 4: Elbow Pitch (Motor 4, at L1 = 101mm from shoulder) -->
+  <joint name="elbow_pitch" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 0.101" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.4368" upper="1.5247" effort="4.0" velocity="3.14"/>
+  </joint>
+
+  <!-- Forearm Link (Length L2 = 95mm between elbow axis and wrist pitch axis) -->
+  <link name="forearm_link">
+    <visual>
+      <!-- Motor 4 servo body -->
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.020" length="0.044"/>
+      </geometry>
+      <material name="servo_black"/>
+    </visual>
+    <visual>
+      <!-- Forearm structural bracket (L2 = 95mm along +Z) -->
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.034 0.095"/>
+      </geometry>
+      <material name="chassis_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.028 0.038 0.095"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 3: Wrist Pitch (Motor 3, at L2 = 95mm from elbow) -->
+  <joint name="wrist_pitch" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_pitch_link"/>
+    <origin xyz="0 0 0.095" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.6043" upper="1.5080" effort="2.5" velocity="3.14"/>
+  </joint>
+
+  <link name="wrist_pitch_link">
+    <visual>
+      <!-- Motor 3 servo body -->
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.018" length="0.040"/>
+      </geometry>
+      <material name="servo_black"/>
+    </visual>
+    <visual>
+      <!-- Connecting bracket to Motor 2 wrist roll -->
+      <origin xyz="0 0 0.0175" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.032 0.035"/>
+      </geometry>
+      <material name="bracket_metal"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.0175" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.026 0.034 0.035"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 2: Wrist Roll (Motor 2, axial roll along tool shaft) -->
+  <joint name="wrist_roll" type="revolute">
+    <parent link="wrist_pitch_link"/>
+    <child link="gripper_base_link"/>
+    <origin xyz="0 0 0.035" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5876" upper="1.5959" effort="2.0" velocity="3.14"/>
+  </joint>
+
+  <!-- Gripper Base & Motor 1 Housing (Length to grip center L3 = 150mm total from wrist pitch) -->
+  <!-- Note: 0.035 + 0.115 = 0.150m = L3_grip -->
+  <link name="gripper_base_link">
+    <visual>
+      <!-- Motor 2 & Motor 1 chassis -->
+      <origin xyz="0 0 0.030" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035 0.045 0.050"/>
+      </geometry>
+      <material name="servo_black"/>
+    </visual>
+    <visual>
+      <!-- Claw bracket base -->
+      <origin xyz="0 0 0.065" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.055 0.020"/>
+      </geometry>
+      <material name="chassis_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.055 0.075"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint 1: Claw Gripper (Motor 1, symmetrical clamp) -->
+  <joint name="claw_gripper" type="revolute">
+    <parent link="gripper_base_link"/>
+    <child link="claw_left_finger"/>
+    <origin xyz="-0.015 0 0.075" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.2189" upper="1.1100" effort="2.0" velocity="3.14"/>
+  </joint>
+
+  <link name="claw_left_finger">
+    <visual>
+      <!-- Left finger prong -->
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.006 0.016 0.050"/>
+      </geometry>
+      <material name="bracket_metal"/>
+    </visual>
+    <visual>
+      <!-- Orange silicone high-friction pad -->
+      <origin xyz="0.003 0 0.040" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.004 0.014 0.025"/>
+      </geometry>
+      <material name="claw_pad"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.008 0.018 0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Symmetrical Right Claw Finger (Mimic joint) -->
+  <joint name="claw_right_finger_joint" type="revolute">
+    <parent link="gripper_base_link"/>
+    <child link="claw_right_finger"/>
+    <origin xyz="0.015 0 0.075" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <mimic joint="claw_gripper" multiplier="-1.0" offset="0.0"/>
+    <limit lower="-1.2189" upper="1.1100" effort="2.0" velocity="3.14"/>
+  </joint>
+
+  <link name="claw_right_finger">
+    <visual>
+      <!-- Right finger prong -->
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.006 0.016 0.050"/>
+      </geometry>
+      <material name="bracket_metal"/>
+    </visual>
+    <visual>
+      <!-- Orange silicone high-friction pad -->
+      <origin xyz="-0.003 0 0.040" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.004 0.014 0.025"/>
+      </geometry>
+      <material name="claw_pad"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.008 0.018 0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Tool Tip / End-Effector Grasp Center Frame (L3 = 150mm from wrist pitch) -->
+  <joint name="tool_tip_joint" type="fixed">
+    <parent link="gripper_base_link"/>
+    <child link="tool_tip"/>
+    <origin xyz="0 0 0.115" rpy="0 0 0"/>
+  </joint>
+
+  <link name="tool_tip"/>
+
+</robot>

@@ -205,18 +205,21 @@ def compute_natural_pitch(r: float, z: float) -> float:
     """
     Compute kinematically optimal approach pitch phi (degrees) based on reach and height.
 
-    - For tabletop picking and approach (Z < 50mm): generates a steep downward approach
-      angle (-40° to -70°) so the gripper descends onto objects cleanly from above.
-      This elevates the wrist pitch axis comfortably above the table surface (Zw > 115mm)
-      and keeps Motors 3, 4, 5 well within safe mechanical bounds.
+    - For near-base picking (r < 160mm, Z < 50mm): targets -74.0° to keep elbow pitch
+      (Motor 4) safely above its 153-tick hardware limit while keeping wrist pitch (Motor 3) safe.
+    - For tabletop picking and approach (Z < 50mm): generates steep downward approach
+      angle (-40° to -75°) so the gripper descends onto objects cleanly from above.
     - For elevated transit (Z >= 50mm): transitions smoothly toward shallower angles.
     """
+    if r < 160.0 and z < 50.0:
+        return -74.0
+
     if r < 190.0 and z < 30.0:
         return -70.0
 
     if z < 50.0:
         phi = -55.0 + 0.22 * (r - 220.0) + 0.25 * (z - 12.5)
-        return clip(phi, -70.0, -25.0)
+        return clip(phi, -75.0, -25.0)
 
     # Elevated heights
     phi = -35.0 + 0.20 * (r - 220.0) + 0.25 * (z - 50.0)
@@ -259,9 +262,10 @@ def solve_ik(
 
     sol = _solve_ik_internal(r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
     if not sol.success and auto_pitch_fallback:
-        # Search nearby pitch offsets if default natural pitch hit a joint limit
-        for delta in [-5.0, 5.0, -10.0, 10.0, -15.0, 15.0]:
-            candidate_phi = clip(target_phi + delta, -75.0, 0.0)
+        # Fine-grained outward pitch search (±1° to ±25°) to guarantee convergence in tight near-base envelopes
+        search_deltas = [d for delta in range(1, 26) for d in (-delta, delta)]
+        for delta in search_deltas:
+            candidate_phi = clip(target_phi + delta, -85.0, 0.0)
             alt_sol = _solve_ik_internal(
                 r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip
             )
@@ -494,8 +498,8 @@ def world_to_arm_polar(
     """
     p = params if params is not None else load_kinematic_parameters(config_path, arm_id)
 
-    base_x = 200.0
-    base_y = 280.0
+    base_x = 175.0
+    base_y = 375.0
     base_z = 0.0
 
     candidates = [
@@ -612,9 +616,19 @@ def get_compartment_target(
         ik_sol = solve_ik(r=r, theta=theta_arm, z=rel_z, params=params)
 
         # Color-specific drop pose preset (e.g. drop_container_red, drop_container_green)
-        pose_key = f"drop_container_{norm_color}"
-        drop_pose = arm_cfg.get("poses", {}).get(pose_key, arm_cfg.get("poses", {}).get("drop_container", {}))
-        preset_yaw = matched.get("drop_yaw_tick", arm_cfg.get("collection_box", {}).get("base_yaw_drop_tick", 650 if norm_color == "red" else 354))
+        if norm_color == "red":
+            drop_ticks_list = arm_cfg.get("poses", {}).get("drop_container_red", {}).get("ticks", [226, 503, 149, 629, 347, 650])
+            preset_yaw = 650
+        elif norm_color == "green":
+            drop_ticks_list = arm_cfg.get("poses", {}).get("drop_container_green", {}).get("ticks", [226, 503, 149, 629, 347, 354])
+            preset_yaw = 354
+        else:
+            pose_key = f"drop_container_{norm_color}"
+            drop_pose = arm_cfg.get("poses", {}).get(pose_key, arm_cfg.get("poses", {}).get("drop_container", {}))
+            drop_ticks_list = drop_pose.get("ticks", [226, 503, 149, 629, 347, 650])
+            preset_yaw = matched.get("drop_yaw_tick", 650)
+
+        calibrated_ticks = {i + 1: drop_ticks_list[i] for i in range(min(6, len(drop_ticks_list)))}
 
         return {
             "color": norm_color,
@@ -626,10 +640,10 @@ def get_compartment_target(
             "theta_arm_deg": theta_arm,
             "z": rel_z,
             "drop_yaw_tick": preset_yaw,
-            "ik_success": ik_sol.success or (drop_pose.get("ticks") is not None),
-            "ik_ticks": ik_sol.ticks if ik_sol.success else {i: drop_pose["ticks"][i-1] for i in range(1, 7)} if drop_pose.get("ticks") else None,
-            "ik_message": ik_sol.message if ik_sol.success else "Using rear-flip calibrated drop preset",
-            "drop_pose_preset": drop_pose.get("ticks", None),
+            "ik_success": True,
+            "ik_ticks": calibrated_ticks,
+            "ik_message": f"Using calibrated rear-flip drop preset for {norm_color.upper()} container",
+            "drop_pose_preset": drop_ticks_list,
         }
     except Exception:
         return None
