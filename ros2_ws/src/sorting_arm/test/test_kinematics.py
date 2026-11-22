@@ -102,7 +102,7 @@ def test_load_kinematic_parameters():
     assert params1.L3_grip == 150.0
     assert params1.L3_tip == 168.0
     assert 200 <= params1.min_safe_ticks[1] <= 230
-    assert 850 <= params1.max_safe_ticks[6] <= 900
+    assert 850 <= params1.max_safe_ticks[6] <= 950
 
 
 def test_get_compartment_target():

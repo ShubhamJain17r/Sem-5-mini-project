@@ -197,7 +197,7 @@ class AutonomousSorterNode(Node):
                 assigned = obj.get("assigned_arm", "xarm_1")
                 if assigned in [self.arm_id, "xarm", "xarm_1", ""]:
                     r = obj.get("target_r_mm", 0.0)
-                    if 125.0 <= r <= 345.0:
+                    if 95.0 <= r <= 350.0:
                         # Cell deduplication: ignore cell if already sorted in current batch
                         wx = obj.get("world_x_mm", 0.0)
                         wy = obj.get("world_y_mm", 0.0)

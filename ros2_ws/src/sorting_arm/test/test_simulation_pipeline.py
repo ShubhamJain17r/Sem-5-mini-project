@@ -399,3 +399,73 @@ def test_all_28_cells_unique_keys_and_sorting(rclpy_context):
     node.destroy_node()
 
 
+def test_all_45_cells_extended_arena_sorting(rclpy_context):
+    """Verify that all 45 picking cells in Rows 3..10 generate distinct keys and are queued and sorted."""
+    from sorting_arm.autonomous_sorter_node import AutonomousSorterNode
+    node = AutonomousSorterNode()
+    node.dry_run = True
+
+    # Generate all 45 picking cells: Cols 0..6, Rows 3..10, excluding ArUco and xArm mount
+    from sorting_arm.kinematics import world_to_arm_polar
+    objects = []
+    expected_keys = set()
+    for r in range(3, 11):
+        for c in range(7):
+            if (c, r) in [(0, 3), (6, 3)]:
+                continue
+            if c in (2, 3, 4) and r in (3, 4, 5):
+                continue
+
+            if r == 6 and c == 3:
+                wx, wy = 175.0, 250.5
+            elif r == 6 and c in (2, 4):
+                wx, wy = (c + 0.5) * 50.0, 250.5
+            elif r in (3, 4, 5) and c == 1:
+                wx = 52.0
+                wy = 402.0 if r == 3 else (352.0 if r == 4 else 302.0)
+            elif r in (3, 4, 5) and c == 5:
+                wx = 298.0
+                wy = 402.0 if r == 3 else (352.0 if r == 4 else 302.0)
+            else:
+                wx = (c + 0.5) * 50.0
+                wy = (11 - r + 0.5) * 50.0
+
+            key = AutonomousSorterNode.get_cell_key(wx, wy)
+            expected_keys.add(key)
+            r_mm, theta_arm, _ = world_to_arm_polar(wx, wy, 13.7, arm_id="xarm_1", params=node.params)
+            objects.append({
+                "color": "red" if (r + c) % 2 == 0 else "green",
+                "world_x_mm": wx,
+                "world_y_mm": wy,
+                "world_z_mm": 13.7,
+                "target_r_mm": r_mm,
+                "target_theta_deg": theta_arm,
+                "targetable": True,
+                "assigned_arm": "xarm_1",
+            })
+
+    # Exactly 45 unique cell keys must exist
+    assert len(expected_keys) == 45, f"Expected 45 unique keys, got {len(expected_keys)}"
+    assert len(objects) == 45
+
+    msg = String()
+    msg.data = json.dumps({"source": "vision", "objects": objects})
+    node.vision_callback(msg)
+
+    # All 45 objects must be admitted into target_queue
+    assert len(node.target_queue) == 45
+
+    node.enabled = True
+    # Run executive_loop 45 times; every object must be sorted
+    for _ in range(45):
+        node.executive_loop()
+
+    assert node.cubes_sorted_in_batch == 45
+    assert len(node.sorted_cells) == 45
+    assert node.sorted_cells == expected_keys
+    assert len(node.target_queue) == 0
+
+    node.destroy_node()
+
+
+

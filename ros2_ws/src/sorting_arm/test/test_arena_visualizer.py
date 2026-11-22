@@ -55,9 +55,13 @@ def test_arena_visualizer_grid_and_zero_text(rclpy_context):
     text_markers = [m for m in latest.markers if m.type == Marker.TEXT_VIEW_FACING]
     assert len(text_markers) == 0, f"Expected 0 text markers, found {len(text_markers)}"
 
-    # Verify picking zone boundary exists
+    # Verify picking zone boundary and arm base mounting footprint exist
     zone_markers = [m for m in latest.markers if m.ns == "zones" and m.type == Marker.LINE_STRIP]
-    assert len(zone_markers) == 1
+    assert len(zone_markers) == 2, f"Expected 2 zone outlines (picking zone + arm base), found {len(zone_markers)}"
+
+    # Verify 4 physical ArUco markers rendered on table
+    aruco_markers = [m for m in latest.markers if m.ns == "aruco_markers"]
+    assert len(aruco_markers) == 4, f"Expected 4 ArUco markers, found {len(aruco_markers)}"
 
     node.destroy_node()
 
@@ -109,8 +113,10 @@ def test_arena_visualizer_cube_spawning_and_vision_sync(rclpy_context):
 
     # Spin to publish
     start = time.time()
-    while time.time() - start < 0.2:
+    while time.time() - start < 1.0:
         executor.spin_once(timeout_sec=0.05)
+        if received_vision:
+            break
 
     assert len(received_vision) >= 1
     data = json.loads(received_vision[-1].data)
@@ -180,38 +186,49 @@ def test_arena_visualizer_grasp_and_deposit(rclpy_context):
 
 
 def test_arena_visualizer_full_grid_and_reseed(rclpy_context):
-    """Verify that full_grid mode populates 28 cells with red/green cubes and reseed works."""
+    """Verify that full_grid mode populates 45 cells with red/green cubes and reseed works."""
     from std_srvs.srv import Trigger
 
     node = ArenaVisualizerNode()
 
-
-    # Initial full grid should have exactly 28 cubes across Rows 7..10 and Cols 0..6
-    assert len(node.cubes) == 28
+    # Initial full grid should have exactly 45 cubes across Rows 3..10 and Cols 0..6
+    assert len(node.cubes) == 45
     active_cubes = [c for c in node.cubes if c.state == "in_cell"]
-    assert len(active_cubes) == 28
+    assert len(active_cubes) == 45
 
     # Check colors: only red and green
     reds = [c for c in node.cubes if c.color == "red"]
     greens = [c for c in node.cubes if c.color == "green"]
-    assert len(reds) + len(greens) == 28
+    assert len(reds) + len(greens) == 45
     assert len(reds) > 0
     assert len(greens) > 0
 
-    # Check coordinate bounds: Cols 0..6 (0.025 to 0.325m), Rows 7..10 (0.075 to 0.225m)
+    # Check that NO cube is placed on ArUco markers (Row 3 Cols 0 and 6)
+    for c in node.cubes:
+        assert not (c.initial_col in (0, 6) and c.initial_row == 3), f"Cube #{c.id} placed on ArUco marker at Col {c.initial_col}, Row {c.initial_row}"
+
+    # Check that NO cube is placed on xArm mounting footprint (Cols 2..4 in Rows 3..5)
+    for c in node.cubes:
+        assert not (c.initial_col in (2, 3, 4) and c.initial_row in (3, 4, 5)), f"Cube #{c.id} placed on xArm mount at Col {c.initial_col}, Row {c.initial_row}"
+
+    # Check coordinate bounds: Cols 0..6 (0.025 to 0.325m), Rows 3..10 (0.075 to 0.425m)
     for c in node.cubes:
         assert 0.020 <= c.x_m <= 0.330
-        assert 0.070 <= c.y_m <= 0.230
-        assert c.initial_row in [7, 8, 9, 10]
+        assert 0.070 <= c.y_m <= 0.430
+        assert c.initial_row in range(3, 11)
         assert 0 <= c.initial_col <= 6
+
+    # Verify cubes exist in upper rows (3..6) as well as lower rows (7..10)
+    rows_present = set(c.initial_row for c in node.cubes)
+    assert set(range(3, 11)) == rows_present
 
     # Test reseed service
     req = Trigger.Request()
     resp = Trigger.Response()
     node.handle_reseed_grid_srv(req, resp)
     assert resp.success
-    assert "Reseeded 28 grid cells" in resp.message
-    assert len(node.cubes) == 28
+    assert "Reseeded 45 grid cells" in resp.message
+    assert len(node.cubes) == 45
 
     node.destroy_node()
 

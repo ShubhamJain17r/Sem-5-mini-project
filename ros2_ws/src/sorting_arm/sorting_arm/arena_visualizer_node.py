@@ -150,12 +150,19 @@ class ArenaVisualizerNode(Node):
         return cube
 
     def populate_full_grid(self, randomize: bool = True) -> Tuple[int, int]:
-        """Populates all 28 picking cells (Rows 7..10, Cols 0..6) with randomly assigned Red and Green craft cubes."""
+        """Populates all 45 valid picking cells (Rows 3..10, Cols 0..6, excluding ArUco and xArm mount) with randomly assigned Red and Green craft cubes."""
         import random
         red_cnt = 0
         grn_cnt = 0
-        for r in [7, 8, 9, 10]:
+        for r in range(3, 11):
             for c in range(7):
+                # Exclude ArUco markers: Row 3 Col 0 and Row 3 Col 6
+                if (c, r) in [(0, 3), (6, 3)]:
+                    continue
+                # Exclude xArm base mounting footprint: Cols 2..4 in Rows 3..5
+                if c in (2, 3, 4) and r in (3, 4, 5):
+                    continue
+
                 if randomize:
                     color = random.choice(["red", "green"])
                 else:
@@ -166,12 +173,27 @@ class ArenaVisualizerNode(Node):
                 else:
                     grn_cnt += 1
 
-                x_m = (c + 0.5) * 0.050
-                y_m = (11 - r + 0.5) * 0.050
+                # Calculate cell coordinates with near-pedestal reachability offsets
+                if r == 6 and c == 3:
+                    x_m = 0.175
+                    y_m = 0.2505
+                elif r == 6 and c in (2, 4):
+                    x_m = (c + 0.5) * 0.050
+                    y_m = 0.2505
+                elif r in (3, 4, 5) and c == 1:
+                    x_m = 0.052
+                    y_m = 0.402 if r == 3 else (0.352 if r == 4 else 0.302)
+                elif r in (3, 4, 5) and c == 5:
+                    x_m = 0.298
+                    y_m = 0.402 if r == 3 else (0.352 if r == 4 else 0.302)
+                else:
+                    x_m = (c + 0.5) * 0.050
+                    y_m = (11 - r + 0.5) * 0.050
+
                 self._add_cube(color, x_m, y_m)
 
         self.get_logger().info(
-            f"Populated 28-cell grid (Rows 7..10, Cols 0..6): {red_cnt} RED, {grn_cnt} GREEN cubes."
+            f"Populated 45-cell grid (Rows 3..10, Cols 0..6): {red_cnt} RED, {grn_cnt} GREEN cubes."
         )
         return red_cnt, grn_cnt
 
@@ -228,6 +250,14 @@ class ArenaVisualizerNode(Node):
         row = 11 - int(math.floor(y / 0.050))
         col = max(0, min(6, col))
         row = max(0, min(11, row))
+
+        # Guard against clicks on ArUco markers or xArm base mounting footprint
+        if (col, row) in [(0, 3), (6, 3), (0, 11), (6, 11)]:
+            self.get_logger().warn(f"Cannot place cube on ArUco marker at Col {col}, Row {row}.")
+            return
+        if col in (2, 3, 4) and row in (3, 4, 5):
+            self.get_logger().warn(f"Cannot place cube on xArm mounting footprint at Col {col}, Row {row}.")
+            return
 
         # Snap to cell center
         cell_center_x = (col + 0.5) * 0.050
@@ -298,14 +328,14 @@ class ArenaVisualizerNode(Node):
         return response
 
     def handle_reseed_grid_srv(self, request, response):
-        """Service callback to clear placed cubes and reseed all 28 cells with a fresh scattered pattern."""
+        """Service callback to clear placed cubes and reseed all 45 cells with a fresh scattered pattern."""
         self.cubes.clear()
         self.gripped_cube_id = None
         self._publish_delete_all_markers()
         r_cnt, g_cnt = self.populate_full_grid(randomize=True)
         self.publish_detected_objects()
         response.success = True
-        response.message = f"Reseeded 28 grid cells: {r_cnt} RED, {g_cnt} GREEN."
+        response.message = f"Reseeded 45 grid cells: {r_cnt} RED, {g_cnt} GREEN."
         self.get_logger().info(response.message)
         return response
 
@@ -318,7 +348,7 @@ class ArenaVisualizerNode(Node):
             r_cnt, g_cnt = self.populate_full_grid(randomize=True)
             self.publish_detected_objects()
             response.success = True
-            response.message = f"Populated 28 cells with {r_cnt} RED and {g_cnt} GREEN cubes."
+            response.message = f"Populated 45 cells with {r_cnt} RED and {g_cnt} GREEN cubes."
         else:
             response.success = False
             response.message = "Grid already contains active cubes."
@@ -412,16 +442,24 @@ class ArenaVisualizerNode(Node):
             ee_y = self.current_ee_pos.y
             ee_z = self.current_ee_pos.z
 
+            if self.claw_is_clamped and self.gripped_cube_id is None:
+                # Find the closest in-cell cube within grasp range
+                candidates = []
+                for cube in self.cubes:
+                    if cube.state == "in_cell":
+                        dist = math.hypot(ee_x - cube.x_m, ee_y - cube.y_m, ee_z - cube.z_m)
+                        if dist <= 0.035:
+                            candidates.append((dist, cube))
+                if candidates:
+                    candidates.sort(key=lambda item: item[0])
+                    best_cube = candidates[0][1]
+                    best_cube.state = "grabbed"
+                    self.gripped_cube_id = best_cube.id
+                    self.get_logger().info(f"Claw gripped {best_cube.color.upper()} cube #{best_cube.id} (dist={candidates[0][0]*1000.0:.1f}mm).")
+                    self.publish_detected_objects()
+
             for cube in self.cubes:
-                if cube.state == "in_cell":
-                    # Check distance to claw
-                    dist = math.hypot(ee_x - cube.x_m, ee_y - cube.y_m, ee_z - cube.z_m)
-                    if dist <= 0.040 and self.claw_is_clamped and self.gripped_cube_id is None:
-                        cube.state = "grabbed"
-                        self.gripped_cube_id = cube.id
-                        self.get_logger().info(f"Claw gripped {cube.color.upper()} cube #{cube.id}.")
-                        self.publish_detected_objects()
-                elif cube.state == "grabbed" and cube.id == self.gripped_cube_id:
+                if cube.state == "grabbed" and cube.id == self.gripped_cube_id:
                     if self.claw_is_clamped:
                         # Follow tool_tip
                         cube.x_m = ee_x
@@ -431,8 +469,8 @@ class ArenaVisualizerNode(Node):
                         # Released! Determine drop location
                         cube.state = "placed"
                         self.gripped_cube_id = None
-                        # Check if near Red Box (X <= 0.175, Y >= 0.450)
-                        if cube.x_m <= 0.175 and cube.y_m >= 0.450:
+                        # Check if near Red Box (X <= 0.175, Y >= 0.480)
+                        if cube.x_m <= 0.175 and cube.y_m >= 0.480:
                             red_count = sum(1 for c in self.cubes if c.state == "placed" and c.x_m <= 0.175)
                             if red_count <= 1:
                                 ox, oy, oz = 0.0, 0.0, 0.035
@@ -444,8 +482,8 @@ class ArenaVisualizerNode(Node):
                             cube.y_m = 0.550 + oy
                             cube.z_m = oz
                             self.get_logger().info(f"Deposited {cube.color.upper()} cube #{cube.id} in RED TRAY (X={cube.x_m*1000:.1f}mm, Y={cube.y_m*1000:.1f}mm).")
-                        # Check if near Green Box (X > 0.175, Y >= 0.450)
-                        elif cube.x_m > 0.175 and cube.y_m >= 0.450:
+                        # Check if near Green Box (X > 0.175, Y >= 0.480)
+                        elif cube.x_m > 0.175 and cube.y_m >= 0.480:
                             green_count = sum(1 for c in self.cubes if c.state == "placed" and c.x_m > 0.175)
                             if green_count <= 1:
                                 ox, oy, oz = 0.0, 0.0, 0.035
@@ -494,7 +532,7 @@ class ArenaVisualizerNode(Node):
 
         markers.markers.append(grid_marker)
 
-        # 2. Picking Zone Boundary Outline (Marker.LINE_STRIP)
+        # 2. Picking Zone Boundary Outline (Marker.LINE_STRIP across Rows 3..10)
         pz_marker = Marker()
         pz_marker.header.frame_id = "world"
         pz_marker.header.stamp = now
@@ -506,13 +544,58 @@ class ArenaVisualizerNode(Node):
         pz_marker.scale.x = 0.003
         pz_marker.color = ColorRGBA(r=0.1, g=0.8, b=0.3, a=0.8)  # Green border
         pz_marker.points = [
-            Point(x=0.025, y=0.100, z=0.003),
-            Point(x=0.325, y=0.100, z=0.003),
-            Point(x=0.325, y=0.300, z=0.003),
-            Point(x=0.025, y=0.300, z=0.003),
-            Point(x=0.025, y=0.100, z=0.003),
+            Point(x=0.000, y=0.050, z=0.003),
+            Point(x=0.350, y=0.050, z=0.003),
+            Point(x=0.350, y=0.450, z=0.003),
+            Point(x=0.000, y=0.450, z=0.003),
+            Point(x=0.000, y=0.050, z=0.003),
         ]
         markers.markers.append(pz_marker)
+
+        # 3. xArm Base Mounting Footprint (Marker.LINE_STRIP, Rows 3..5, Cols 2..4)
+        arm_base_marker = Marker()
+        arm_base_marker.header.frame_id = "world"
+        arm_base_marker.header.stamp = now
+        arm_base_marker.ns = "zones"
+        arm_base_marker.id = 55
+        arm_base_marker.type = Marker.LINE_STRIP
+        arm_base_marker.action = Marker.ADD
+        arm_base_marker.pose.orientation.w = 1.0
+        arm_base_marker.scale.x = 0.002
+        arm_base_marker.color = ColorRGBA(r=0.95, g=0.55, b=0.1, a=0.85)  # Amber warning border
+        arm_base_marker.points = [
+            Point(x=0.100, y=0.300, z=0.003),
+            Point(x=0.250, y=0.300, z=0.003),
+            Point(x=0.250, y=0.450, z=0.003),
+            Point(x=0.100, y=0.450, z=0.003),
+            Point(x=0.100, y=0.300, z=0.003),
+        ]
+        markers.markers.append(arm_base_marker)
+
+        # 4. ArUco Markers on table surface (40x40mm thin pads, DICT_4X4_50)
+        aruco_pads = [
+            (0, 0.025, 0.425),
+            (1, 0.325, 0.425),
+            (2, 0.325, 0.025),
+            (3, 0.025, 0.025),
+        ]
+        for aid, ax, ay in aruco_pads:
+            am = Marker()
+            am.header.frame_id = "world"
+            am.header.stamp = now
+            am.ns = "aruco_markers"
+            am.id = 60 + aid
+            am.type = Marker.CUBE
+            am.action = Marker.ADD
+            am.pose.position.x = ax
+            am.pose.position.y = ay
+            am.pose.position.z = 0.001
+            am.pose.orientation.w = 1.0
+            am.scale.x = 0.040
+            am.scale.y = 0.040
+            am.scale.z = 0.0015
+            am.color = ColorRGBA(r=0.08, g=0.08, b=0.08, a=0.95)  # Matte dark charcoal
+            markers.markers.append(am)
 
         # 3. Live Tool Tip Table Ground Shadow / Crosshair circle
         if self.current_ee_pos:
