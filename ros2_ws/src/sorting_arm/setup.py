@@ -38,6 +38,8 @@ setup(
             'autonomous_sorter = sorting_arm.autonomous_sorter_node:main',
             'mock_vision_node = sorting_arm.mock_vision_node:main',
             'arena_visualizer = sorting_arm.arena_visualizer_node:main',
+            'run_autonomous_system = sorting_arm.run_autonomous_system:main',
+            'autonomous_system = sorting_arm.run_autonomous_system:main',
         ],
     },
 )

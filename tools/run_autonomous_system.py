@@ -22,7 +22,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 # Ensure repository root and sorting_arm package are on sys.path
-script_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.realpath(__file__))
 repo_root = os.path.abspath(os.path.join(script_dir, ".."))
 sorting_arm_pkg = os.path.join(repo_root, "ros2_ws", "src", "sorting_arm")
 for p in [repo_root, sorting_arm_pkg]:
@@ -173,11 +173,13 @@ class AutonomousSortingSystem:
 
         self.cap: Optional[cv2.VideoCapture] = None
         self.driver: Optional[XArmDriver] = None
-        self.pipeline = ArenaVisionPipeline(config_dir="config")
-        self.params = load_kinematic_parameters("config/xarm_hardware.yaml", arm_id="xarm_1")
+        config_dir = os.path.join(repo_root, "config")
+        hw_yaml = os.path.join(config_dir, "xarm_hardware.yaml")
+        self.pipeline = ArenaVisionPipeline(config_dir=config_dir)
+        self.params = load_kinematic_parameters(hw_yaml, arm_id="xarm_1")
 
         # Load hardware config poses
-        with open("config/xarm_hardware.yaml", "r") as f:
+        with open(hw_yaml, "r") as f:
             self.hw_config = yaml.safe_load(f)
         self.poses = self.hw_config.get("manipulators", {}).get("xarm_1", {}).get("poses", {})
 
