@@ -96,7 +96,7 @@ def draw_hud(
     cv2.addWeighted(overlay, 0.75, hud, 0.25, 0, hud)
 
     # Title
-    cv2.putText(hud, "xArm 1S Kinematic Arena Grid Survey", (15, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
+    cv2.putText(hud, "xArm 1S Kinematic Central Pickup Zone Survey", (15, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (255, 255, 255), 2)
     
     # Status badge
     badge_color = (0, 200, 0) if is_reachable else (0, 140, 255)
@@ -131,9 +131,11 @@ def run_survey(
     output_video_path: str = "artifacts/arena_grid_traversal.mp4",
     output_csv_path: str = "data/grid_traversal_telemetry.csv",
     dry_run: bool = False,
+    pickup_zone_only: bool = True,
 ):
+    mode_str = "Central Pickup Zone (Rows 7-10, Cols 1-5)" if pickup_zone_only else "Complete 42-Point Grid (Rows 6-11, Cols 0-6)"
     print("========================================================================")
-    print("  xArm 1S Complete Arena Grid Traversal & Kinematics Survey")
+    print(f"  xArm 1S Kinematics Survey — {mode_str}")
     print(f"  Camera Device: {device_path} | Serial Port: {arm_port} | Dry Run: {dry_run}")
     print(f"  Hover Altitude: Z = {safe_z_mm:.1f} mm | Hold Time: {hold_time_sec:.1f} s")
     print("========================================================================")
@@ -241,17 +243,22 @@ def run_survey(
 
     # 6. Grid Traversal Loop
     try:
-        # Loop through rows 6 to 11
-        for row in range(6, 12):
+        # Loop through rows: Rows 7..10 for pickup zone, or 6..11 for complete grid
+        row_range = range(7, 11) if pickup_zone_only else range(6, 12)
+        for row in row_range:
             target_yw = 275.0 - (row - 6) * 50.0
             print(f"\n=======================================================")
             print(f"  TRAVERSING ROW {row} (Ground Truth Y = {target_yw:.1f} mm)")
             print(f"=======================================================")
 
-            # Standard left->right traversal: cols 0 to 6 on every row
-            cols = list(range(0, 7))
+            # Pickup zone only uses Cols 1..5; full grid uses Cols 0..6
+            cols = list(range(1, 6)) if pickup_zone_only else list(range(0, 7))
 
             for col in cols:
+                # Danger Zone Safety Check: strictly prohibit hardware motion over danger zone
+                if pickup_zone_only and (row in [0, 1, 2, 3, 4, 5, 6, 11] or col in [0, 6]):
+                    print(f"  [Safety Exclusion] Grid({row}, {col}) is in Danger Zone! Skipping.")
+                    continue
                 target_xw = 25.0 + col * 50.0
                 target_zw = safe_z_mm
 
@@ -298,8 +305,10 @@ def run_survey(
                 # Recompute commanded world Cartesian coordinates
                 cmd_xw, cmd_yw = polar_to_world(cmd_r, cmd_th, base_x, base_y, nominal_heading)
 
-                # Send motion command to servos (extra time for long sweep to col 0)
-                move_ms = 1400 if (col == 0 and row > 6) else 950
+                # Send motion command to servos (extra time for reset sweep to starting column)
+                start_col = 1 if pickup_zone_only else 0
+                start_row = 7 if pickup_zone_only else 6
+                move_ms = 1300 if (col == start_col and row > start_row) else 950
                 driver.send_multi_servo_move(cmd_ticks, time_ms=move_ms)
                 
                 # Update HUD parameters during motion
@@ -494,6 +503,12 @@ def generate_analysis_plot(csv_path: str, output_img_path: str):
     cv2.rectangle(canvas, (tl[0], tl[1]), (br[0], br[1]), (80, 80, 80), 2)
     cv2.putText(canvas, "Arena Working Grid (Rows 6-11)", (tl[0] + 10, tl[1] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (80, 80, 80), 1)
 
+    # Central Pickup Zone (X: 50..300, Y: 50..250)
+    gp_tl = to_canvas(50.0, 250.0)
+    gp_br = to_canvas(300.0, 50.0)
+    cv2.rectangle(canvas, (gp_tl[0], gp_tl[1]), (gp_br[0], gp_br[1]), (0, 180, 0), 2)
+    cv2.putText(canvas, "Central Pickup Zone (Rows 7-10, Cols 1-5)", (gp_tl[0] + 8, gp_tl[1] + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 150, 0), 1)
+
     # xArm Base at (175, 375)
     b_pt = to_canvas(175.0, 375.0)
     cv2.circle(canvas, b_pt, 12, (0, 0, 0), -1)
@@ -538,7 +553,8 @@ def generate_analysis_plot(csv_path: str, output_img_path: str):
     mean_err = float(np.mean(errors)) if errors else 0.0
 
     # Title & Stats Banner
-    cv2.putText(canvas, "xArm 1S Kinematics Arena Survey: 42-Point Grid Traversal", (margin_x, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2)
+    chart_title = "xArm 1S Kinematics: Central Pickup Zone Traversal" if total_cnt <= 20 else "xArm 1S Kinematics Arena Survey: 42-Point Grid Traversal"
+    cv2.putText(canvas, chart_title, (margin_x, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 0, 0), 2)
     stats_str = f"Reachable: {reachable_cnt}/{total_cnt} ({reachable_cnt/total_cnt*100:.1f}%) | Mean Radial Tracking Error: {mean_err:.2f} mm"
     cv2.putText(canvas, stats_str, (margin_x, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (60, 60, 60), 1)
 
@@ -569,6 +585,7 @@ if __name__ == "__main__":
     parser.add_argument("--z", type=float, default=35.0, help="Hover altitude above table in mm (default: 35.0)")
     parser.add_argument("--hold", type=float, default=0.5, help="Hold dwell time at each cell in seconds (default: 0.5)")
     parser.add_argument("--dry-run", action="store_true", help="Simulate arm motion without physical hardware")
+    parser.add_argument("--all-grid", action="store_true", help="Traverse all 42 grid cells including danger zone (default: False, pickup zone only)")
     args = parser.parse_args()
 
     run_survey(
@@ -577,4 +594,5 @@ if __name__ == "__main__":
         safe_z_mm=args.z,
         hold_time_sec=args.hold,
         dry_run=args.dry_run,
+        pickup_zone_only=not args.all_grid,
     )
