@@ -284,9 +284,10 @@ python3 tools/run_autonomous_system.py
    - Measures camera mounting height $H_c$, Euclidean distance $D_c$, and depression angle $\theta_{\text{dep}}$.
    - Verifies all 4 ArUco markers (M0, M1, M2, M3). If tilted or displaced, prints exact degrees and rotation direction to adjust.
 3. **Stage 3 (Perception & Spatial Filtering)**:
-   - Warps arena to $2.0\text{ px/mm}$ metric grid.
-   - Enforces the **Central Green Pickup Zone (Rows 7..10, Cols 1..5)**.
-   - Rejects and logs any cubes placed in the **Orange Danger Zone**.
+   - Warps arena to $2.0\text{ px/mm}$ metric grid with 3D parallax height correction.
+   - Enforces the **Golden Pickup Zone (Rows 7..9, Cols 2..4, $X \in [75, 275\text{ mm}]$, $Y \in [100, 250\text{ mm}]$, $r \in [140, 260\text{ mm}]$)**.
+   - Detects block aspect ratio orientation and commands dynamic wrist roll ($130\text{ ticks}$ for horizontal blocks, $500\text{ ticks}$ for vertical/square).
 4. **Stage 4 (Scheduling & Pick-and-Place)**:
    - Sorts targets using Nearest-First radial reach ordering.
-   - Transits grasped cubes to Rear Flank Red and Green collection boxes via collision-free overhead rear-flip trajectories.
+   - Applies empirical gravity sag compensation ($+10.0\text{ mm} + 0.05 \times \max(0, r - 150)$) and executes a pure top-down vertical plunge trajectory ($Z=75\text{ mm} \to Z=22\text{ mm}$).
+   - Clamps firmly at 520 ticks and transits cubes to Rear Flank Red and Green collection boxes via collision-free overhead rear-flip trajectories.

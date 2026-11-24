@@ -274,8 +274,10 @@ class AutonomousSorterNode(Node):
         open_claw_tick = self.params.min_safe_ticks.get(1, 226)
         clamp_claw_tick = self.clamp_claw_tick
 
-        roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
-        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params)
+        roll_tick = target.get("gripper_roll_tick")
+        if roll_tick is None:
+            roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
+        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
         if not pick_ik.success:
             self.get_logger().warn(f"Pick IK failed for {color.upper()} at r={r:.1f}mm, th={theta:+.1f}deg: {pick_ik.message}")
             return
@@ -302,10 +304,9 @@ class AutonomousSorterNode(Node):
             self.get_logger().info(f"[Dry-Run] Target processed successfully: Pick ticks {pick_ik.ticks}")
             return
 
-        # 3. Publish Fluid Trajectory Steps (Standoff -> Grasp -> Lift -> Transit -> Drop -> Home)
-        # Step A: Standoff approach (adaptive for near-base radial reach)
-        standoff_r = r - 35.0 if r >= 180.0 else r
-        standoff_ik = solve_ik(r=standoff_r, theta=theta, z=z + 25.0, params=self.params)
+        # 3. Publish Fluid Trajectory Steps (Overhead Standoff -> Vertical Plunge Grasp -> Lift -> Transit -> Drop -> Home)
+        # Step A: Pure top-down overhead standoff (prevents lateral collisions with adjacent blocks)
+        standoff_ik = solve_ik(r=r, theta=theta, z=z + 50.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
         if standoff_ik.success:
             self.dispatch_joint_command(standoff_ik.ticks, time_ms=600)
             time.sleep(0.62)

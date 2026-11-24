@@ -125,6 +125,12 @@ vision/output/
 annotated_frames/
 data/*.png
 data/*.jpg
+artifacts/current_*.png
+artifacts/live_*.png
+artifacts/post_*.png
+artifacts/dict_marker_*.png
+artifacts/tl_*.png
+artifacts/marker83_*.png
 
 
 # ------------------------------------------------------------

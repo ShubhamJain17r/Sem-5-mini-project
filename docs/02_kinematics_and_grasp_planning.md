@@ -249,13 +249,25 @@ Direct point-to-point joint jumps cause severe mechanical overshoot, gear tooth 
 
 | Phase | Action | Motor Coordination Details | Speed / Duration |
 | :--- | :--- | :--- | :---: |
-| **1. Standoff Approach** | Arm moves to $(r_{\text{target}} - 35\text{ mm}, \theta_1, z_{\text{pick}} + 25\text{ mm})$ | Motors 1–5 interpolate concurrently. Gripper opens to $226$ ticks. | $1400\text{ ms}$ |
-| **2. Advance & Descend** | Advances to $(r_{\text{target}}, \theta_1, z_{\text{pick}})$ | Coordinated inverse kinematics descent onto cube centroid. | $1200\text{ ms}$ |
-| **3. Grasp Clamping** | Closes gripper jaws around cube | Motor 1 drives to $630$ ticks (clamped grip on $25\text{ mm}$ block). | $800\text{ ms}$ |
-| **4. High Vertical Lift** | Lifts vertically to $Z \ge 130\text{ mm}$, retracts $R \le 160\text{ mm}$ | Motors 3, 4, 5 lift load vertically to clear all tabletop objects. | $1000\text{ ms}$ |
-| **5. Overhead Rear-Flip** | Pitches Motors 5, 4, 3 backward into rear-facing stance (+Y) | Arm transitions over the shoulder while base Motor 6 stays centered. | $1200\text{ ms}$ |
-| **6. Container Slew & Drop** | Slew Motor 6 to container (Red: 650, Green: 354); open claw | Smooth base yaw alignment, drop from $Z = 45\text{ mm}$ standoff height. | $1600\text{ ms}$ |
-| **7. Retract & Reset** | Retract through rear stance and return to upright reset pose | Motors transition back overhead to home position ($502$ ticks). | $1500\text{ ms}$ |
+| **1. Overhead Standoff** | Arm hovers directly overhead at $(r_{\text{target}}, \theta_1, Z_{\text{hover}} \approx 75.0\text{ mm})$ | Pure top-down stance; zero horizontal offsets prevents nudging adjacent blocks. Motor 1 open at $250$ ticks. | $700\text{ ms}$ |
+| **2. Vertical Plunge** | Pure vertical descent to $(r_{\text{target}}, \theta_1, Z_{\text{pick}} \approx 22.0\text{ mm})$ | Sag-compensated IK plunge; Motor 2 roll matches block orientation ($130$ or $500$ ticks). | $550\text{ ms}$ |
+| **3. Firm Clamping** | Closes gripper jaws around block | Motor 1 drives to $520$ ticks (firm, stall-free grip on $25\text{ mm}$ cube or $35\text{ mm}$ rectangle). | $350\text{ ms}$ |
+| **4. Vertical Lift** | Lifts vertically to $Z \ge 90\text{ mm}$ at same radial reach $r$ | Vertical retraction cleanly extracts block without disturbing adjacent arena cells. | $550\text{ ms}$ |
+| **5. Overhead Rear-Transit**| Pitches Motors 5, 4, 3 backward into rear-facing high stance | High-clearance transit over shoulder while base Motor 6 slews toward target container. | $700\text{ ms}$ |
+| **6. Container Descend & Release** | Descend into rear container box (Red: 650, Green: 354 ticks); open claw | Smooth base yaw alignment, descents into box, opens Motor 1 to $250$ ticks. | $700\text{ ms}$ |
+| **7. Reset to Home** | Retract through rear stance and return to tucked home pose | Arm returns to `home_tucked` pose ready for next scheduled pick. | $650\text{ ms}$ |
+
+### 6.1 Radial Gravity Droop Compensation (Empirical Sag Trim)
+Due to cantilevered mass, link weight, and gear backlash, the physical end effector sags downward and pulls slightly backward when extending. The kinematics engine counteracts this mechanical sag by computing an effective radial reach:
+$$r_{\text{effective}} = r + \Delta r_{\text{sag}}, \quad \Delta r_{\text{sag}} = \delta_0 + k_{\text{reach}} \times \max(0, r - 150.0\text{ mm})$$
+where $\delta_0 = 10.0\text{ mm}$ (baseline sag trim) and $k_{\text{reach}} = 0.05$ (reach scale factor).
+If sag trim pushes an extreme boundary target out of the physical link reach ($L_1 + L_2$), the solver automatically falls back to uncompensated full extension.
+
+### 6.2 Dynamic Wrist Roll Orientation Adaptation
+For standard rectangular craft blocks ($60\text{ mm} \times 35\text{ mm}$):
+- OpenCV minimum area bounding box computes aspect ratio $\text{AR} = \max(w, h) / \min(w, h)$.
+- If $\text{AR} \ge 1.25$ and width $> 1.15 \times \text{height}$ (horizontal block), Motor 2 commands $130\text{ ticks}$ ($90^\circ$ perpendicular roll), allowing the $55\text{ mm}$ claw to grip across the $35\text{ mm}$ narrow width.
+- If vertical or square ($\text{AR} < 1.25$), Motor 2 commands $500\text{ ticks}$ (standard upright grasp).
 
 ---
 

@@ -299,6 +299,20 @@ def solve_ik(
             if alt_sol.success:
                 return alt_sol
 
+    if not sol.success and compensate_sag:
+        return solve_ik(
+            r=r,
+            theta=theta,
+            z=z,
+            phi=phi,
+            claw_tick=claw_tick,
+            roll_tick=roll_tick,
+            auto_pitch_fallback=auto_pitch_fallback,
+            params=params,
+            use_claw_tip=use_claw_tip,
+            compensate_sag=False,
+        )
+
     return sol
 
 

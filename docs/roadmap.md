@@ -175,7 +175,7 @@ Because university coursework, laboratory access schedules, exams, and hardware 
   - [ ] Verify Motor 1 position feedback executes after clamping.
   - [ ] Intentionally misplace a cube so the claw closes on empty air: confirm arm detects miss, aborts the drop transit, and alerts sorter.
 - [ ] **Dual-Color Autonomous Sorting Run**:
-  - [ ] Scatter Red and Green target cubes across active arena rows 7..10.
+  - [ ] Scatter Red and Green target blocks across Golden Pickup Zone (Rows 7..9, Cols 2..4).
   - [ ] Run autonomous sorting sequence without human intervention.
   - [ ] Verify all Red cubes are picked and deposited into the Red container box at $(50, 550)$ with yaw tick $650$.
   - [ ] Verify all Green cubes are picked and deposited into the Green container box at $(300, 550)$ with yaw tick $354$.

@@ -294,11 +294,11 @@ class ArenaVisualizerNode(Node):
         color = self.next_color
         self.next_color = "green" if color == "red" else "red"
 
-        # Find an empty cell in the picking arena (Rows 7..10, Cols 1..5)
+        # Find an empty cell in the Golden Zone (Rows 7..9, Cols 2..4) first, fallback to extended arena
         occupied = {(c.initial_col, c.initial_row) for c in self.cubes if c.state == "in_cell"}
         spawned = False
         for r in [8, 9, 7, 10]:
-            for c in [2, 4, 3, 1, 5, 0, 6]:
+            for c in [3, 2, 4, 1, 5, 0, 6]:
                 if (c, r) not in occupied:
                     x = (c + 0.5) * 0.050
                     y = (11 - r + 0.5) * 0.050
@@ -309,8 +309,8 @@ class ArenaVisualizerNode(Node):
                 break
 
         if not spawned:
-            # Fallback to center
-            self._add_cube(color, 0.175, 0.200)
+            # Fallback to center of Golden Zone
+            self._add_cube(color, 0.175, 0.175)
 
         self.publish_detected_objects()
         response.success = True

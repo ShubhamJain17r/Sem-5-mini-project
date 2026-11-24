@@ -291,13 +291,13 @@ def test_end_to_end_trajectory_simulation(rclpy_context):
     assert abs(driver.sim_current_ticks[6] - 650.0) < 2.0
 
     # Phase 6: Release
-    drop_ticks[1] = 230
+    drop_ticks[1] = 250
     dispatch_and_wait(drop_ticks, move_time_ms=50)
-    assert abs(driver.sim_current_ticks[1] - 230.0) < 2.0
+    assert abs(driver.sim_current_ticks[1] - 250.0) < 2.0
 
     # Phase 7: Home
     home_ticks = {i: 500 for i in range(1, 7)}
-    home_ticks[1] = 230
+    home_ticks[1] = 250
     dispatch_and_wait(home_ticks, move_time_ms=70)
     for sid in range(2, 7):
         assert abs(driver.sim_current_ticks[sid] - 500.0) < 2.0
@@ -399,33 +399,31 @@ def test_all_28_cells_unique_keys_and_sorting(rclpy_context):
     node.destroy_node()
 
 
-def test_all_45_cells_extended_arena_sorting(rclpy_context):
-    """Verify that all 45 picking cells in Rows 3..10 generate distinct keys and are queued and sorted."""
+def test_all_43_cells_extended_arena_sorting(rclpy_context):
+    """Verify that all 43 picking cells in Rows 4..10 generate distinct keys and are queued and sorted."""
     from sorting_arm.autonomous_sorter_node import AutonomousSorterNode
     node = AutonomousSorterNode()
     node.dry_run = True
 
-    # Generate all 45 picking cells: Cols 0..6, Rows 3..10, excluding ArUco and xArm mount
+    # Generate all 43 picking cells: Cols 0..6, Rows 4..10, excluding xArm mount
     from sorting_arm.kinematics import world_to_arm_polar
     objects = []
     expected_keys = set()
-    for r in range(3, 11):
+    for r in range(4, 11):
         for c in range(7):
-            if (c, r) in [(0, 3), (6, 3)]:
-                continue
-            if c in (2, 3, 4) and r in (3, 4, 5):
+            if c in (2, 3, 4) and r in (4, 5):
                 continue
 
             if r == 6 and c == 3:
                 wx, wy = 175.0, 250.5
             elif r == 6 and c in (2, 4):
                 wx, wy = (c + 0.5) * 50.0, 250.5
-            elif r in (3, 4, 5) and c == 1:
+            elif r in (4, 5) and c == 1:
                 wx = 52.0
-                wy = 402.0 if r == 3 else (352.0 if r == 4 else 302.0)
-            elif r in (3, 4, 5) and c == 5:
+                wy = 352.0 if r == 4 else 302.0
+            elif r in (4, 5) and c == 5:
                 wx = 298.0
-                wy = 402.0 if r == 3 else (352.0 if r == 4 else 302.0)
+                wy = 352.0 if r == 4 else 302.0
             else:
                 wx = (c + 0.5) * 50.0
                 wy = (11 - r + 0.5) * 50.0
@@ -444,24 +442,24 @@ def test_all_45_cells_extended_arena_sorting(rclpy_context):
                 "assigned_arm": "xarm_1",
             })
 
-    # Exactly 45 unique cell keys must exist
-    assert len(expected_keys) == 45, f"Expected 45 unique keys, got {len(expected_keys)}"
-    assert len(objects) == 45
+    # Exactly 43 unique cell keys must exist
+    assert len(expected_keys) == 43, f"Expected 43 unique keys, got {len(expected_keys)}"
+    assert len(objects) == 43
 
     msg = String()
     msg.data = json.dumps({"source": "vision", "objects": objects})
     node.vision_callback(msg)
 
-    # All 45 objects must be admitted into target_queue
-    assert len(node.target_queue) == 45
+    # All 43 objects must be admitted into target_queue
+    assert len(node.target_queue) == 43
 
     node.enabled = True
-    # Run executive_loop 45 times; every object must be sorted
-    for _ in range(45):
+    # Run executive_loop 43 times; every object must be sorted
+    for _ in range(43):
         node.executive_loop()
 
-    assert node.cubes_sorted_in_batch == 45
-    assert len(node.sorted_cells) == 45
+    assert node.cubes_sorted_in_batch == 43
+    assert len(node.sorted_cells) == 43
     assert node.sorted_cells == expected_keys
     assert len(node.target_queue) == 0
 

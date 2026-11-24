@@ -236,7 +236,7 @@ Because both the laptop and Jetson containers execute with `--net=host`, ROS 2 D
    ```
 3. Launch hardware on the Jetson:
    ```bash
-   ros2 launch sorting_scheduler system.launch.py
+   ros2 launch sorting_arm xarm.launch.py auto_start:=true
    ```
 4. Open RViz or monitor topics on your laptop:
    ```bash
