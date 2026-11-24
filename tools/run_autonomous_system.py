@@ -172,12 +172,21 @@ def check_and_heal_xarm(preferred_port: str = "auto", dry_run: bool = False) -> 
 class AutonomousSortingSystem:
     """Master controller managing perception, extrinsics, filtering, and pick-and-place execution."""
 
-    def __init__(self, camera_idx: int = 4, port: str = "auto", dry_run: bool = False, step_mode: bool = False, ignore_marker_angles: bool = False):
+    def __init__(
+        self,
+        camera_idx: int = 4,
+        port: str = "auto",
+        dry_run: bool = False,
+        step_mode: bool = False,
+        ignore_marker_angles: bool = False,
+        target_index: Optional[int] = None,
+    ):
         self.camera_idx = camera_idx
         self.port = port
         self.dry_run = dry_run
         self.step_mode = step_mode
         self.ignore_marker_angles = ignore_marker_angles
+        self.target_index = target_index
 
         self.cap: Optional[cv2.VideoCapture] = None
         self.driver: Optional[XArmDriver] = None
@@ -337,6 +346,14 @@ class AutonomousSortingSystem:
         for idx, (c, r, th, _) in enumerate(targets_sorted):
             print(f"  {idx + 1}. {c.color.upper()} cube at r={r:.1f}mm, theta={th:.1f}° (World: X={c.world_x:.1f}, Y={c.world_y:.1f})")
 
+        if self.target_index is not None:
+            if 1 <= self.target_index <= len(targets_sorted):
+                targets_sorted = [targets_sorted[self.target_index - 1]]
+                log_info(f"Single Target Mode: Selected target {self.target_index} ({targets_sorted[0][0].color.upper()})")
+            else:
+                log_warn(f"Target index {self.target_index} out of range (1..{len(targets_sorted)})")
+                return
+
         # Start from Home Pose
         home_ticks = self.poses.get("home_tucked", {}).get("ticks", [500, 500, 500, 500, 500, 500])
         claw_open_tick = 250
@@ -455,6 +472,7 @@ def main():
     parser.add_argument("--camera", type=int, default=4, help="Camera device index (default: 4)")
     parser.add_argument("--port", type=str, default="auto", help="xArm controller port (default: auto)")
     parser.add_argument("--ignore-marker-angles", action="store_true", help="Calibrate if all 4 markers are detected, ignoring heading angle warnings")
+    parser.add_argument("--target-index", type=int, default=None, help="Execute only a specific target from the queue (1-based index)")
     args = parser.parse_args()
 
     system = AutonomousSortingSystem(
@@ -463,6 +481,7 @@ def main():
         dry_run=args.dry_run,
         step_mode=args.step,
         ignore_marker_angles=args.ignore_marker_angles,
+        target_index=args.target_index,
     )
     system.run()
 
