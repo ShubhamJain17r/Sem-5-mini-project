@@ -35,20 +35,21 @@ workspace:
     retaining_barrier: "8-10mm self-adhesive foam weatherstripping tape"
     silicone_friction_coeff: 0.8
     cube_size_mm: 25.0             # Standard cube width/length
-    cube_height_mm: 19.05          # Block thickness (accommodates 19-25mm)
-    cube_center_z_mm: 9.53         # Grasp altitude (mm)
+    cube_height_mm: 38.1           # Doubled block thickness (glued craft blocks)
+    cube_center_z_mm: 19.05        # Grasp altitude (mm) with vertical clearance
     min_x_mm: 25.0
     max_x_mm: 325.0
     min_y_mm: 25.0
-    max_y_mm: 450.0                # Extended picking zone across Rows 3..10
+    max_y_mm: 275.0                # Active picking zone across Rows 6..10 (Rows 3..5 excluded)
+    excluded_rows: [3, 4, 5]       # Arm clearance zone; no objects placed or dropped
   aruco_markers:
     dict: "DICT_4X4_50"
-    marker_size_mm: 40.0
+    marker_size_mm: 50.0
     markers:
-      marker_0: {id: 0, col: 0, row: 3, center_world_mm: {x: 25.0, y: 425.0, z: 1.0}}
-      marker_1: {id: 1, col: 6, row: 3, center_world_mm: {x: 325.0, y: 425.0, z: 1.0}}
-      marker_2: {id: 2, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
-      marker_3: {id: 3, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
+      marker_0: {id: 2, col: 0, row: 6, center_world_mm: {x: 25.0, y: 275.0, z: 1.0}}
+      marker_1: {id: 0, col: 6, row: 6, center_world_mm: {x: 325.0, y: 275.0, z: 1.0}}
+      marker_2: {id: 3, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
+      marker_3: {id: 1, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
 
 # -------------------------------------------------------------------------------------
 # MANIPULATOR CONFIGURATION (xarm_1)

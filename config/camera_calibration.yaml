@@ -78,13 +78,13 @@ aruco_reference_markers:
       id: 0
       role: top_left
       world_x: 25.0
-      world_y: 425.0
+      world_y: 275.0
       world_z: 0.0
     marker_1:
       id: 1
       role: top_right
       world_x: 325.0
-      world_y: 425.0
+      world_y: 275.0
       world_z: 0.0
     marker_2:
       id: 2

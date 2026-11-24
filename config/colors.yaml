@@ -80,6 +80,6 @@ morphology:
   kernel_size: 5                    # 5x5 elliptical structuring element
   open_iterations: 1                # Erode then dilate to remove noise specks
   close_iterations: 2               # Dilate then erode to fill interior voids
-  min_area_px: 1400                 # Min contour area (accommodates 25mm cube ~2500 px² at 2.0 px/mm)
-  max_area_px: 6500                 # Max contour area (accommodates 31.75mm physical block ~4032 px² at 2.0 px/mm)
-  max_aspect_ratio: 1.35            # Filter out non-square contours
+  min_area_px: 1000                 # Min contour area
+  max_area_px: 25000                # Max contour area (accommodates doubled-height 38-50mm cubes)
+  max_aspect_ratio: 2.5             # Accommodates oblique perspective projection stretch

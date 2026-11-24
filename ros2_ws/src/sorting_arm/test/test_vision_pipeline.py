@@ -59,28 +59,28 @@ def test_metric_coordinate_mapping(pipeline=None):
     """Test mathematical accuracy of pixel_to_world and world_to_pixel mappings."""
     if pipeline is None:
         pipeline = get_pipeline()
-    # Marker 0: Top-Left (25.0, 425.0) -> (u=0, v=0)
+    # Top-Left: Row 6, Col 0 (25.0, 275.0) -> (u=0, v=0)
     x0, y0, _ = pipeline.pixel_to_world(0.0, 0.0)
     assert abs(x0 - 25.0) < 0.1
-    assert abs(y0 - 425.0) < 0.1
+    assert abs(y0 - 275.0) < 0.1
 
-    # Marker 1: Top-Right (325.0, 425.0) -> (u=600, v=0)
+    # Top-Right: Row 6, Col 6 (325.0, 275.0) -> (u=600, v=0)
     x1, y1, _ = pipeline.pixel_to_world(600.0, 0.0)
     assert abs(x1 - 325.0) < 0.1
-    assert abs(y1 - 425.0) < 0.1
+    assert abs(y1 - 275.0) < 0.1
 
-    # Marker 2: Bottom-Right (325.0, 25.0) -> (u=600, v=800)
-    x2, y2, _ = pipeline.pixel_to_world(600.0, 800.0)
+    # Bottom-Right: Row 11, Col 6 (325.0, 25.0) -> (u=600, v=500)
+    x2, y2, _ = pipeline.pixel_to_world(600.0, 500.0)
     assert abs(x2 - 325.0) < 0.1
     assert abs(y2 - 25.0) < 0.1
 
-    # Marker 3: Bottom-Left (25.0, 25.0) -> (u=0, v=800)
-    x3, y3, _ = pipeline.pixel_to_world(0.0, 800.0)
+    # Bottom-Left: Row 11, Col 0 (25.0, 25.0) -> (u=0, v=500)
+    x3, y3, _ = pipeline.pixel_to_world(0.0, 500.0)
     assert abs(x3 - 25.0) < 0.1
     assert abs(y3 - 25.0) < 0.1
 
     # Roundtrip check
-    for test_u, test_v in [(100.0, 50.0), (300.0, 400.0), (500.0, 700.0)]:
+    for test_u, test_v in [(100.0, 50.0), (300.0, 200.0), (500.0, 450.0)]:
         wx, wy, _ = pipeline.pixel_to_world(test_u, test_v)
         u_back, v_back = pipeline.world_to_pixel(wx, wy)
         assert abs(u_back - test_u) <= 1

@@ -63,28 +63,28 @@ class ArenaVisionPipeline:
         self.scale_px_per_mm = scale_px_per_mm
 
         # ArUco Reference Markers Ground Truth Coordinates (mm at Z = 0.0 mm)
-        # Arena: 300 mm (W) x 400 mm (D) between marker centers in 7x12 grid
+        # Arena: 300 mm (W) x 250 mm (D) between marker centers in Rows 6..11 (Rows 3..5 excluded)
         self.marker_world_corners: Dict[int, Tuple[float, float]] = {
-            0: (25.0, 425.0),   # Marker 0: Top-Left (Row 3, Col 0)
-            1: (325.0, 425.0),  # Marker 1: Top-Right (Row 3, Col 6)
-            2: (325.0, 25.0),   # Marker 2: Bottom-Right (Row 11, Col 6)
-            3: (25.0, 25.0),    # Marker 3: Bottom-Left (Row 11, Col 0)
+            2: (25.0, 275.0),   # Marker 2 / Top-Left (Row 6, Col 0)
+            0: (325.0, 275.0),  # Marker 0 / Top-Right (Row 6, Col 6)
+            3: (25.0, 25.0),    # Marker 3 / Bottom-Left (Row 11, Col 0)
+            1: (325.0, 25.0),   # Marker 1 / Bottom-Right (Row 11, Col 6)
         }
 
         # Arena physical dimensions between marker centers
         self.arena_width_mm = 325.0 - 25.0   # 300.0 mm
-        self.arena_height_mm = 425.0 - 25.0  # 400.0 mm
+        self.arena_height_mm = 275.0 - 25.0  # 250.0 mm
 
         # Rectified metric image dimensions in pixels
         self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 600 px
-        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 800 px
+        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 500 px
 
-        # Destination points in rectified image plane (Clockwise order: 0 -> 1 -> 2 -> 3)
+        # Destination points in rectified image plane (Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left)
         self.dst_pts = np.array([
-            [0.0, 0.0],                          # ID 0 (Top-Left)
-            [float(self.rect_w), 0.0],           # ID 1 (Top-Right)
-            [float(self.rect_w), float(self.rect_h)],  # ID 2 (Bottom-Right)
-            [0.0, float(self.rect_h)],           # ID 3 (Bottom-Left)
+            [0.0, 0.0],                                # Top-Left (Row 6, Col 0)
+            [float(self.rect_w), 0.0],                 # Top-Right (Row 6, Col 6)
+            [float(self.rect_w), float(self.rect_h)],  # Bottom-Right (Row 11, Col 6)
+            [0.0, float(self.rect_h)],                 # Bottom-Left (Row 11, Col 0)
         ], dtype=np.float32)
 
         # Base mount and nominal heading in world frame (from xarm_hardware.yaml)
@@ -166,9 +166,11 @@ class ArenaVisionPipeline:
                     self.marker_world_corners[mid] = (float(mval["world_x"]), float(mval["world_y"]))
 
             # Recompute dimensions from loaded corners
-            if 0 in self.marker_world_corners and 1 in self.marker_world_corners and 2 in self.marker_world_corners:
-                self.arena_width_mm = abs(self.marker_world_corners[1][0] - self.marker_world_corners[0][0])
-                self.arena_height_mm = abs(self.marker_world_corners[0][1] - self.marker_world_corners[2][1])
+            all_x = [pt[0] for pt in self.marker_world_corners.values()]
+            all_y = [pt[1] for pt in self.marker_world_corners.values()]
+            if all_x and all_y:
+                self.arena_width_mm = max(all_x) - min(all_x)
+                self.arena_height_mm = max(all_y) - min(all_y)
                 self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))
                 self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))
                 self.dst_pts = np.array([
@@ -298,14 +300,18 @@ class ArenaVisionPipeline:
         if not all(marker_id in detected_ids for marker_id in [0, 1, 2, 3]):
             return False
 
-        src_pts = np.zeros((4, 2), dtype=np.float32)
-        # Match dst_pts ordering: [0: TL, 1: TR, 3: BR, 2: BL]
-        for i, marker_id in enumerate([0, 1, 3, 2]):
-            idx = np.where(detected_ids == marker_id)[0][0]
-            marker_corners = corners[idx][0]
-            center = np.mean(marker_corners, axis=0)
-            src_pts[i] = center
+        # Robust geometric ordering of detected marker centers:
+        centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
+        sorted_by_y = centers[np.argsort(centers[:, 1])]
+        top_2 = sorted_by_y[:2]
+        bot_2 = sorted_by_y[2:]
 
+        tl = top_2[np.argmin(top_2[:, 0])]
+        tr = top_2[np.argmax(top_2[:, 0])]
+        bl = bot_2[np.argmin(bot_2[:, 0])]
+        br = bot_2[np.argmax(bot_2[:, 0])]
+
+        src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
         self.H_matrix = cv2.getPerspectiveTransform(src_pts, self.dst_pts)
         return True
 
@@ -314,7 +320,7 @@ class ArenaVisionPipeline:
         self.H_locked = locked
 
     def warp_arena(self, frame: np.ndarray) -> Optional[np.ndarray]:
-        """Warps the full camera image into the rectified metric arena grid (520x280 px)."""
+        """Warps the full camera image into the rectified metric arena grid (600x500 px)."""
         if self.H_matrix is None:
             if not self.calibrate_homography(frame):
                 return None
@@ -323,11 +329,11 @@ class ArenaVisionPipeline:
     def pixel_to_world(self, u: float, v: float) -> Tuple[float, float, float]:
         """
         Maps rectified arena image pixel (u, v) to physical world millimeter coordinates (Xw, Yw, Zw).
-        u=0 is Marker 0 (X=70.0), u=520 is Marker 1 (X=330.0).
-        v=0 is Marker 0 (Y=180.0), v=280 is Marker 2 (Y=40.0).
+        u=0 is Left (X=25.0 mm), u=600 is Right (X=325.0 mm).
+        v=0 is Top (Row 6, Y=275.0 mm), v=500 is Bottom (Row 11, Y=25.0 mm).
         """
-        x_min = self.marker_world_corners[0][0]
-        y_max = self.marker_world_corners[0][1]
+        x_min = 25.0
+        y_max = 275.0
         x_w = x_min + (u / self.scale_px_per_mm)
         y_w = y_max - (v / self.scale_px_per_mm)
         z_w = self.cube_center_z_mm  # Tabletop surface Z=0.0 mm + half cube/block height
@@ -335,8 +341,8 @@ class ArenaVisionPipeline:
 
     def world_to_pixel(self, x_w: float, y_w: float) -> Tuple[int, int]:
         """Maps physical world millimeters (Xw, Yw) back to rectified pixel (u, v)."""
-        x_min = self.marker_world_corners[0][0]
-        y_max = self.marker_world_corners[0][1]
+        x_min = 25.0
+        y_max = 275.0
         u = int(round((x_w - x_min) * self.scale_px_per_mm))
         v = int(round((y_max - y_w) * self.scale_px_per_mm))
         return (u, v)
@@ -401,12 +407,15 @@ class ArenaVisionPipeline:
             if close_iters > 0:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, self.morph_kernel, iterations=close_iters)
 
-            # Robot Chassis Exclusion: Mask out Rows 3..5, Cols 2..4 (X in [100, 250], Y in [300, 450])
+            # Robot Chassis Exclusion: Mask out Rows 3..5, Cols 2..4 (X in [100, 250], Y in [300, 450]) if within arena
             u_b1, v_b1 = self.world_to_pixel(100.0, 450.0)
             u_b2, v_b2 = self.world_to_pixel(250.0, 300.0)
-            u_min, u_max = max(0, min(u_b1, u_b2)), min(warped_frame.shape[1], max(u_b1, u_b2))
-            v_min, v_max = max(0, min(v_b1, v_b2)), min(warped_frame.shape[0], max(v_b1, v_b2))
-            combined_mask[v_min:v_max, u_min:u_max] = 0
+            u_min = max(0, min(u_b1, u_b2))
+            u_max = max(0, min(warped_frame.shape[1], max(u_b1, u_b2)))
+            v_min = max(0, min(v_b1, v_b2))
+            v_max = max(0, min(warped_frame.shape[0], max(v_b1, v_b2)))
+            if u_max > u_min and v_max > v_min:
+                combined_mask[v_min:v_max, u_min:u_max] = 0
 
             contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -435,7 +444,22 @@ class ArenaVisionPipeline:
                 while yaw > 45.0:
                     yaw -= 90.0
 
-                x_w, y_w, z_w = self.pixel_to_world(u_c, v_c)
+                # Oblique camera elevation correction for tall/glued cubes
+                bx, by, bw, bh = cv2.boundingRect(cnt)
+                if bh > bw * 1.2:
+                    v_base = by + bh
+                    y_w_base = 275.0 - (v_base / self.scale_px_per_mm)
+                    y_w = y_w_base + 12.5  # Half cube footprint offset
+                    u_c = bx + bw / 2.0
+                    x_w = 25.0 + (u_c / self.scale_px_per_mm)
+                    z_w = self.cube_center_z_mm
+                else:
+                    x_w, y_w, z_w = self.pixel_to_world(u_c, v_c)
+
+                # Exclude Rows 3..5: objects must be within active picking Rows 6..10
+                if y_w > 280.0 or y_w < 20.0:
+                    continue
+
                 r, th = self.world_to_arm_polar(x_w, y_w, "xarm_1")
 
                 # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
