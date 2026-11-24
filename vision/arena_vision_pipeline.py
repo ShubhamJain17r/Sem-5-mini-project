@@ -16,7 +16,7 @@ Features:
 from dataclasses import dataclass, field
 import math
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -54,6 +54,12 @@ class DetectedCube:
     confidence: float = 1.0
     targetable: bool = True
 
+    # Orientation, dimensions and wrist roll alignment
+    angle_deg: float = 0.0
+    width_px: float = 0.0
+    height_px: float = 0.0
+    gripper_roll_tick: int = 500
+
 
 class ArenaVisionPipeline:
     """Core perception pipeline for the Single xArm 1S color-sorting workcell."""
@@ -63,28 +69,28 @@ class ArenaVisionPipeline:
         self.scale_px_per_mm = scale_px_per_mm
 
         # ArUco Reference Markers Ground Truth Coordinates (mm at Z = 0.0 mm)
-        # Arena: 300 mm (W) x 400 mm (D) between marker centers in 7x12 grid
+        # Arena: 300 mm (W) x 250 mm (D) between marker centers in Rows 6..11 (Rows 3..5 excluded)
         self.marker_world_corners: Dict[int, Tuple[float, float]] = {
-            0: (25.0, 425.0),   # Marker 0: Top-Left (Row 3, Col 0)
-            1: (325.0, 425.0),  # Marker 1: Top-Right (Row 3, Col 6)
-            2: (325.0, 25.0),   # Marker 2: Bottom-Right (Row 11, Col 6)
-            3: (25.0, 25.0),    # Marker 3: Bottom-Left (Row 11, Col 0)
+            0: (25.0, 275.0),   # Marker 0 / Top-Left (Row 6, Col 0)
+            1: (325.0, 275.0),  # Marker 1 / Top-Right (Row 6, Col 6)
+            2: (25.0, 25.0),    # Marker 2 / Bottom-Left (Row 11, Col 0)
+            3: (325.0, 25.0),   # Marker 3 / Bottom-Right (Row 11, Col 6)
         }
 
         # Arena physical dimensions between marker centers
         self.arena_width_mm = 325.0 - 25.0   # 300.0 mm
-        self.arena_height_mm = 425.0 - 25.0  # 400.0 mm
+        self.arena_height_mm = 275.0 - 25.0  # 250.0 mm
 
         # Rectified metric image dimensions in pixels
         self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))    # 600 px
-        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 800 px
+        self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))   # 500 px
 
-        # Destination points in rectified image plane (Clockwise order: 0 -> 1 -> 2 -> 3)
+        # Destination points in rectified image plane (Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left)
         self.dst_pts = np.array([
-            [0.0, 0.0],                          # ID 0 (Top-Left)
-            [float(self.rect_w), 0.0],           # ID 1 (Top-Right)
-            [float(self.rect_w), float(self.rect_h)],  # ID 2 (Bottom-Right)
-            [0.0, float(self.rect_h)],           # ID 3 (Bottom-Left)
+            [0.0, 0.0],                                # Top-Left (Row 6, Col 0)
+            [float(self.rect_w), 0.0],                 # Top-Right (Row 6, Col 6)
+            [float(self.rect_w), float(self.rect_h)],  # Bottom-Right (Row 11, Col 6)
+            [0.0, float(self.rect_h)],                 # Bottom-Left (Row 11, Col 0)
         ], dtype=np.float32)
 
         # Base mount and nominal heading in world frame (from xarm_hardware.yaml)
@@ -94,10 +100,11 @@ class ArenaVisionPipeline:
         self.midline_x_mm = 175.0
         self.mutex_corridor = (0.0, 0.0)  # No mutex corridor needed for single arm
 
-        # Camera Intrinsic Parameters
+        # Camera Intrinsic Parameters & Extrinsics Telemetry
         self.camera_matrix: Optional[np.ndarray] = None
         self.dist_coeffs: Optional[np.ndarray] = None
         self.has_calibration: bool = False
+        self.camera_extrinsics: Optional[Dict[str, Any]] = None
 
         # Homography Matrix
         self.H_matrix: Optional[np.ndarray] = None
@@ -124,11 +131,19 @@ class ArenaVisionPipeline:
         if hasattr(cv2.aruco, "ArucoDetector"):
             self.aruco_params = cv2.aruco.DetectorParameters()
             self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            self.aruco_params.adaptiveThreshWinSizeMin = 3
+            self.aruco_params.adaptiveThreshWinSizeMax = 23
+            self.aruco_params.adaptiveThreshWinSizeStep = 2
+            self.aruco_params.minMarkerPerimeterRate = 0.01
             self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
             self._use_new_aruco_api = True
         else:
             self.aruco_params = cv2.aruco.DetectorParameters_create()
             self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            self.aruco_params.adaptiveThreshWinSizeMin = 3
+            self.aruco_params.adaptiveThreshWinSizeMax = 23
+            self.aruco_params.adaptiveThreshWinSizeStep = 2
+            self.aruco_params.minMarkerPerimeterRate = 0.01
             self.aruco_detector = None
             self._use_new_aruco_api = False
 
@@ -166,9 +181,11 @@ class ArenaVisionPipeline:
                     self.marker_world_corners[mid] = (float(mval["world_x"]), float(mval["world_y"]))
 
             # Recompute dimensions from loaded corners
-            if 0 in self.marker_world_corners and 1 in self.marker_world_corners and 2 in self.marker_world_corners:
-                self.arena_width_mm = abs(self.marker_world_corners[1][0] - self.marker_world_corners[0][0])
-                self.arena_height_mm = abs(self.marker_world_corners[0][1] - self.marker_world_corners[2][1])
+            all_x = [pt[0] for pt in self.marker_world_corners.values()]
+            all_y = [pt[1] for pt in self.marker_world_corners.values()]
+            if all_x and all_y:
+                self.arena_width_mm = max(all_x) - min(all_x)
+                self.arena_height_mm = max(all_y) - min(all_y)
                 self.rect_w = int(round(self.arena_width_mm * self.scale_px_per_mm))
                 self.rect_h = int(round(self.arena_height_mm * self.scale_px_per_mm))
                 self.dst_pts = np.array([
@@ -238,9 +255,9 @@ class ArenaVisionPipeline:
                 "kernel_size": 5,
                 "open_iterations": 1,
                 "close_iterations": 2,
-                "min_area_px": 1400,
-                "max_area_px": 3800,
-                "max_aspect_ratio": 1.45,
+                "min_area_px": 1000,
+                "max_area_px": 25000,
+                "max_aspect_ratio": 2.5,
             }
 
         k_size = self.color_config.get("morphology", {}).get("kernel_size", 5)
@@ -274,15 +291,34 @@ class ArenaVisionPipeline:
             return frame
         return cv2.undistort(frame, self.camera_matrix, self.dist_coeffs)
 
-    def detect_aruco_markers(self, frame: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """Detects ArUco markers and returns corners and IDs."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    def detect_aruco_markers(self, frame: np.ndarray) -> Tuple[Optional[List[np.ndarray]], Optional[np.ndarray]]:
+        """Detects ArUco markers and returns corners and IDs with edge padding to preserve quiet zones."""
+        pad = 20
+        padded = cv2.copyMakeBorder(frame, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        gray = cv2.cvtColor(padded, cv2.COLOR_BGR2GRAY)
         if self._use_new_aruco_api:
             corners, ids, _ = self.aruco_detector.detectMarkers(gray)
         else:
             corners, ids, _ = cv2.aruco.detectMarkers(
                 gray, self.aruco_dict, parameters=self.aruco_params
             )
+
+        if corners is None or len(corners) < 4:
+            # Fallback with CLAHE for low-contrast marker borders or uneven illumination
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            cl_gray = clahe.apply(gray)
+            if self._use_new_aruco_api:
+                c_cl, ids_cl, _ = self.aruco_detector.detectMarkers(cl_gray)
+            else:
+                c_cl, ids_cl, _ = cv2.aruco.detectMarkers(
+                    cl_gray, self.aruco_dict, parameters=self.aruco_params
+                )
+            if ids_cl is not None and (ids is None or len(ids_cl) > len(ids)):
+                corners, ids = c_cl, ids_cl
+
+        if corners is not None and len(corners) > 0:
+            unpadded_corners = [c - pad for c in corners]
+            return unpadded_corners, ids
         return corners, ids
 
     def calibrate_homography(self, frame: np.ndarray, force_update: bool = False) -> bool:
@@ -292,29 +328,249 @@ class ArenaVisionPipeline:
 
         corners, ids = self.detect_aruco_markers(frame)
         if ids is None or len(ids) < 4:
-            return False
+            return self.H_matrix is not None
 
         detected_ids = ids.flatten()
         if not all(marker_id in detected_ids for marker_id in [0, 1, 2, 3]):
-            return False
+            return self.H_matrix is not None
 
-        src_pts = np.zeros((4, 2), dtype=np.float32)
-        # Match dst_pts ordering: [0: TL, 1: TR, 3: BR, 2: BL]
-        for i, marker_id in enumerate([0, 1, 3, 2]):
-            idx = np.where(detected_ids == marker_id)[0][0]
-            marker_corners = corners[idx][0]
-            center = np.mean(marker_corners, axis=0)
-            src_pts[i] = center
+        id_to_center = {}
+        for i, mid in enumerate(detected_ids):
+            id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
 
+        # Exact ID mapping:
+        # Marker 0: Top-Left (Row 6, Col 0) -> dst_pts[0]
+        # Marker 1: Top-Right (Row 6, Col 6) -> dst_pts[1]
+        # Marker 3: Bottom-Right (Row 11, Col 6) -> dst_pts[2]
+        # Marker 2: Bottom-Left (Row 11, Col 0) -> dst_pts[3]
+        if all(k in id_to_center for k in [0, 1, 3, 2]):
+            tl = id_to_center[0]
+            tr = id_to_center[1]
+            br = id_to_center[3]
+            bl = id_to_center[2]
+        else:
+            centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
+            sorted_by_y = centers[np.argsort(centers[:, 1])]
+            top_2 = sorted_by_y[:2]
+            bot_2 = sorted_by_y[2:]
+            tl = top_2[np.argmin(top_2[:, 0])]
+            tr = top_2[np.argmax(top_2[:, 0])]
+            bl = bot_2[np.argmin(bot_2[:, 0])]
+            br = bot_2[np.argmax(bot_2[:, 0])]
+
+        src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
         self.H_matrix = cv2.getPerspectiveTransform(src_pts, self.dst_pts)
         return True
+
+    def compute_camera_extrinsics(self, frame: np.ndarray) -> Dict[str, Any]:
+        """
+        Computes 3D camera extrinsics (position, height Hc, distance Dc, depression angle, side)
+        using cv2.solvePnP against the 4 ground-truth ArUco marker coordinates.
+        """
+        corners, ids = self.detect_aruco_markers(frame)
+        if ids is None or len(ids) < 4:
+            return {
+                "success": False,
+                "message": f"Requires all 4 markers, found {len(ids) if ids is not None else 0}",
+            }
+
+        id_to_center = {}
+        for i, mid in enumerate(ids.flatten()):
+            id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
+
+        if not all(k in id_to_center for k in [0, 1, 3, 2]):
+            missing = [k for k in [0, 1, 3, 2] if k not in id_to_center]
+            return {
+                "success": False,
+                "message": f"Missing required markers: {missing}",
+            }
+
+        object_pts = np.array([
+            [25.0, 275.0, 0.0],   # M0 (Row 6, Col 0)
+            [325.0, 275.0, 0.0],  # M1 (Row 6, Col 6)
+            [325.0, 25.0, 0.0],   # M3 (Row 11, Col 6)
+            [25.0, 25.0, 0.0],    # M2 (Row 11, Col 0)
+        ], dtype=np.float64)
+
+        image_pts = np.array([
+            id_to_center[0],
+            id_to_center[1],
+            id_to_center[3],
+            id_to_center[2],
+        ], dtype=np.float64)
+
+        if self.camera_matrix is not None:
+            K = self.camera_matrix.astype(np.float64)
+            dist = self.dist_coeffs.astype(np.float64) if self.dist_coeffs is not None else np.zeros(5)
+        else:
+            h, w = frame.shape[:2]
+            K = np.array([
+                [float(w), 0.0, float(w) / 2.0],
+                [0.0, float(w), float(h) / 2.0],
+                [0.0, 0.0, 1.0]
+            ], dtype=np.float64)
+            dist = np.zeros(5)
+
+        ret, rvec, tvec = cv2.solvePnP(object_pts, image_pts, K, dist, flags=cv2.SOLVEPNP_ITERATIVE)
+        if not ret:
+            return {"success": False, "message": "solvePnP failed to converge"}
+
+        R, _ = cv2.Rodrigues(rvec)
+        cam_pos_world = (-R.T @ tvec).flatten()
+        optical_axis_world = (R.T @ np.array([0, 0, 1.0])).flatten()
+        
+        # Depression angle (pitch below horizontal plane)
+        sin_dep = max(-1.0, min(1.0, -optical_axis_world[2]))
+        depression_deg = float(np.degrees(np.arcsin(sin_dep)))
+
+        arena_center = np.array([175.0, 150.0, 0.0])
+        dist_to_center = float(np.linalg.norm(cam_pos_world - arena_center))
+
+        x_c, y_c = cam_pos_world[0], cam_pos_world[1]
+        if x_c > 350.0:
+            side = "East / Right (facing West toward arena)"
+        elif x_c < 0.0:
+            side = "West / Left (facing East toward arena)"
+        elif y_c < 0.0:
+            side = "South / Front (looking North toward manipulator)"
+        else:
+            side = "North / Rear (behind manipulator)"
+
+        result = {
+            "success": True,
+            "camera_position_world_mm": {
+                "x": round(float(cam_pos_world[0]), 1),
+                "y": round(float(cam_pos_world[1]), 1),
+                "z": round(float(cam_pos_world[2]), 1),
+            },
+            "height_mm": round(float(cam_pos_world[2]), 1),
+            "distance_to_arena_center_mm": round(dist_to_center, 1),
+            "depression_angle_deg": round(depression_deg, 1),
+            "viewing_side": side,
+            "rvec": rvec.flatten().tolist(),
+            "tvec": tvec.flatten().tolist(),
+        }
+        self.camera_extrinsics = result
+        return result
+
+    def verify_aruco_markers(self, frame: np.ndarray) -> Dict[str, Any]:
+        """
+        Validates presence, corner clearances, and physical orientation angles of all 4 markers:
+        - M0 at (Row 6, Col 0 / Top-Left): pointing West (~180°)
+        - M1 at (Row 6, Col 6 / Top-Right): pointing West (~180°)
+        - M2 at (Row 11, Col 0 / Bottom-Left): pointing East (~0°)
+        - M3 at (Row 11, Col 6 / Bottom-Right): pointing East (~0°)
+        Returns diagnostic reports with actionable adjustment guidance.
+        """
+        specs = {
+            0: {"name": "Marker 0 (Row 6, Col 0 / Top-Left)", "expected_deg": 180.0, "expected_dir": "West"},
+            1: {"name": "Marker 1 (Row 6, Col 6 / Top-Right)", "expected_deg": 180.0, "expected_dir": "West"},
+            2: {"name": "Marker 2 (Row 11, Col 0 / Bottom-Left)", "expected_deg": 0.0, "expected_dir": "East"},
+            3: {"name": "Marker 3 (Row 11, Col 6 / Bottom-Right)", "expected_deg": 0.0, "expected_dir": "East"},
+        }
+
+        corners, ids = self.detect_aruco_markers(frame)
+        h, w = frame.shape[:2]
+
+        reports = {}
+        all_detected = True
+        all_aligned = True
+
+        detected_map = {}
+        if ids is not None:
+            for i, mid in enumerate(ids.flatten()):
+                detected_map[int(mid)] = corners[i][0]
+
+        # Calculate temporary H matrix to map orientation into arena coordinate system
+        temp_H = None
+        if all(k in detected_map for k in [0, 1, 3, 2]):
+            src_pts = np.array([
+                np.mean(detected_map[0], axis=0),
+                np.mean(detected_map[1], axis=0),
+                np.mean(detected_map[3], axis=0),
+                np.mean(detected_map[2], axis=0),
+            ], dtype=np.float32)
+            temp_H = cv2.getPerspectiveTransform(src_pts, self.dst_pts)
+
+        for mid, spec in specs.items():
+            if mid not in detected_map:
+                all_detected = False
+                all_aligned = False
+                reports[mid] = {
+                    "id": mid,
+                    "name": spec["name"],
+                    "detected": False,
+                    "is_oriented_correctly": False,
+                    "orientation_error_deg": 999.0,
+                    "measured_angle_deg": None,
+                    "edge_clearance_px": 0.0,
+                    "advice": f"{spec['name']} is NOT detected. Check if occluded or partially outside camera frame.",
+                }
+                continue
+
+            c = detected_map[mid]
+            center = np.mean(c, axis=0)
+            min_dist_to_edge = min(center[0], w - center[0], center[1], h - center[1])
+
+            # Top edge heading vector (c1 - c0)
+            v = c[1] - c[0]
+            
+            # Map into physical arena frame if homography is available
+            if temp_H is not None:
+                p0 = np.array([center[0], center[1], 1.0])
+                p1 = np.array([center[0] + v[0], center[1] + v[1], 1.0])
+                P0 = temp_H @ p0
+                P0 = P0[:2] / P0[2]
+                P1 = temp_H @ p1
+                P1 = P1[:2] / P1[2]
+                V_arena = P1 - P0
+                arena_angle = float(np.degrees(np.arctan2(V_arena[1], V_arena[0])))
+            else:
+                arena_angle = float(np.degrees(np.arctan2(v[1], v[0])))
+
+            # Angle error relative to expected heading in arena frame
+            ang_err = (arena_angle - spec["expected_deg"] + 180.0) % 360.0 - 180.0
+            is_oriented = abs(ang_err) <= 25.0
+
+            if not is_oriented:
+                all_aligned = False
+                rot_dir = "counter-clockwise" if ang_err > 0 else "clockwise"
+                advice = (
+                    f"{spec['name']} is tilted by {abs(ang_err):.1f}° (points at {arena_angle:.1f}°, "
+                    f"expected {spec['expected_dir']} {spec['expected_deg']}°). "
+                    f"Please rotate marker {abs(ang_err):.0f}° {rot_dir}."
+                )
+            elif min_dist_to_edge < 25.0:
+                advice = (
+                    f"{spec['name']} is oriented correctly, but sits close to the camera frame boundary "
+                    f"({min_dist_to_edge:.0f}px from edge). Consider shifting arena slightly inward."
+                )
+            else:
+                advice = f"{spec['name']} is correctly placed and oriented ({spec['expected_dir']})."
+
+            reports[mid] = {
+                "id": mid,
+                "name": spec["name"],
+                "detected": True,
+                "is_oriented_correctly": is_oriented,
+                "orientation_error_deg": round(abs(ang_err), 1),
+                "measured_angle_deg": round(arena_angle, 1),
+                "edge_clearance_px": round(float(min_dist_to_edge), 1),
+                "advice": advice,
+            }
+
+        return {
+            "all_detected": all_detected,
+            "all_aligned": all_aligned,
+            "reports": reports,
+        }
 
     def lock_homography(self, locked: bool = True):
         """Freezes or unlocks the homography matrix to prevent drift or jitter."""
         self.H_locked = locked
 
     def warp_arena(self, frame: np.ndarray) -> Optional[np.ndarray]:
-        """Warps the full camera image into the rectified metric arena grid (520x280 px)."""
+        """Warps the full camera image into the rectified metric arena grid (600x500 px)."""
         if self.H_matrix is None:
             if not self.calibrate_homography(frame):
                 return None
@@ -323,11 +579,11 @@ class ArenaVisionPipeline:
     def pixel_to_world(self, u: float, v: float) -> Tuple[float, float, float]:
         """
         Maps rectified arena image pixel (u, v) to physical world millimeter coordinates (Xw, Yw, Zw).
-        u=0 is Marker 0 (X=70.0), u=520 is Marker 1 (X=330.0).
-        v=0 is Marker 0 (Y=180.0), v=280 is Marker 2 (Y=40.0).
+        u=0 is Left (X=25.0 mm), u=600 is Right (X=325.0 mm).
+        v=0 is Top (Row 6, Y=275.0 mm), v=500 is Bottom (Row 11, Y=25.0 mm).
         """
-        x_min = self.marker_world_corners[0][0]
-        y_max = self.marker_world_corners[0][1]
+        x_min = 25.0
+        y_max = 275.0
         x_w = x_min + (u / self.scale_px_per_mm)
         y_w = y_max - (v / self.scale_px_per_mm)
         z_w = self.cube_center_z_mm  # Tabletop surface Z=0.0 mm + half cube/block height
@@ -335,8 +591,8 @@ class ArenaVisionPipeline:
 
     def world_to_pixel(self, x_w: float, y_w: float) -> Tuple[int, int]:
         """Maps physical world millimeters (Xw, Yw) back to rectified pixel (u, v)."""
-        x_min = self.marker_world_corners[0][0]
-        y_max = self.marker_world_corners[0][1]
+        x_min = 25.0
+        y_max = 275.0
         u = int(round((x_w - x_min) * self.scale_px_per_mm))
         v = int(round((y_max - y_w) * self.scale_px_per_mm))
         return (u, v)
@@ -401,12 +657,15 @@ class ArenaVisionPipeline:
             if close_iters > 0:
                 combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, self.morph_kernel, iterations=close_iters)
 
-            # Robot Chassis Exclusion: Mask out Rows 3..5, Cols 2..4 (X in [100, 250], Y in [300, 450])
+            # Robot Chassis Exclusion: Mask out Rows 3..5, Cols 2..4 (X in [100, 250], Y in [300, 450]) if within arena
             u_b1, v_b1 = self.world_to_pixel(100.0, 450.0)
             u_b2, v_b2 = self.world_to_pixel(250.0, 300.0)
-            u_min, u_max = max(0, min(u_b1, u_b2)), min(warped_frame.shape[1], max(u_b1, u_b2))
-            v_min, v_max = max(0, min(v_b1, v_b2)), min(warped_frame.shape[0], max(v_b1, v_b2))
-            combined_mask[v_min:v_max, u_min:u_max] = 0
+            u_min = max(0, min(u_b1, u_b2))
+            u_max = max(0, min(warped_frame.shape[1], max(u_b1, u_b2)))
+            v_min = max(0, min(v_b1, v_b2))
+            v_max = max(0, min(warped_frame.shape[0], max(v_b1, v_b2)))
+            if u_max > u_min and v_max > v_min:
+                combined_mask[v_min:v_max, u_min:u_max] = 0
 
             contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -435,16 +694,87 @@ class ArenaVisionPipeline:
                 while yaw > 45.0:
                     yaw -= 90.0
 
-                x_w, y_w, z_w = self.pixel_to_world(u_c, v_c)
+                # Analyze rectangular block orientation & wrist roll (Motor 2) alignment
+                box_pts = cv2.boxPoints(rect)
+                p0, p1, p2, p3 = box_pts[0], box_pts[1], box_pts[2], box_pts[3]
+                d01 = float(np.linalg.norm(p1 - p0))
+                d12 = float(np.linalg.norm(p2 - p1))
+                if d01 >= d12:
+                    long_vec = p1 - p0
+                else:
+                    long_vec = p2 - p1
+
+                long_dx = abs(float(long_vec[0]))
+                long_dy = abs(float(long_vec[1]))
+
+                # In rectified image: u (x-axis) is along World X, v (y-axis) is along World -Y.
+                # Motor 2 at neutral 500 ticks has claw jaws level (opening horizontally along World X, span 55mm).
+                # If block is elongated (aspect >= 1.25, e.g. 60x35mm craft blocks):
+                #   If long_dx > long_dy: longer dimension (60mm) is along World X.
+                #     The 55mm claw span cannot span 60mm; rotate Motor 2 CW by 90° (130 ticks)
+                #     so jaws open along World Y to clamp the narrow 35mm width safely!
+                #   Else: longer dimension is along World Y.
+                #     Narrow dimension (35mm) is already along World X; keep neutral roll at 500 ticks.
+                # If block is square (aspect < 1.25):
+                #   Keep neutral roll at 500 ticks.
+                if aspect >= 1.25:
+                    if long_dx > long_dy:
+                        gripper_roll_tick = 130
+                    else:
+                        gripper_roll_tick = 500
+                else:
+                    gripper_roll_tick = 500
+
+                # Oblique camera elevation correction for tall/glued cubes
+                bx, by, bw, bh = cv2.boundingRect(cnt)
+                if bh > bw * 1.3:
+                    v_base = by + bh
+                    y_w_base = 275.0 - (v_base / self.scale_px_per_mm)
+                    y_w = y_w_base + 12.5  # Half cube footprint offset
+                    u_c = bx + bw / 2.0
+                    x_w = 25.0 + (u_c / self.scale_px_per_mm)
+                    z_w = 19.05  # Doubled block center
+                else:
+                    x_w, y_w, _ = self.pixel_to_world(u_c, v_c)
+                    z_w = 10.0   # Standard single cube center
+
+                # 3D Parallax Correction:
+                # If camera is mounted obliquely (e.g. East tripod, depression < 70°),
+                # the elevated top surface of a 20-25mm block projects toward camera in the image.
+                # For an East-mounted camera, shift world_x westward toward the true ground footprint.
+                # For an overhead/top-down camera (depression >= 70°), parallax shift is 0.
+                if self.camera_extrinsics and self.camera_extrinsics.get("success"):
+                    dep_angle = float(self.camera_extrinsics.get("depression_angle_deg", 90.0))
+                    side = str(self.camera_extrinsics.get("viewing_side", ""))
+                    if dep_angle < 70.0:
+                        rad = math.radians(max(20.0, dep_angle))
+                        shift_mm = z_w / math.tan(rad)
+                        if "East" in side:
+                            x_w -= shift_mm
+                        elif "West" in side:
+                            x_w += shift_mm
+                        elif "South" in side:
+                            y_w += shift_mm
+                        elif "North" in side:
+                            y_w -= shift_mm
+
+                # Clamp within physical arena bounds
+                x_w = max(25.0, min(325.0, x_w))
+                y_w = max(25.0, min(275.0, y_w))
+
+                # Exclude Rows 3..5: objects must be within active picking Rows 6..10
+                if y_w > 280.0 or y_w < 20.0:
+                    continue
+
                 r, th = self.world_to_arm_polar(x_w, y_w, "xarm_1")
 
                 # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
                 if 110.0 <= r <= 325.0:
-                    box_points = cv2.boxPoints(rect).astype(np.int32)
+                    box_points = box_pts.astype(np.int32)
                     cube = DetectedCube(
                         color=color_key,
-                        world_x=x_w,
-                        world_y=y_w,
+                        world_x=round(x_w, 2),
+                        world_y=round(y_w, 2),
                         world_z=z_w,
                         yaw_deg=round(yaw, 2),
                         assigned_arm="xarm_1",
@@ -461,6 +791,10 @@ class ArenaVisionPipeline:
                         bounding_box=box_points,
                         contour_area_px=float(area),
                         targetable=targetable,
+                        angle_deg=round(angle, 2),
+                        width_px=round(float(min(w_box, h_box)), 1),
+                        height_px=round(float(max(w_box, h_box)), 1),
+                        gripper_roll_tick=gripper_roll_tick,
                     )
                     detected_cubes.append(cube)
 
@@ -500,13 +834,39 @@ class ArenaVisionPipeline:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (120, 120, 120), 1, cv2.LINE_AA
                     )
 
-            # Centerline (X = 200 mm) in cyan
+            # Centerline (X = 175 mm) in cyan
             mid_u, _ = self.world_to_pixel(self.midline_x_mm, 100.0)
             if 0 <= mid_u < self.rect_w:
                 cv2.line(annotated, (mid_u, 0), (mid_u, self.rect_h), (255, 255, 0), 1)
                 cv2.putText(
-                    annotated, "MIDLINE X=200", (mid_u - 45, 18),
+                    annotated, "MIDLINE X=175", (mid_u - 45, 18),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 0), 1, cv2.LINE_AA
+                )
+
+            # Highlight Golden Pickup Zone (Rows 7..9, Cols 2..4: X in [75, 275], Y in [100, 250])
+            u_g1, v_g1 = self.world_to_pixel(75.0, 250.0)
+            u_g2, v_g2 = self.world_to_pixel(275.0, 100.0)
+            zone_overlay = annotated.copy()
+            cv2.rectangle(zone_overlay, (u_g1, v_g1), (u_g2, v_g2), (40, 180, 40), -1)
+            cv2.addWeighted(zone_overlay, 0.20, annotated, 0.80, 0, annotated)
+            cv2.rectangle(annotated, (u_g1, v_g1), (u_g2, v_g2), (0, 220, 0), 2)
+            cv2.putText(
+                annotated, "GOLDEN PICKUP ZONE (Rows 7-9, Cols 2-4)", (u_g1 + 8, v_g1 + 22),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 220, 0), 1, cv2.LINE_AA
+            )
+
+            # Label ArUco Markers matching user nomenclature & physical IDs
+            marker_labels = {
+                (25.0, 275.0): ("M0 (ID 2)", 8, 35),
+                (325.0, 275.0): ("M1 (ID 0)", -85, 35),
+                (25.0, 25.0): ("M2 (ID 3)", 8, -15),
+                (325.0, 25.0): ("M3 (ID 1)", -85, -15),
+            }
+            for (mx, my), (mtext, off_x, off_y) in marker_labels.items():
+                mu, mv = self.world_to_pixel(mx, my)
+                cv2.putText(
+                    annotated, mtext, (mu + off_x, mv + off_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 255), 1, cv2.LINE_AA
                 )
 
         for cube in cubes:
@@ -526,7 +886,8 @@ class ArenaVisionPipeline:
             cv2.arrowedLine(annotated, (uc, vc), (ex, ey), (0, 0, 255), 2, tipLength=0.3)
 
             tag = f"{cube.color.upper()}"
-            coords = f"r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°"
+            roll_str = f" roll:{cube.gripper_roll_tick}" if cube.gripper_roll_tick != 500 else ""
+            coords = f"r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°{roll_str}"
             
             text_y = max(vc - 16, 20)
             cv2.putText(annotated, tag, (uc - 20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)

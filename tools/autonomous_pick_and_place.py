@@ -98,10 +98,14 @@ class AutonomousSorterBridge:
         else:
             if cap is None:
                 raise ValueError("Camera capture object is None")
+            # Discard initial unexposed frames from camera buffer
+            for _ in range(8):
+                cap.read()
             ret, frame = cap.read()
-            if not ret:
+            if not ret or frame is None:
                 print("[Bridge] Warning: Failed to capture camera frame.")
                 return []
+            self.pipeline.calibrate_homography(frame)
 
         # Undistort, warp, and detect cubes
         _, _, cubes = self.pipeline.process_frame(frame, draw_grid=True)
@@ -120,9 +124,14 @@ class AutonomousSorterBridge:
                 continue
             if not getattr(c, "targetable", True):
                 continue
+            # Strictly enforce Golden Pickup Area: Rows 7..9 (Y in [100, 250]), Cols 2..4 (X in [75, 275])
+            if not (75.0 <= c.world_x <= 275.0 and 100.0 <= c.world_y <= 250.0):
+                print(f"[Zone Notice] Detected {c.color.upper()} block at ({c.world_x:.1f}, {c.world_y:.1f}) is outside Golden Pickup Zone! Skipping.")
+                continue
+
             if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm
-                if 120.0 <= active_r <= 320.0:
+                if 140.0 <= active_r <= 260.0:
                     assigned_cubes.append(c)
 
         # Nearest-First policy: sort by ascending target radius r
@@ -142,13 +151,13 @@ class AutonomousSorterBridge:
         z = cube.world_z
 
         print("\n------------------------------------------------------------------------")
-        print(f"  TARGET: {cube.color.upper()} cube at World=({cube.world_x:.1f}, {cube.world_y:.1f}, Z={z:.1f}) mm")
+        print(f"  TARGET: {cube.color.upper()} block at World=({cube.world_x:.1f}, {cube.world_y:.1f}, Z={z:.1f}) mm")
         print(f"  ARM COORDINATES: r = {r:.1f} mm, theta = {theta:+.1f} deg, yaw = {cube.yaw_deg:+.1f} deg")
         print(f"  ASSIGNED MANIPULATOR: {self.arm_id}")
         print("------------------------------------------------------------------------")
 
-        # 1. Compute Pick IK with wrist roll aligned to cube orientation
-        roll_tick = int(round(500 + cube.yaw_deg * (1000.0 / 240.0)))
+        # 1. Compute Pick IK with wrist roll aligned to block orientation and sag compensation
+        roll_tick = getattr(cube, "gripper_roll_tick", 500)
         pick_ik = solve_ik(
             r=r,
             theta=theta,
@@ -156,6 +165,7 @@ class AutonomousSorterBridge:
             phi=None,  # Use natural adaptive pitch
             roll_tick=roll_tick,
             params=self.params,
+            compensate_sag=True,
         )
 
         if not pick_ik.success:
@@ -199,9 +209,10 @@ class AutonomousSorterBridge:
 
 
 def main():
+    default_dev = "/dev/video4" if os.path.exists("/dev/video4") else "/dev/video0"
     parser = argparse.ArgumentParser(description="Autonomous Vision-Guided Color Sorting Bridge.")
     parser.add_argument("--arm", default="xarm_1", help="Manipulator under test (default: xarm_1)")
-    parser.add_argument("--device", default="/dev/video0", help="Camera device path or index (default: /dev/video0)")
+    parser.add_argument("--device", default=default_dev, help=f"Camera device path or index (default: {default_dev})")
     parser.add_argument("--port", default="auto", help="Serial port for arm communication (default: auto)")
     parser.add_argument("--config-dir", default="config", help="Directory containing config YAMLs")
     parser.add_argument("--dry-run", action="store_true", help="Simulate perception, coordinate transformation, and IK without moving hardware")

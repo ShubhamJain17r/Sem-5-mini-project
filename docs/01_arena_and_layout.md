@@ -67,6 +67,16 @@ The single xArm 1S manipulator is mounted in Rows 3..5, Columns 2..4:
 - **Red Container Reach**: $(X = 50.0, Y = 550.0) \to R = 215.1\text{ mm}$, rear-flip drop yaw tick $650$.
 - **Green Container Reach**: $(X = 300.0, Y = 550.0) \to R = 215.1\text{ mm}$, rear-flip drop yaw tick $354$.
 
+### 2.2 The Golden Pickup Zone (Kinematic Sweet Spot)
+While the extended arena encompasses Rows 3..10, autonomous production picking operates inside the **Golden Pickup Zone**:
+- **Grid Location**: Rows 7..9, Columns 2..4 (9 core cells centered down the midline).
+- **Cartesian Bounds**: $X \in [75.0, 275.0\text{ mm}]$, $Y \in [100.0, 250.0\text{ mm}]$.
+- **Radial Reach Envelope**: $r \in [140.0, 260.0\text{ mm}]$ from xArm base $(175, 375)$.
+- **Kinematic Advantages**:
+  1. Operates purely within the mid-stroke dexterity region where shoulder ($\theta_5$) and elbow ($\theta_4$) provide maximum torque margin without approaching joint singularities.
+  2. Enables pure top-down overhead plunge ($Z = 75\text{ mm} \to Z = 22\text{ mm}$), completely eliminating horizontal nudging or lateral collisions with adjacent blocks.
+  3. Seamlessly accommodates rectangular craft blocks ($60\times 35\text{ mm}$) with dynamic wrist roll (Motor 2 at $130\text{ ticks}$ for horizontal, $500\text{ ticks}$ for vertical/square).
+
 ---
 
 ## 3. Physical Hand-Drawn Grid Arena

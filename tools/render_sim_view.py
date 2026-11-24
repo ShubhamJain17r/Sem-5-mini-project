@@ -182,14 +182,14 @@ class MultiViewRenderer:
         cv2.rectangle(img, tl, br, (228, 230, 225), -1)
         cv2.rectangle(img, tl, br, (150, 150, 150), 2)
 
-        # Picking Zone (Rows 7..10: Y 100..300)
-        pz_tl = w2i(25.0, 300.0)
-        pz_br = w2i(325.0, 100.0)
+        # Golden Pickup Zone (Rows 7..9, Cols 2..4: X 75..275, Y 100..250)
+        pz_tl = w2i(75.0, 250.0)
+        pz_br = w2i(275.0, 100.0)
         cv2.rectangle(img, pz_tl, pz_br, (215, 240, 220), -1)
         cv2.rectangle(img, pz_tl, pz_br, (70, 180, 85), 2)
         cv2.putText(
-            img, "PICKING ZONE (Rows 7..10)", (pz_tl[0] + 100, pz_br[1] + 25),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (40, 140, 50), 2, cv2.LINE_AA
+            img, "GOLDEN ZONE (Rows 7..9, Cols 2..4)", (pz_tl[0] - 20, pz_br[1] + 25),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (40, 140, 50), 2, cv2.LINE_AA
         )
 
         # Grid lines (5cm = 50mm)
@@ -312,13 +312,13 @@ class MultiViewRenderer:
         cv2.putText(img, "TABLE BASEBOARD (Z = 0.0 mm)", (t_tl[0] + 20, t_br[1] + 14),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 2)
 
-        # 2. Picking Zone on Table (Y: 100..300)
+        # 2. Golden Pickup Zone on Table (Y: 100..250)
         pz_tl = yz2i(100.0, 0.0)
-        pz_br = yz2i(300.0, -18.0)
+        pz_br = yz2i(250.0, -18.0)
         cv2.rectangle(img, pz_tl, pz_br, (180, 230, 190), -1)
         cv2.rectangle(img, pz_tl, pz_br, (60, 160, 70), 2)
-        cv2.putText(img, "PICKING ZONE", (pz_tl[0] + 60, pz_tl[1] + 14),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (40, 130, 50), 2)
+        cv2.putText(img, "GOLDEN ZONE (Y 100..250)", (pz_tl[0] + 15, pz_tl[1] + 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (40, 130, 50), 2)
 
         # 3. Z-Height Reference Grid Lines
         for z_val in [0.0, 9.5, 50.0, 100.0, 150.0, 200.0, 250.0, 300.0]:
@@ -586,11 +586,11 @@ class MultiViewRenderer:
         cv2.fillPoly(img, [np.array([c2, c3, c3_b, c2_b], np.int32)], (170, 172, 165))
         cv2.polylines(img, [np.array([c1_b, c2_b, c3_b], np.int32)], False, (110, 110, 110), 2)
 
-        # 2. Picking Zone in 3D
-        pz1 = iso3d(25.0, 100.0, 0.0)
-        pz2 = iso3d(325.0, 100.0, 0.0)
-        pz3 = iso3d(325.0, 300.0, 0.0)
-        pz4 = iso3d(25.0, 300.0, 0.0)
+        # 2. Golden Pickup Zone in 3D (X: 75..275, Y: 100..250)
+        pz1 = iso3d(75.0, 100.0, 0.0)
+        pz2 = iso3d(275.0, 100.0, 0.0)
+        pz3 = iso3d(275.0, 250.0, 0.0)
+        pz4 = iso3d(75.0, 250.0, 0.0)
         cv2.fillPoly(img, [np.array([pz1, pz2, pz3, pz4], np.int32)], (210, 238, 215))
         cv2.polylines(img, [np.array([pz1, pz2, pz3, pz4], np.int32)], True, (70, 175, 80), 2)
 

@@ -61,14 +61,14 @@ planar_homography:
     rows: 3
     cols: 3
     data:
-    - 0.531194
-    - 0.054682
-    - -249.680773
-    - -0.0
-    - 0.487929
-    - -97.341926
-    - -0.0
-    - 0.00021
+    - 2.7754550012549064
+    - 0.8320375126341069
+    - -594.3934133361615
+    - -0.04901997505087624
+    - 4.040452572422934
+    - -567.9443033460994
+    - -0.00014831563101199967
+    - 0.003030056448291812
     - 1.0
 aruco_reference_markers:
   dictionary: DICT_4X4_50
@@ -78,13 +78,13 @@ aruco_reference_markers:
       id: 0
       role: top_left
       world_x: 25.0
-      world_y: 425.0
+      world_y: 275.0
       world_z: 0.0
     marker_1:
       id: 1
       role: top_right
       world_x: 325.0
-      world_y: 425.0
+      world_y: 275.0
       world_z: 0.0
     marker_2:
       id: 2

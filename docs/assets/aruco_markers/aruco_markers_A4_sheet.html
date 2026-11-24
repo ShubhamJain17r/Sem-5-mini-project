@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>xArm 1S Arena - ArUco Calibration Markers (50x50 mm)</title>
+<style>
+@page {
+    size: A4 portrait;
+    margin: 0;
+}
+* {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'DejaVu Sans', 'Arial', Helvetica, sans-serif;
+    color: #111111;
+    background-color: #FFFFFF;
+}
+.page {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    padding: 9mm 12mm;
+    page-break-after: always;
+    overflow: hidden;
+    background-color: #FFFFFF;
+}
+.page:last-child {
+    page-break-after: avoid;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    border-bottom: 0.8mm solid #222222;
+    padding-bottom: 2mm;
+    margin-bottom: 3mm;
+}
+.header h1 {
+    margin: 0 0 1.5mm 0;
+    font-size: 4.8mm;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    color: #0F172A;
+}
+.badge-bar {
+    display: flex;
+    justify-content: center;
+    gap: 4mm;
+    font-size: 2.3mm;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 2.5mm;
+}
+.badge {
+    background-color: #F1F5F9;
+    border: 0.3mm solid #CBD5E1;
+    padding: 0.8mm 2.5mm;
+    border-radius: 1mm;
+}
+.badge-warning {
+    background-color: #FEF3C7;
+    border-color: #F59E0B;
+    color: #92400E;
+}
+
+/* Ruler container */
+.ruler-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 3.5mm;
+}
+
+/* Markers Grid */
+.markers-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14mm;
+    row-gap: 5mm;
+    margin-bottom: 4mm;
+}
+.marker-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    page-break-inside: avoid;
+}
+.marker-frame {
+    width: 60mm;
+    height: 60mm;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #FFFFFF;
+    margin-bottom: 2mm;
+}
+.marker-svg {
+    display: block;
+}
+.meta-box {
+    width: 76mm;
+    background-color: #F8FAFC;
+    border: 0.35mm solid #E2E8F0;
+    border-left: 1.2mm solid #0284C7;
+    border-radius: 1mm;
+    padding: 1.8mm 2.5mm;
+    font-size: 2.2mm;
+    line-height: 1.45;
+}
+.meta-title {
+    font-size: 2.8mm;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.6mm;
+    display: flex;
+    justify-content: space-between;
+}
+.meta-row {
+    display: flex;
+    justify-content: space-between;
+    color: #475569;
+}
+.meta-val {
+    font-weight: 700;
+    color: #0F172A;
+}
+.meta-dest {
+    color: #0369A1;
+    font-weight: 700;
+}
+
+/* Bottom Panel */
+.bottom-panel {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    column-gap: 5mm;
+    border-top: 0.6mm solid #CBD5E1;
+    padding-top: 3mm;
+}
+.guide-box {
+    background-color: #FAFAFA;
+    border: 0.3mm solid #E2E8F0;
+    border-radius: 1.5mm;
+    padding: 2.5mm 3.5mm;
+}
+.guide-title {
+    font-size: 2.7mm;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 1.5mm;
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+}
+.guide-list {
+    margin: 0;
+    padding-left: 4mm;
+    font-size: 2.1mm;
+    line-height: 1.5;
+    color: #334155;
+}
+.guide-list li {
+    margin-bottom: 1mm;
+}
+.guide-list strong {
+    color: #0F172A;
+}
+.map-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Cutout notice */
+.cutout-guarantee {
+    margin-top: 1.5mm;
+    font-size: 2.0mm;
+    color: #059669;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 1mm;
+}
+
+/* Page footer */
+.page-footer {
+    position: absolute;
+    bottom: 3.5mm;
+    left: 12mm;
+    right: 12mm;
+    display: flex;
+    justify-content: space-between;
+    font-size: 2.0mm;
+    color: #94A3B8;
+    border-top: 0.25mm solid #E2E8F0;
+    padding-top: 1.2mm;
+}
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: PRIMARY ARENA CALIBRATION SET -->
+<div class="page">
+    <div class="header">
+        <h1>xArm 1S Arena ArUco Calibration Markers (50 × 50 mm)</h1>
+        <div class="badge-bar">
+            <span class="badge badge-warning">⚠ PRINT SETTING: 100% Scale / Actual Size (NO "Fit to Page")</span>
+            <span class="badge">Standard: ISO A4 (210 × 297 mm)</span>
+            <span class="badge">Dictionary: DICT_4X4_50</span>
+            <span class="badge">Size: Exactly 5.0 × 5.0 cm</span>
+        </div>
+        <div class="ruler-container">
+            <svg width="110.0mm" height="12.0mm" viewBox="0 0 110.0 12.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5.0" y="2.0" width="100.0" height="7.0" fill="#F8F9FA" stroke="#222222" stroke-width="0.6"/>
+  <rect x="5.0" y="2.0" width="50.0" height="7.0" fill="#E8F4FD" stroke="none"/>
+  <line x1="5.00" y1="2.0" x2="5.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="5.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">0</text>
+  <line x1="6.00" y1="2.0" x2="6.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="7.00" y1="2.0" x2="7.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="8.00" y1="2.0" x2="8.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="9.00" y1="2.0" x2="9.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="10.00" y1="2.0" x2="10.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="11.00" y1="2.0" x2="11.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="12.00" y1="2.0" x2="12.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="13.00" y1="2.0" x2="13.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="14.00" y1="2.0" x2="14.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="15.00" y1="2.0" x2="15.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="15.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">10</text>
+  <line x1="16.00" y1="2.0" x2="16.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="17.00" y1="2.0" x2="17.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="18.00" y1="2.0" x2="18.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="19.00" y1="2.0" x2="19.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="20.00" y1="2.0" x2="20.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="21.00" y1="2.0" x2="21.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="22.00" y1="2.0" x2="22.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="23.00" y1="2.0" x2="23.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="24.00" y1="2.0" x2="24.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="25.00" y1="2.0" x2="25.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="25.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">20</text>
+  <line x1="26.00" y1="2.0" x2="26.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="27.00" y1="2.0" x2="27.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="28.00" y1="2.0" x2="28.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="29.00" y1="2.0" x2="29.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="30.00" y1="2.0" x2="30.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="31.00" y1="2.0" x2="31.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="32.00" y1="2.0" x2="32.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="33.00" y1="2.0" x2="33.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="34.00" y1="2.0" x2="34.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="35.00" y1="2.0" x2="35.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="35.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">30</text>
+  <line x1="36.00" y1="2.0" x2="36.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="37.00" y1="2.0" x2="37.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="38.00" y1="2.0" x2="38.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="39.00" y1="2.0" x2="39.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="40.00" y1="2.0" x2="40.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="41.00" y1="2.0" x2="41.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="42.00" y1="2.0" x2="42.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="43.00" y1="2.0" x2="43.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="44.00" y1="2.0" x2="44.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="45.00" y1="2.0" x2="45.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="45.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">40</text>
+  <line x1="46.00" y1="2.0" x2="46.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="47.00" y1="2.0" x2="47.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="48.00" y1="2.0" x2="48.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="49.00" y1="2.0" x2="49.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="50.00" y1="2.0" x2="50.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="51.00" y1="2.0" x2="51.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="52.00" y1="2.0" x2="52.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="53.00" y1="2.0" x2="53.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="54.00" y1="2.0" x2="54.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="55.00" y1="2.0" x2="55.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="55.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">50</text>
+  <line x1="56.00" y1="2.0" x2="56.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="57.00" y1="2.0" x2="57.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="58.00" y1="2.0" x2="58.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="59.00" y1="2.0" x2="59.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="60.00" y1="2.0" x2="60.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="61.00" y1="2.0" x2="61.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="62.00" y1="2.0" x2="62.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="63.00" y1="2.0" x2="63.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="64.00" y1="2.0" x2="64.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="65.00" y1="2.0" x2="65.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="65.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">60</text>
+  <line x1="66.00" y1="2.0" x2="66.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="67.00" y1="2.0" x2="67.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="68.00" y1="2.0" x2="68.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="69.00" y1="2.0" x2="69.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="70.00" y1="2.0" x2="70.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="71.00" y1="2.0" x2="71.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="72.00" y1="2.0" x2="72.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="73.00" y1="2.0" x2="73.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="74.00" y1="2.0" x2="74.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="75.00" y1="2.0" x2="75.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="75.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">70</text>
+  <line x1="76.00" y1="2.0" x2="76.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="77.00" y1="2.0" x2="77.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="78.00" y1="2.0" x2="78.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="79.00" y1="2.0" x2="79.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="80.00" y1="2.0" x2="80.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="81.00" y1="2.0" x2="81.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="82.00" y1="2.0" x2="82.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="83.00" y1="2.0" x2="83.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="84.00" y1="2.0" x2="84.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="85.00" y1="2.0" x2="85.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="85.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">80</text>
+  <line x1="86.00" y1="2.0" x2="86.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="87.00" y1="2.0" x2="87.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="88.00" y1="2.0" x2="88.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="89.00" y1="2.0" x2="89.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="90.00" y1="2.0" x2="90.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="91.00" y1="2.0" x2="91.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="92.00" y1="2.0" x2="92.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="93.00" y1="2.0" x2="93.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="94.00" y1="2.0" x2="94.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="95.00" y1="2.0" x2="95.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="95.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">90</text>
+  <line x1="96.00" y1="2.0" x2="96.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="97.00" y1="2.0" x2="97.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="98.00" y1="2.0" x2="98.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="99.00" y1="2.0" x2="99.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="100.00" y1="2.0" x2="100.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="101.00" y1="2.0" x2="101.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="102.00" y1="2.0" x2="102.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="103.00" y1="2.0" x2="103.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="104.00" y1="2.0" x2="104.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="105.00" y1="2.0" x2="105.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="105.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">100</text>
+  <text x="30.0" y="1.3" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" font-weight="bold" text-anchor="middle" fill="#0055AA">◄── 50 mm (5.0 cm) ArUco Target Size ──►</text>
+  <text x="80.0" y="1.3" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" text-anchor="middle" fill="#555555">100 mm Verification Scale</text>
+</svg>
+        </div>
+    </div>
+
+    <div class="markers-grid">
+        <!-- Marker 0 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #DC2626;">
+                <div class="meta-title">
+                    <span>ArUco #0 — Top-Left</span>
+                    <span class="meta-dest">Pixel: (0, 0)</span>
+                </div>
+                <div class="meta-row"><span>Cell Location:</span><span class="meta-val">Row 3, Col 0</span></div>
+                <div class="meta-row"><span>Coordinates:</span><span class="meta-val">X = 25.0 mm, Y = 425.0 mm</span></div>
+                <div class="meta-row"><span>Cut Size:</span><span class="meta-val">50.0 mm (flush) or 60.0 mm (quiet)</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Marker 1 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #16A34A;">
+                <div class="meta-title">
+                    <span>ArUco #1 — Top-Right</span>
+                    <span class="meta-dest">Pixel: (600, 0)</span>
+                </div>
+                <div class="meta-row"><span>Cell Location:</span><span class="meta-val">Row 3, Col 6</span></div>
+                <div class="meta-row"><span>Coordinates:</span><span class="meta-val">X = 325.0 mm, Y = 425.0 mm</span></div>
+                <div class="meta-row"><span>Cut Size:</span><span class="meta-val">50.0 mm (flush) or 60.0 mm (quiet)</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Marker 2 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #2563EB;">
+                <div class="meta-title">
+                    <span>ArUco #2 — Bottom-Left</span>
+                    <span class="meta-dest">Pixel: (0, 800)</span>
+                </div>
+                <div class="meta-row"><span>Cell Location:</span><span class="meta-val">Row 11, Col 0</span></div>
+                <div class="meta-row"><span>Coordinates:</span><span class="meta-val">X = 25.0 mm, Y = 25.0 mm</span></div>
+                <div class="meta-row"><span>Cut Size:</span><span class="meta-val">50.0 mm (flush) or 60.0 mm (quiet)</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Marker 3 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #9333EA;">
+                <div class="meta-title">
+                    <span>ArUco #3 — Bottom-Right</span>
+                    <span class="meta-dest">Pixel: (600, 800)</span>
+                </div>
+                <div class="meta-row"><span>Cell Location:</span><span class="meta-val">Row 11, Col 6</span></div>
+                <div class="meta-row"><span>Coordinates:</span><span class="meta-val">X = 325.0 mm, Y = 25.0 mm</span></div>
+                <div class="meta-row"><span>Cut Size:</span><span class="meta-val">50.0 mm (flush) or 60.0 mm (quiet)</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Instructions & Arena Layout -->
+    <div class="bottom-panel">
+        <div class="guide-box">
+            <div class="guide-title">✂ Cutting & Mounting Instructions (Coplanar Z = 0.0 mm)</div>
+            <ol class="guide-list">
+                <li><strong>Verify Scale First:</strong> Measure the 100 mm ruler above with a physical ruler. [0 to 50 mm] must be exactly 5.0 cm.</li>
+                <li><strong>Cutting Options:</strong>
+                    <br>• <em>Option A (Recommended):</em> Cut along the outer dashed line (60×60 mm) to retain the 5 mm white quiet zone.
+                    <br>• <em>Option B:</em> Cut directly along the black marker edge (50×50 mm) if pasting onto white MDF board.
+                </li>
+                <li><strong>Clean Cutouts:</strong> Text and labels are strictly outside the cut lines. The marker cutout contains zero text.</li>
+                <li><strong>Coplanar Mounting:</strong> Paste flat onto the arena baseplate at Z = 0.0 mm using double-sided adhesive or spray glue. Ensure no bubbles or curl.</li>
+            </ol>
+        </div>
+
+        <div class="map-box">
+            <svg width="90.0mm" height="54.0mm" viewBox="0 0 90.0 54.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="4" y="2" width="78" height="50" rx="2" fill="#FAFAFA" stroke="#444444" stroke-width="0.7"/>
+  <text x="43" y="5.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#222222">xArm 1S Arena Top-Down Layout (350 × 600 mm)</text>
+  <rect x="7" y="8" width="18" height="9" fill="#FFDADA" stroke="#CC0000" stroke-width="0.5"/>
+  <text x="16" y="13.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" text-anchor="middle" fill="#990000">Red Bin</text>
+  <rect x="61" y="8" width="18" height="9" fill="#DAF5DA" stroke="#008800" stroke-width="0.5"/>
+  <text x="70" y="13.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" text-anchor="middle" fill="#006600">Green Bin</text>
+  <rect x="34" y="13" width="18" height="12" rx="1.5" fill="#E6EEF8" stroke="#1A569A" stroke-width="0.6"/>
+  <text x="43" y="18" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" font-weight="bold" text-anchor="middle" fill="#1A569A">xArm 1S Base</text>
+  <text x="43" y="22" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" text-anchor="middle" fill="#444444">(175, 375) South ▼</text>
+  <rect x="18" y="27" width="50" height="20" fill="#FFFFFF" stroke="#999999" stroke-width="0.5" stroke-dasharray="1.5,1.5"/>
+  <text x="43" y="38" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" font-weight="bold" text-anchor="middle" fill="#666666">Picking Arena (300 × 400 mm)</text>
+  <rect x="6" y="20" width="7" height="7" fill="#000000" stroke="#000000"/>
+  <text x="14.5" y="24.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" fill="#000000">#0 (TL)</text>
+  <rect x="73" y="20" width="7" height="7" fill="#000000" stroke="#000000"/>
+  <text x="71.5" y="24.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" text-anchor="end" fill="#000000">#1 (TR)</text>
+  <rect x="6" y="38" width="7" height="7" fill="#000000" stroke="#000000"/>
+  <text x="14.5" y="42.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" fill="#000000">#2 (BL)</text>
+  <rect x="73" y="38" width="7" height="7" fill="#000000" stroke="#000000"/>
+  <text x="71.5" y="42.5" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" font-weight="bold" text-anchor="end" fill="#000000">#3 (BR)</text>
+</svg>
+        </div>
+    </div>
+
+    <div class="page-footer">
+        <span>Sem-5 Mini Project: Robotic Sorting Arm — Overhead Vision Homography System</span>
+        <span>Page 1 of 2 (Primary Arena Set)</span>
+    </div>
+</div>
+
+
+<!-- PAGE 2: SPARE / BACKUP CALIBRATION SET -->
+<div class="page">
+    <div class="header">
+        <h1>xArm 1S Arena ArUco Markers — Spare / Backup Set</h1>
+        <div class="badge-bar">
+            <span class="badge badge-warning">⚠ PRINT SETTING: 100% Scale / Actual Size (NO "Fit to Page")</span>
+            <span class="badge">Standard: ISO A4 (210 × 297 mm)</span>
+            <span class="badge">Dictionary: DICT_4X4_50</span>
+            <span class="badge">4× Backup Markers</span>
+        </div>
+        <div class="ruler-container">
+            <svg width="110.0mm" height="12.0mm" viewBox="0 0 110.0 12.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5.0" y="2.0" width="100.0" height="7.0" fill="#F8F9FA" stroke="#222222" stroke-width="0.6"/>
+  <rect x="5.0" y="2.0" width="50.0" height="7.0" fill="#E8F4FD" stroke="none"/>
+  <line x1="5.00" y1="2.0" x2="5.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="5.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">0</text>
+  <line x1="6.00" y1="2.0" x2="6.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="7.00" y1="2.0" x2="7.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="8.00" y1="2.0" x2="8.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="9.00" y1="2.0" x2="9.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="10.00" y1="2.0" x2="10.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="11.00" y1="2.0" x2="11.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="12.00" y1="2.0" x2="12.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="13.00" y1="2.0" x2="13.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="14.00" y1="2.0" x2="14.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="15.00" y1="2.0" x2="15.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="15.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">10</text>
+  <line x1="16.00" y1="2.0" x2="16.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="17.00" y1="2.0" x2="17.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="18.00" y1="2.0" x2="18.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="19.00" y1="2.0" x2="19.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="20.00" y1="2.0" x2="20.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="21.00" y1="2.0" x2="21.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="22.00" y1="2.0" x2="22.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="23.00" y1="2.0" x2="23.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="24.00" y1="2.0" x2="24.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="25.00" y1="2.0" x2="25.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="25.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">20</text>
+  <line x1="26.00" y1="2.0" x2="26.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="27.00" y1="2.0" x2="27.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="28.00" y1="2.0" x2="28.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="29.00" y1="2.0" x2="29.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="30.00" y1="2.0" x2="30.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="31.00" y1="2.0" x2="31.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="32.00" y1="2.0" x2="32.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="33.00" y1="2.0" x2="33.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="34.00" y1="2.0" x2="34.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="35.00" y1="2.0" x2="35.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="35.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">30</text>
+  <line x1="36.00" y1="2.0" x2="36.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="37.00" y1="2.0" x2="37.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="38.00" y1="2.0" x2="38.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="39.00" y1="2.0" x2="39.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="40.00" y1="2.0" x2="40.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="41.00" y1="2.0" x2="41.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="42.00" y1="2.0" x2="42.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="43.00" y1="2.0" x2="43.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="44.00" y1="2.0" x2="44.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="45.00" y1="2.0" x2="45.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="45.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">40</text>
+  <line x1="46.00" y1="2.0" x2="46.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="47.00" y1="2.0" x2="47.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="48.00" y1="2.0" x2="48.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="49.00" y1="2.0" x2="49.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="50.00" y1="2.0" x2="50.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="51.00" y1="2.0" x2="51.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="52.00" y1="2.0" x2="52.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="53.00" y1="2.0" x2="53.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="54.00" y1="2.0" x2="54.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="55.00" y1="2.0" x2="55.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="55.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">50</text>
+  <line x1="56.00" y1="2.0" x2="56.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="57.00" y1="2.0" x2="57.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="58.00" y1="2.0" x2="58.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="59.00" y1="2.0" x2="59.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="60.00" y1="2.0" x2="60.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="61.00" y1="2.0" x2="61.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="62.00" y1="2.0" x2="62.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="63.00" y1="2.0" x2="63.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="64.00" y1="2.0" x2="64.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="65.00" y1="2.0" x2="65.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="65.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">60</text>
+  <line x1="66.00" y1="2.0" x2="66.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="67.00" y1="2.0" x2="67.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="68.00" y1="2.0" x2="68.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="69.00" y1="2.0" x2="69.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="70.00" y1="2.0" x2="70.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="71.00" y1="2.0" x2="71.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="72.00" y1="2.0" x2="72.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="73.00" y1="2.0" x2="73.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="74.00" y1="2.0" x2="74.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="75.00" y1="2.0" x2="75.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="75.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">70</text>
+  <line x1="76.00" y1="2.0" x2="76.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="77.00" y1="2.0" x2="77.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="78.00" y1="2.0" x2="78.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="79.00" y1="2.0" x2="79.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="80.00" y1="2.0" x2="80.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="81.00" y1="2.0" x2="81.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="82.00" y1="2.0" x2="82.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="83.00" y1="2.0" x2="83.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="84.00" y1="2.0" x2="84.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="85.00" y1="2.0" x2="85.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="85.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">80</text>
+  <line x1="86.00" y1="2.0" x2="86.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="87.00" y1="2.0" x2="87.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="88.00" y1="2.0" x2="88.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="89.00" y1="2.0" x2="89.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="90.00" y1="2.0" x2="90.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="91.00" y1="2.0" x2="91.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="92.00" y1="2.0" x2="92.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="93.00" y1="2.0" x2="93.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="94.00" y1="2.0" x2="94.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="95.00" y1="2.0" x2="95.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="95.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">90</text>
+  <line x1="96.00" y1="2.0" x2="96.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="97.00" y1="2.0" x2="97.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="98.00" y1="2.0" x2="98.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="99.00" y1="2.0" x2="99.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="100.00" y1="2.0" x2="100.00" y2="6.0" stroke="#333333" stroke-width="0.4"/>
+  <line x1="101.00" y1="2.0" x2="101.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="102.00" y1="2.0" x2="102.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="103.00" y1="2.0" x2="103.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="104.00" y1="2.0" x2="104.00" y2="4.2" stroke="#666666" stroke-width="0.25"/>
+  <line x1="105.00" y1="2.0" x2="105.00" y2="8.0" stroke="#111111" stroke-width="0.5"/>
+  <text x="105.00" y="12.0" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.6" font-weight="bold" text-anchor="middle" fill="#111111">100</text>
+  <text x="30.0" y="1.3" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" font-weight="bold" text-anchor="middle" fill="#0055AA">◄── 50 mm (5.0 cm) ArUco Target Size ──►</text>
+  <text x="80.0" y="1.3" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" text-anchor="middle" fill="#555555">100 mm Verification Scale</text>
+</svg>
+        </div>
+    </div>
+
+    <div class="markers-grid">
+        <!-- Spare Marker 0 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #DC2626;">
+                <div class="meta-title">
+                    <span>SPARE ArUco #0</span>
+                    <span class="meta-dest">ID: 0</span>
+                </div>
+                <div class="meta-row"><span>Target Role:</span><span class="meta-val">Top-Left (Row 3, Col 0)</span></div>
+                <div class="meta-row"><span>World Position:</span><span class="meta-val">X = 25.0 mm, Y = 425.0 mm</span></div>
+                <div class="meta-row"><span>Marker Dimensions:</span><span class="meta-val">50.0 × 50.0 mm</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Spare Marker 1 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #16A34A;">
+                <div class="meta-title">
+                    <span>SPARE ArUco #1</span>
+                    <span class="meta-dest">ID: 1</span>
+                </div>
+                <div class="meta-row"><span>Target Role:</span><span class="meta-val">Top-Right (Row 3, Col 6)</span></div>
+                <div class="meta-row"><span>World Position:</span><span class="meta-val">X = 325.0 mm, Y = 425.0 mm</span></div>
+                <div class="meta-row"><span>Marker Dimensions:</span><span class="meta-val">50.0 × 50.0 mm</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Spare Marker 2 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #2563EB;">
+                <div class="meta-title">
+                    <span>SPARE ArUco #2</span>
+                    <span class="meta-dest">ID: 2</span>
+                </div>
+                <div class="meta-row"><span>Target Role:</span><span class="meta-val">Bottom-Left (Row 11, Col 0)</span></div>
+                <div class="meta-row"><span>World Position:</span><span class="meta-val">X = 25.0 mm, Y = 25.0 mm</span></div>
+                <div class="meta-row"><span>Marker Dimensions:</span><span class="meta-val">50.0 × 50.0 mm</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+
+        <!-- Spare Marker 3 -->
+        <div class="marker-card">
+            <div class="marker-frame">
+                <svg class="marker-svg" width="60.0mm" height="60.0mm" viewBox="0 0 60.0 60.0" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="60.0" height="60.0" fill="#FFFFFF" />
+  <rect x="0.25" y="0.25" width="59.50" height="59.50" fill="none" stroke="#A0A0A0" stroke-width="0.5" stroke-dasharray="2,2" />
+  <line x1="1.00" y1="5.00" x2="3.80" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="1.00" x2="5.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="5.00" x2="59.00" y2="5.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="1.00" x2="55.00" y2="3.80" stroke="#777777" stroke-width="0.4" />
+  <line x1="1.00" y1="55.00" x2="3.80" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="5.00" y1="56.20" x2="5.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="56.20" y1="55.00" x2="59.00" y2="55.00" stroke="#777777" stroke-width="0.4" />
+  <line x1="55.00" y1="56.20" x2="55.00" y2="59.00" stroke="#777777" stroke-width="0.4" />
+  <rect x="5.0000" y="5.0000" width="50.0000" height="50.0000" fill="#000000" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="13.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="13.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="38.3333" y="21.6667" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="30.0000" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="21.6667" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+  <rect x="30.0000" y="38.3333" width="8.3333" height="8.3333" fill="#FFFFFF" shape-rendering="crispEdges" />
+</svg>
+            </div>
+            <div class="meta-box" style="border-left-color: #9333EA;">
+                <div class="meta-title">
+                    <span>SPARE ArUco #3</span>
+                    <span class="meta-dest">ID: 3</span>
+                </div>
+                <div class="meta-row"><span>Target Role:</span><span class="meta-val">Bottom-Right (Row 11, Col 6)</span></div>
+                <div class="meta-row"><span>World Position:</span><span class="meta-val">X = 325.0 mm, Y = 25.0 mm</span></div>
+                <div class="meta-row"><span>Marker Dimensions:</span><span class="meta-val">50.0 × 50.0 mm</span></div>
+                <div class="cutout-guarantee">✓ ZERO text on cutout marker</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel for Page 2 -->
+    <div class="bottom-panel">
+        <div class="guide-box" style="grid-column: span 2;">
+            <div class="guide-title">📌 Backup Notes & Camera Homography Tips</div>
+            <ol class="guide-list">
+                <li><strong>Why Backup Markers?</strong> In physical robotics setups, tape peel, adhesive slippage, or surface scuffs can degrade sub-pixel corner refinement. Keep these 4 spare markers handy.</li>
+                <li><strong>Sub-Pixel Refinement:</strong> The ROS 2 vision pipeline uses <code>CORNER_REFINE_SUBPIX</code> with <code>cv2.aruco.DICT_4X4_50</code>. Clean, sharp cuts with flat adhesion ensure sub-2 mm centroid error.</li>
+                <li><strong>Lighting Consideration:</strong> Ensure uniform, non-glare overhead illumination. If using glossy sticker paper, avoid direct specular reflections from spotlights into the overhead camera lens.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="page-footer">
+        <span>Sem-5 Mini Project: Robotic Sorting Arm — Overhead Vision Homography System</span>
+        <span>Page 2 of 2 (Spare / Backup Set)</span>
+    </div>
+</div>
+
+</body>
+</html>

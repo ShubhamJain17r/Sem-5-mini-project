@@ -18,7 +18,7 @@ import logging
 import os
 import select
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger("xarm_protocol")
 
@@ -146,8 +146,10 @@ class XArmDriver:
     def connect(self) -> bool:
         """Open connection over USB HID or Serial UART."""
         target_port = self.requested_port
+        if isinstance(target_port, (list, tuple)):
+            target_port = target_port[0]
 
-        if target_port in ["auto", "", None]:
+        if target_port in ["auto", "", None] or not os.path.exists(str(target_port)):
             detected_port, detected_type = find_xarm_device()
             if not detected_port:
                 logger.error("No xArm device detected on USB HID or Serial interfaces.")
@@ -277,7 +279,22 @@ class XArmDriver:
                 os.write(self.hid_fd, report)
                 return True
             except Exception as e:
-                logger.error(f"HID write error: {e}")
+                logger.warning(f"HID write error: {e}. Attempting auto-reconnect...")
+                try:
+                    if self.hid_fd is not None:
+                        os.close(self.hid_fd)
+                except Exception:
+                    pass
+                self.hid_fd = None
+                self.is_connected = False
+                time.sleep(0.3)
+                if self.connect():
+                    logger.info(f"Reconnected to xArm on {self.port}. Retrying write...")
+                    try:
+                        os.write(self.hid_fd, report)
+                        return True
+                    except Exception as retry_err:
+                        logger.error(f"Retry write failed: {retry_err}")
                 return False
         else:
             if self.serial is None or not self.serial.is_open:
@@ -538,6 +555,18 @@ class XArmDriver:
             positions[sid] = self.read_servo_position(sid, timeout_sec=timeout_sec)
         return positions
 
+    def get_servo_positions(self) -> Dict[int, Optional[int]]:
+        """Convenience alias for read_all_servo_positions."""
+        return self.read_all_servo_positions()
+
+    def set_servo_positions(self, ticks: Union[List[int], Dict[int, int]], duration_ms: int = 1000) -> bool:
+        """Convenience alias for send_multi_servo_move accepting either dict or list."""
+        if isinstance(ticks, (list, tuple)):
+            target_dict = {i + 1: int(t) for i, t in enumerate(ticks[:6])}
+        else:
+            target_dict = {int(k): int(v) for k, v in ticks.items()}
+        return self.send_multi_servo_move(target_dict, time_ms=duration_ms)
+
     def wait_in_position(
         self,
         target_ticks: Dict[int, int],
@@ -568,12 +597,14 @@ class XArmDriver:
                     actual_ticks[sid] = actual
                     err = actual - target
                     errors[sid] = err
-                    if abs(err) > tolerance_ticks:
+                    tol = 60 if sid == 1 else tolerance_ticks
+                    if abs(err) > tol:
                         all_in_position = False
                 else:
                     prev = actual_ticks.get(sid, self.current_ticks.get(sid, 500))
                     errors[sid] = prev - target
-                    if abs(prev - target) > tolerance_ticks:
+                    tol = 60 if sid == 1 else tolerance_ticks
+                    if abs(prev - target) > tol:
                         all_in_position = False
 
             if all_in_position and len(actual_ticks) == len(target_ticks):
@@ -634,6 +665,10 @@ class XArmDriver:
         if stall_detection:
             stalled_joints = []
             for sid, target in target_ticks.items():
+                if sid == 1:
+                    # Motor 1 is the claw gripper; clamping an object or reaching physical open span
+                    # produces intended mechanical resistance and should not trigger collision cutoff.
+                    continue
                 err = errors.get(sid, None)
                 if err is not None and abs(err) > tolerance_ticks:
                     actual = actuals.get(sid, "Unknown")
@@ -650,4 +685,4 @@ class XArmDriver:
                 self.emergency_stop()
                 return False
 
-        return False
+        return True

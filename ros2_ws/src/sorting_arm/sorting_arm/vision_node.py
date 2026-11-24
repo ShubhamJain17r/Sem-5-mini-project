@@ -119,6 +119,7 @@ class VisionNode(Node):
                 "r2_mm": c.r2_mm,
                 "theta2_deg": c.theta2_deg,
                 "confidence": c.confidence,
+                "gripper_roll_tick": c.gripper_roll_tick,
             })
 
         msg_str = String()

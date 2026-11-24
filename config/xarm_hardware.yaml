@@ -35,20 +35,28 @@ workspace:
     retaining_barrier: "8-10mm self-adhesive foam weatherstripping tape"
     silicone_friction_coeff: 0.8
     cube_size_mm: 25.0             # Standard cube width/length
-    cube_height_mm: 19.05          # Block thickness (accommodates 19-25mm)
-    cube_center_z_mm: 9.53         # Grasp altitude (mm)
+    cube_height_mm: 38.1           # Doubled block thickness (glued craft blocks)
+    cube_center_z_mm: 19.05        # Grasp altitude (mm) with vertical clearance
     min_x_mm: 25.0
     max_x_mm: 325.0
     min_y_mm: 25.0
-    max_y_mm: 450.0                # Extended picking zone across Rows 3..10
+    max_y_mm: 275.0                # Active picking zone across Rows 6..10 (Rows 3..5 excluded)
+    golden_zone:
+      min_x_mm: 75.0               # Columns 2, 3, 4 (X in [75.0, 275.0])
+      max_x_mm: 275.0
+      min_y_mm: 100.0              # Rows 7, 8, 9 (Y in [100.0, 250.0])
+      max_y_mm: 250.0
+      min_radial_reach_mm: 140.0
+      max_radial_reach_mm: 260.0
+    excluded_rows: [3, 4, 5]       # Arm clearance zone; no objects placed or dropped
   aruco_markers:
     dict: "DICT_4X4_50"
-    marker_size_mm: 40.0
+    marker_size_mm: 50.0
     markers:
-      marker_0: {id: 0, col: 0, row: 3, center_world_mm: {x: 25.0, y: 425.0, z: 1.0}}
-      marker_1: {id: 1, col: 6, row: 3, center_world_mm: {x: 325.0, y: 425.0, z: 1.0}}
-      marker_2: {id: 2, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
-      marker_3: {id: 3, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
+      marker_0: {id: 0, col: 0, row: 6, center_world_mm: {x: 25.0, y: 275.0, z: 1.0}}
+      marker_1: {id: 1, col: 6, row: 6, center_world_mm: {x: 325.0, y: 275.0, z: 1.0}}
+      marker_2: {id: 2, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
+      marker_3: {id: 3, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
 
 # -------------------------------------------------------------------------------------
 # MANIPULATOR CONFIGURATION (xarm_1)
@@ -64,9 +72,11 @@ manipulators:
     base_mount_mm:
       x: 175.0
       y: 375.0
-      z: 0.0
+      z: 5.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
-      nominal_heading_deg: -90.0   # 502 ticks points directly South (-90° world) down Column 3 midline
+      gravity_sag_trim_mm: 10.0    # Neutralizes physical cantilever droop & gear backlash
+      reach_scale_factor: 0.05     # Additional reach per mm beyond 150mm
+      nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world) down Column 3 midline
 
     # Serial / USB Interface
     communication:
@@ -77,7 +87,7 @@ manipulators:
 
     # Physical link lengths (millimeters)
     link_lengths_mm:
-      base_to_shoulder_d1: 65.0       # Vertical offset to Motor 5 shoulder axis
+      base_to_shoulder_d1: 70.0       # Vertical offset to Motor 5 shoulder axis (65mm + 5mm baseboard)
       upper_arm_L1: 101.0             # Link between shoulder and elbow
       forearm_L2: 95.0                # Link between elbow and wrist pitch
       tool_claw_grip_center_L3: 150.0 # Link from wrist pitch to rubber pad grasp center
@@ -113,98 +123,98 @@ manipulators:
       motor_1:
         joint_name: "claw_gripper"
         hardware_id: 1
-        min_tick: 226
-        max_tick: 782
-        nominal_center_tick: 517
+        min_tick: 250
+        max_tick: 750
+        nominal_center_tick: 500
         direction_multiplier: 1
         zero_reference_angle_deg: 0.0
-        motion_description: "Decreasing ticks opens claw (221 raw = 56mm); increasing ticks clamps/closes claw (787 raw = 0mm)"
-        test_500_to_450_direction: "Fingers open wider toward 56mm limit"
+        motion_description: "250 ticks opens claw (~5.5 cm span); 750 ticks clamps/closes claw (0.0 cm span); center is 500 ticks"
+        test_500_to_450_direction: "Fingers open wider toward 55mm limit"
         claw_span_mm:
-          fully_open: {tick: 226, span_mm: 56.0}
-          nominal_reset: {tick: 517, span_mm: 43.0}
-          grip_cube_25mm: {tick: 630, span_mm: 25.0}
-          grip_cube_31mm: {tick: 588, span_mm: 31.75}
-          fully_closed_empty: {tick: 782, span_mm: 0.0}
+          fully_open: {tick: 250, span_mm: 55.0}
+          nominal_reset: {tick: 500, span_mm: 27.5}
+          grip_cube_25mm: {tick: 523, span_mm: 25.0}
+          grip_cube_31mm: {tick: 464, span_mm: 31.75}
+          fully_closed_empty: {tick: 750, span_mm: 0.0}
 
       motor_2:
         joint_name: "wrist_roll"
         hardware_id: 2
-        min_tick: 124
-        max_tick: 884
-        nominal_center_tick: 503
+        min_tick: 130
+        max_tick: 870
+        nominal_center_tick: 500
         direction_multiplier: 1
-        zero_reference_angle_deg: 0.0   # 503 = level horizontal claw jaws
-        motion_description: "Increasing ticks (>503) rolls counter-clockwise (ACW: 889 raw); decreasing ticks (<503) rolls clockwise (CW: 119 raw)"
+        zero_reference_angle_deg: 0.0   # 500 = level horizontal claw jaws
+        motion_description: "Clockwise 90° at 130 ticks, Anti-clockwise 90° at 870 ticks, center at 500 ticks (0.2432 deg/tick)"
         test_500_to_450_direction: "Rolls clockwise (CW) toward left finger"
 
       motor_3:
         joint_name: "wrist_pitch"
         hardware_id: 3
-        min_tick: 121
-        max_tick: 864
-        nominal_center_tick: 504
+        min_tick: 140
+        max_tick: 860
+        nominal_center_tick: 500
         direction_multiplier: 1
-        zero_reference_angle_deg: 0.0   # 504 = aligned collinearly with forearm
-        motion_description: "CW at 869 raw ticks; ACW at 116 raw ticks; decreasing ticks tilts upward/backward"
+        zero_reference_angle_deg: 0.0   # 500 = aligned collinearly with forearm
+        motion_description: "Arena lean (0° w.r.t board) at 860 ticks, Perpendicular upright (90°) at 500 ticks, Container lean (180°) at 140 ticks (4.0 ticks/deg)"
         test_500_to_450_direction: "Pitches wrist UPWARD away from table"
 
       motor_4:
         joint_name: "elbow_pitch"
         hardware_id: 4
-        min_tick: 153
+        min_tick: 140
         max_tick: 860
-        nominal_center_tick: 496
+        nominal_center_tick: 500
         direction_multiplier: 1
-        zero_reference_angle_deg: 180.0 # 496 = straight collinear extension with upper arm
-        motion_description: "ACW at 865 raw ticks; CW at 148 raw ticks; increasing ticks folds backward"
+        zero_reference_angle_deg: 180.0 # 500 = straight collinear extension with upper arm
+        motion_description: "Arena lean (0° w.r.t board) at 140 ticks, Perpendicular upright (90°) at 500 ticks, Container lean (180°) at 860 ticks (4.0 ticks/deg)"
         test_500_to_450_direction: "Folds forearm forward toward upper arm"
 
       motor_5:
         joint_name: "shoulder_pitch"
         hardware_id: 5
-        min_tick: 125
-        max_tick: 854
-        nominal_center_tick: 501
+        min_tick: 140
+        max_tick: 860
+        nominal_center_tick: 500
         direction_multiplier: 1        # Note: Inverted in URDF pitch, positive in servo ticks
-        zero_reference_angle_deg: 90.0  # 501 = 90° upright vertical relative to table
-        motion_description: "CW at 859 raw ticks; ACW at 120 raw ticks; decreasing ticks tilts upright/backward"
+        zero_reference_angle_deg: 90.0  # 500 = 90° upright vertical relative to table
+        motion_description: "Arena lean (0° w.r.t board) at 860 ticks, Perpendicular upright (90°) at 500 ticks, Container lean (180°) at 140 ticks (4.0 ticks/deg)"
         test_500_to_450_direction: "Tilts upper arm BACKWARD/upright toward table surface"
 
       motor_6:
         joint_name: "base_yaw"
         hardware_id: 6
-        min_tick: 50
-        max_tick: 950
-        nominal_center_tick: 502        # 502 ticks = nominal heading (-90° world / South)
+        min_tick: 120
+        max_tick: 880
+        nominal_center_tick: 500        # 500 ticks = nominal heading (-90° world / South)
         direction_multiplier: 1
         zero_reference_angle_deg: 0.0   # 0° = pointing along nominal heading
-        motion_description: "Increasing ticks rotates CCW (toward East); decreasing rotates CW (toward West)"
+        motion_description: "Clockwise 90° at 120 ticks, Anti-clockwise 90° at 880 ticks, center at 500 ticks (0.2368 deg/tick)"
         test_500_to_450_direction: "Rotates clockwise (CW) toward West"
 
     # Predefined Multi-State Poses (Calibrated Ticks: [M1, M2, M3, M4, M5, M6])
     poses:
       home_tucked:
-        ticks: [517, 503, 504, 496, 501, 502]
-        description: "Straight upright vertical reset pose; all servos at physical reset center"
+        ticks: [500, 500, 500, 500, 500, 500]
+        description: "Straight upright vertical reset pose; all servos at physical reset center (500 ticks)"
         transit_time_ms: 1500
       ready_standoff:
-        ticks: [226, 503, 746, 155, 529, 502]
+        ticks: [250, 500, 746, 155, 529, 500]
         description: "Hovering safely above arena picking zone awaiting commands (Zw ≈ 165mm)"
         transit_time_ms: 1600
       rear_transit_tuck:
-        ticks: [610, 503, 350, 496, 450, 502]
+        ticks: [523, 500, 350, 500, 450, 500]
         description: "High upright clearance pose while flipping from front arena to rear containers"
         transit_time_ms: 1200
       drop_container_red:
-        ticks: [226, 503, 149, 629, 347, 650]
+        ticks: [250, 500, 140, 629, 347, 650]
         description: "Overhead rear-flip: Red container box (X=50mm, Y=550mm, Z=45mm, yaw tick 650)"
         transit_time_ms: 1600
       drop_container_green:
-        ticks: [226, 503, 149, 629, 347, 354]
+        ticks: [250, 500, 140, 629, 347, 354]
         description: "Overhead rear-flip: Green container box (X=300mm, Y=550mm, Z=45mm, yaw tick 354)"
         transit_time_ms: 1600
       drop_container:
-        ticks: [226, 503, 149, 629, 347, 650]
+        ticks: [250, 500, 140, 629, 347, 650]
         description: "Default rear drop container pose (Red box)"
         transit_time_ms: 1600

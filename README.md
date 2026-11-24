@@ -27,11 +27,14 @@ This project automates target object sorting using classical computer vision, an
    - **Green Container Box**: Rows 0..1, Cols 5..6 ($100\times 100\text{ mm}$); Drop Target $(X = 300.0\text{ mm}, Y = 550.0\text{ mm}, Z = 45.0\text{ mm})$, base yaw tick **$354$**.
 6. **Table-Coplanar ArUco Markers ($50\text{ mm} \times 50\text{ mm}$, $Z = 0.0\text{ mm}$)**:
    - 4 matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3) positioned at:
-     - Marker 0: $(25.0, 425.0\text{ mm})$ [Row 3, Col 0] $\to$ Pixel $(0, 0)$ (Top-Left)
-     - Marker 1: $(325.0, 425.0\text{ mm})$ [Row 3, Col 6] $\to$ Pixel $(600, 0)$ (Top-Right)
-     - Marker 2: $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 800)$ (Bottom-Left)
-     - Marker 3: $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 800)$ (Bottom-Right)
-   - Planar homography rectifies the active arena into a metric $600 \times 800\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
+     - Marker 0 (ID 2): $(25.0, 275.0\text{ mm})$ [Row 6, Col 0] $\to$ Pixel $(0, 0)$ (Top-Left, pointing West)
+     - Marker 1 (ID 0): $(325.0, 275.0\text{ mm})$ [Row 6, Col 6] $\to$ Pixel $(600, 0)$ (Top-Right, pointing West)
+     - Marker 2 (ID 3): $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 500)$ (Bottom-Left, pointing East)
+     - Marker 3 (ID 1): $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 500)$ (Bottom-Right, pointing East)
+   - Planar homography rectifies the active arena into a metric $600 \times 500\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
+7. **Manipulator Mounting & Base Elevation**:
+   - Centered at $(X = 175.0\text{ mm}, Y = 375.0\text{ mm})$ ($100\text{ mm}$ behind Row 6 line).
+   - Elevated on a $5.0\text{ mm}$ cardboard baseplate ($Z_{\text{base}} = 5.0\text{ mm}$, shoulder pivot height from table $d_1 = 70.0\text{ mm}$).
 
 ---
 
@@ -44,29 +47,35 @@ This project automates target object sorting using classical computer vision, an
    │  │ REAR OF WORKSPACE (Row 0, Y = 600 mm)                      │
    │  │ ┌───────────────────────┐        ┌───────────────────────┐ │
    │  │ │   RED CONTAINER BOX   │        │  GREEN CONTAINER BOX  │ │
-   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │
+   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │ │
    │  │ │ Drop Yaw: 650 ticks   │        │ Drop Yaw: 354 ticks   │ │
    │  │ └───────────────────────┘        └───────────────────────┘ │
-   │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
-   │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
-   │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
-   │  │                             │ Heading: -90° (S) │          │
-   │  │                             └───────────────────┘          │
    │  │                                                            │
-   │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
-   │  │                     (r = 160..300 mm reach)                │
-   │  │             [Red & Green Targets | Nearest-First]          │
+   │  │                         ┌───────────────────┐              │
+   │  │                         │   xArm 1S MOUNT   │              │
+   │  │                         │ (X=175.0, Y=375.0)│              │
+   │  │                         │ Z_base = +5.0 mm  │              │
+   │  │                         │ Heading: -90° (S) │              │
+   │  │                         └───────────────────┘              │
+   │  │   [ArUco M0 / ID 2] (50x50mm)      [ArUco M1 / ID 0] (50x50│
+   │  │   (25, 275) [Row 6, Col 0]         (325, 275) [Row 6, Col 6│
+   │  │   Heading: West (180°)             Heading: West (180°)    │
+   │  │ ┌────────────────────────────────────────────────────────┐ │
+   │  │ │         GOLDEN PICKUP ZONE (Rows 7..9, Cols 2..4)      │ │
+   │  │ │       (Kinematic Sweet Spot: r = 140..260 mm reach)    │ │
+   │  │ │   [Top-Down Plunge | Sag Trim | Dynamic Wrist Roll]    │ │
+   │  │ └────────────────────────────────────────────────────────┘ │
+   │  │   [ArUco M2 / ID 3] (50x50mm)      [ArUco M3 / ID 1] (50x50│
+   │  │   (25, 25) [Row 11, Col 0]         (325, 25) [Row 11, Col 6│
+   │  │   Heading: East (0°)               Heading: East (0°)      │
    │  │                                                            │
-   │  │   [ArUco #2] (50x50mm)                            [ArUco #3] (50x50mm) │
-   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6│
-   │  │                                                                        │
-   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)              │
-   │  └────────────────────────────────────────────────────────────────────────┘
-   └───────────────────────────────────────────────────────────────────────────> X (Width: 350 mm)
+   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)  │
+   │  └────────────────────────────────────────────────────────────┘
+   └───────────────────────────────────────────────────────────────> X (Width: 350 mm)
 
   Platform Grid:   7 columns x 12 rows of 50x50 mm squares (350 x 600 mm)
-  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0 mm), Heading -90.0° (South)
-  Vision Rect:     600 x 800 px metric grid at 2.0 px/mm between ArUco centers
+  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0, 5.0 mm), Heading -90.0° (South)
+  Vision Rect:     600 x 500 px metric grid at 2.0 px/mm between ArUco centers (Rows 6..11)
   Drop Motion:     Overhead rear-flip: Red box @ 650 ticks, Green box @ 354 ticks
 ```
 
@@ -78,14 +87,14 @@ This project automates target object sorting using classical computer vision, an
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **Manipulator**     | 1× LewanSoul / Hiwonder xArm 1S (Mount at $X=175\text{ mm}, Y=375\text{ mm}$, Heading $-90.0^\circ$ South)       |
 | **Link Lengths**    | Base-to-Shoulder ($d_1$): $65\text{ mm}$ · Upper Arm ($L_1$): $101\text{ mm}$ · Forearm ($L_2$): $95\text{ mm}$ · Tool ($L_3$): $150\text{--}168\text{ mm}$ |
-| **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp)                              |
-| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5) (Ubuntu 22.04 LTS, rear electronics bay)                  |
-| **Camera**          | Overhead camera with Invicto 10" LED ring light on welded scrap aluminum stand @ 65 cm nadir                    |
+| **Gripper**         | 2-finger parallel claw ($55\text{ mm}$ opening, Motor 2 axial roll, Motor 1 clamp at 520 ticks)                 |
+| **Compute**         | NVIDIA Jetson Orin Nano / Orin NX (or Raspberry Pi 5 / Laptop) (Ubuntu 22.04 LTS, rear electronics bay)         |
+| **Camera**          | Overhead camera with Invicto 10" LED ring light on stand @ 65 cm nadir (or hand-held steady scan)               |
 | **Base Platform**   | Flat platform board with drawn $7\times 12$ grid ($350\text{ mm} \times 600\text{ mm}$, $5\text{ cm}$ cells)    |
-| **Picking Arena**   | Rows 7..10 active pick zone ($r \in [160, 300\text{ mm}]$) with compliant foam perimeter                       |
+| **Picking Arena**   | Golden Pickup Zone (Rows 7..9, Cols 2..4, $X \in [75, 275\text{ mm}]$, $Y \in [100, 250\text{ mm}]$, $r \in [140, 260\text{ mm}]$) with compliant foam perimeter |
 | **Container Boxes** | Dual physical container boxes ($100\times 100\times 35\text{ mm}$ each) at Rear Flank: Red Box $(X=50, Y=550\text{ mm})$, Green Box $(X=300, Y=550\text{ mm})$ |
 | **Fiducials**       | 4× matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3, $50\times 50\text{ mm}$) coplanar at $Z = 0.0\text{ mm}$|
-| **Target Objects**  | Red and Green wooden craft blocks ($25.4\text{ mm}$, $14\text{--}16\text{ g}$) sorted into dedicated rear boxes |
+| **Target Objects**  | Red and Green wooden craft blocks ($25.4\text{ mm}$ cubes / $60\times 35\text{ mm}$ rectangles, $14\text{--}16\text{ g}$) sorted into dedicated rear boxes |
 | **Distractor / Bypass** | Blue objects & metallic reflections ignored/bypassed (matches blue xArm chassis)                            |
 | **Power Supply**    | Single 7.4V / 5A DC buck regulator with common star ground                                                      |
 | **Communication**   | Direct USB HID / USB-UART serial bus (`/dev/ttyUSB0`) @ 115200 / 9600 baud                                      |
@@ -226,7 +235,9 @@ Sem-5-mini-project/
 │           └── setup.py
 │
 ├── tools/                          # Utility & Calibration Tools (RUN IN VENV OR DOCKER)
+│   ├── run_autonomous_system.py    # 4-stage end-to-end autonomous pipeline (self-healing, ArUco validation, picking)
 │   ├── autonomous_pick_and_place.py # End-to-end vision-guided autonomous sorting bridge
+│   ├── render_sim_view.py          # Multi-view 3D/elevation digital twin trajectory renderer
 │   ├── telemetry_logger.py         # Sub-millimeter drift analysis & repeatability logger
 │   └── web_config/                 # Real-time Web Configuration & Calibration Tool
 │       ├── server.py               # Dynamic port auto-detect HTTP & REST API server (:8000)
@@ -330,11 +341,11 @@ python3 tools/web_config/server.py
 
 #### 3. Run Standalone Tests & Motion Test Suite
 ```bash
-# Run 26 offline simulation unit tests (no hardware required)
+# Run 36 offline simulation unit tests (no hardware required)
 python3 ros2_ws/src/sorting_arm/test/run_tests.py
 
-# Run automated computer vision & ArUco homography tests
-pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+# Run 9 full ROS 2 simulation & mock trajectory tests (inside Docker)
+pytest ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py
 
 # Run comprehensive 13-motion single-arm trajectory test suite
 python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
@@ -343,8 +354,12 @@ python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --
 python3 tools/telemetry_logger.py --arm xarm_1 --scan
 ```
 
-#### 4. Run Computer Vision Tools & Autonomous Sorting Bridge
+#### 4. Run Computer Vision Tools & Complete Autonomous System
 ```bash
+# Complete 4-stage autonomous sorting pipeline (self-healing, ArUco validation, picking):
+python3 tools/run_autonomous_system.py --dry-run   # Simulation / Dry-run
+python3 tools/run_autonomous_system.py             # Live Hardware Execution
+
 # Test 4-point ArUco planar homography & metric grid (press 'l' lock, 'g' grid, 's' save)
 python3 vision/test_aruco_warp.py --synthetic  # or --device /dev/video0
 
