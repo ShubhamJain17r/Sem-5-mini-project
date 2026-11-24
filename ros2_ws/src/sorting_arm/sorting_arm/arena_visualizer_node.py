@@ -373,6 +373,18 @@ class ArenaVisualizerNode(Node):
                 return  # Skip self-generated messages
 
             objs = data.get("objects", [])
+            if data.get("sync_replace", False) or data.get("clear_before_sync", False):
+                # Keep gripped cube if currently holding one, clear remaining in-cell cubes
+                self.cubes = [c for c in self.cubes if c.state != "in_cell"]
+                self._publish_delete_all_markers()
+                for obj in objs:
+                    color = obj.get("color", "red").lower()
+                    wx_m = float(obj.get("world_x_mm", 0.0)) / 1000.0
+                    wy_m = float(obj.get("world_y_mm", 0.0)) / 1000.0
+                    self._add_cube(color, wx_m, wy_m)
+                self.get_logger().info(f"Synchronized {len(objs)} real vision cubes into 3D digital twin.")
+                return
+
             for obj in objs:
                 color = obj.get("color", "red").lower()
                 wx_m = float(obj.get("world_x_mm", 0.0)) / 1000.0
@@ -384,8 +396,8 @@ class ArenaVisualizerNode(Node):
                 )
                 if not exists:
                     self._add_cube(color, wx_m, wy_m)
-        except Exception:
-            pass
+        except Exception as e:
+            self.get_logger().error(f"Error syncing vision telemetry: {e}")
 
     def publish_detected_objects(self):
         """Publishes active in-cell cubes to /vision/detected_objects."""

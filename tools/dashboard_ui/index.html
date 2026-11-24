@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>xArm 1S Autonomous Workcell — Mission Control & Digital Twin</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #121826;
+      --card-hover: #1a2236;
+      --border: #232f48;
+      --border-focus: #3b82f6;
+      --text: #f1f5f9;
+      --text-muted: #8492a6;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      line-height: 1.4;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, var(--primary), var(--purple));
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .title-group h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .title-group p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .status-pills {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #1e293b;
+      border: 1px solid var(--border);
+    }
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .pill.ok .pill-dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .pill.warn .pill-dot { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+    .pill.err .pill-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+    .pill.info .pill-dot { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #059669; }
+    .btn-purple { background: var(--purple); color: #fff; }
+    .btn-purple:hover { background: #7c3aed; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-secondary { background: #1e293b; color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: #334155; }
+    .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+    /* Main Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+    .col-left, .col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Hand-held Camera Assist HUD */
+    .assist-hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+      background: #0f1523;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .aruco-dot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .dot-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #334155;
+    }
+    .dot-indicator.locked { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot-indicator.unlocked { background: var(--danger); }
+    .metric-gauge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 8px;
+      border-left: 1px solid var(--border);
+    }
+    .gauge-label { font-size: 9px; text-transform: uppercase; color: var(--text-muted); }
+    .gauge-val { font-size: 13px; font-weight: 700; color: #fff; }
+    .gauge-val.optimal { color: var(--success); }
+    .gauge-val.suboptimal { color: var(--warning); }
+
+    /* Video Stream Container */
+    .viewport-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .stream-tabs {
+      display: flex;
+      gap: 6px;
+    }
+    .tab-btn {
+      background: #1e293b;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .stream-viewport {
+      flex: 1;
+      background: #060911;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    .stream-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .stream-overlay {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(10, 15, 25, 0.85);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(4px);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #38bdf8;
+      pointer-events: none;
+    }
+    .freeze-badge {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(16, 185, 129, 0.9);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: none;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Right Column Cards */
+    .queue-card {
+      height: 38%;
+      display: flex;
+      flex-direction: column;
+    }
+    .queue-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0f1523;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      text-align: left;
+    }
+    th {
+      background: #182238;
+      padding: 6px 8px;
+      color: var(--text-muted);
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #1a2236;
+      font-family: monospace;
+    }
+    tr.active-target {
+      background: rgba(59, 130, 246, 0.2);
+    }
+    .color-chip {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .color-chip.red { background: #ef4444; }
+    .color-chip.green { background: #10b981; }
+
+    /* Trajectory State Card */
+    .trajectory-bar {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .traj-step {
+      flex: 1;
+      background: #182238;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .traj-step.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: #60a5fa;
+      box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
+    }
+    .traj-step.done {
+      background: #064e3b;
+      color: #34d399;
+      border-color: #059669;
+    }
+
+    /* Terminal Logs Card */
+    .log-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .log-console {
+      flex: 1;
+      background: #060911;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 11px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.45;
+    }
+    .log-line { margin-bottom: 2px; }
+    .log-info { color: #94a3b8; }
+    .log-stage { color: #38bdf8; font-weight: 700; }
+    .log-success { color: #34d399; font-weight: 600; }
+    .log-warn { color: #fbbf24; }
+    .log-err { color: #f87171; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">xArm 1S</div>
+      <div class="title-group">
+        <h1>Autonomous Color-Sorting Mission Control & Digital Twin</h1>
+        <p>4-Stage Self-Healing Perception · Golden Zone Kinematics · Real-Time ROS 2 Synchronizer</p>
+      </div>
+    </div>
+
+    <!-- Status Indicators -->
+    <div class="status-pills">
+      <div id="pill-camera" class="pill warn">
+        <div class="pill-dot"></div>
+        <span id="txt-camera">Camera: Probing</span>
+      </div>
+      <div id="pill-xarm" class="pill warn">
+        <div class="pill-dot"></div>
+        <span id="txt-xarm">xArm: Probing</span>
+      </div>
+      <div id="pill-ros2" class="pill info">
+        <div class="pill-dot"></div>
+        <span id="txt-ros2">ROS 2: Active</span>
+      </div>
+      <div id="pill-mode" class="pill info">
+        <div class="pill-dot"></div>
+        <span id="txt-mode">Mode: Live</span>
+      </div>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="header-actions">
+      <button class="btn-primary" onclick="triggerAction('snap_and_lock')">📸 Snap & Lock</button>
+      <button class="btn-purple" onclick="triggerAction('sync_simulation')">🌐 Sync Digital Twin</button>
+      <button class="btn-success" onclick="triggerAction('sort_all')">▶ Sort All</button>
+      <button class="btn-danger" onclick="triggerAction('estop')">🛑 E-STOP</button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Grid -->
+  <div class="dashboard-grid">
+
+    <!-- Left Column: Hand-Held Camera Assist & Video Streams -->
+    <div class="col-left">
+
+      <!-- Hand-Held Camera Leveling & ArUco Assist Card -->
+      <div class="card" style="flex-shrink: 0;">
+        <div class="assist-hud">
+          <div class="aruco-dot">
+            <div id="dot-m0" class="dot-indicator"></div>
+            <span>M0 (TL)</span>
+          </div>
+          <div class="aruco-dot">
+            <div id="dot-m1" class="dot-indicator"></div>
+            <span>M1 (TR)</span>
+          </div>
+          <div class="aruco-dot">
+            <div id="dot-m2" class="dot-indicator"></div>
+            <span>M2 (BL)</span>
+          </div>
+          <div class="aruco-dot">
+            <div id="dot-m3" class="dot-indicator"></div>
+            <span>M3 (BR)</span>
+          </div>
+
+          <div class="metric-gauge">
+            <span class="gauge-label">Height Hc</span>
+            <span id="val-height" class="gauge-val optimal">-- cm</span>
+          </div>
+
+          <div class="metric-gauge">
+            <span class="gauge-label">Depression</span>
+            <span id="val-angle" class="gauge-val optimal">--°</span>
+          </div>
+
+          <div style="display: flex; gap: 6px;">
+            <select id="cam-select" style="background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; padding: 2px 6px;">
+              <option value="0">/dev/video0</option>
+              <option value="2">/dev/video2</option>
+              <option value="4">/dev/video4</option>
+            </select>
+            <button class="btn-secondary btn-sm" onclick="switchCamera()">Switch</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+          <span id="assist-status-text" style="color: var(--cyan); font-weight: 600;">
+            🔍 Ready to scan: Hold camera overhead (~60cm) until all 4 markers light up green.
+          </span>
+          <div style="display: flex; gap: 6px;">
+            <button id="btn-lock-toggle" class="btn-secondary btn-sm" onclick="toggleLock()">🔒 Freeze Frame</button>
+            <button class="btn-secondary btn-sm" onclick="triggerAction('check_hardware')">🔄 Re-Probe</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Viewport Card -->
+      <div class="card viewport-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>Live Vision & Digital Twin Viewports</span>
+          </div>
+          <div class="stream-tabs">
+            <button class="tab-btn active" onclick="switchTab('warped')">Rectified Metric Grid (2px/mm)</button>
+            <button class="tab-btn" onclick="switchTab('camera')">Raw Overhead Camera</button>
+            <button class="tab-btn" onclick="switchTab('sim')">3D Digital Twin View</button>
+          </div>
+        </div>
+
+        <div class="stream-viewport">
+          <img id="active-stream-img" class="stream-img" src="/stream/warped" alt="Video Stream">
+          <div id="stream-overlay-text" class="stream-overlay">FEED: WARPED METRIC GRID (2px/mm)</div>
+          <div id="freeze-badge" class="freeze-badge">FRAME LOCKED (STATIONARY SCAN)</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Target Queue, Trajectory & Logs -->
+    <div class="col-right">
+
+      <!-- Target Queue & Golden Zone Objects -->
+      <div class="card queue-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>Golden Zone Target Queue (Nearest-First)</span>
+            <span id="queue-badge" style="font-size: 11px; background: #1e293b; padding: 2px 8px; border-radius: 9999px; color: var(--text);">0 Objects</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-secondary btn-sm" onclick="triggerAction('sort_next')">Sort Next</button>
+            <button class="btn-secondary btn-sm" onclick="triggerAction('scan_arena')">Scan Arena</button>
+          </div>
+        </div>
+
+        <div class="queue-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Color</th>
+                <th>World (X, Y)</th>
+                <th>Reach r</th>
+                <th>Roll Tick</th>
+                <th>Drop Target</th>
+              </tr>
+            </thead>
+            <tbody id="target-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">
+                  No targets scanned. Click <b>[Snap & Lock]</b> or <b>[Scan Arena]</b> to detect craft blocks.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Trajectory Progression Pipeline -->
+        <div class="trajectory-bar">
+          <div id="step-standoff" class="traj-step">1. Hover (Z=75)</div>
+          <div id="step-plunge" class="traj-step">2. Plunge (Z=22)</div>
+          <div id="step-clamp" class="traj-step">3. Clamp (520)</div>
+          <div id="step-lift" class="traj-step">4. Lift (Z=90)</div>
+          <div id="step-rear" class="traj-step">5. Rear Transit</div>
+          <div id="step-drop" class="traj-step">6. Release (250)</div>
+        </div>
+      </div>
+
+      <!-- Real-Time Log Console -->
+      <div class="card log-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>Execution Telemetry & Diagnostic Logs</span>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn-secondary btn-sm" onclick="triggerAction('home')">Home Pose</button>
+            <button class="btn-secondary btn-sm" onclick="clearLogs()">Clear</button>
+          </div>
+        </div>
+        <div id="log-console" class="log-console"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    let currentTab = 'warped';
+    let isFrozen = false;
+    let autoScrollLogs = true;
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const img = document.getElementById('active-stream-img');
+      const overlay = document.getElementById('stream-overlay-text');
+      
+      if (tab === 'warped') {
+        img.src = '/stream/warped?' + Date.now();
+        overlay.innerText = 'FEED: WARPED METRIC GRID (2px/mm)';
+      } else if (tab === 'camera') {
+        img.src = '/stream/camera?' + Date.now();
+        overlay.innerText = 'FEED: RAW OVERHEAD CAMERA';
+      } else {
+        img.src = '/stream/sim?' + Date.now();
+        overlay.innerText = 'FEED: 3D DIGITAL TWIN RENDER';
+      }
+    }
+
+    function switchCamera() {
+      const idx = document.getElementById('cam-select').value;
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'switch_camera', camera_idx: parseInt(idx) })
+      }).then(() => refreshStatus());
+    }
+
+    function toggleLock() {
+      const action = isFrozen ? 'unlock_camera' : 'snap_and_lock';
+      triggerAction(action);
+    }
+
+    function triggerAction(actionName) {
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: actionName })
+      }).then(r => r.json()).then(data => {
+        if (data.message) {
+          appendLog('info', data.message);
+        }
+        refreshStatus();
+      });
+    }
+
+    function refreshStatus() {
+      fetch('/api/status')
+        .then(r => r.json())
+        .then(data => {
+          updatePills(data);
+          updateAssistHud(data);
+          updateQueueTable(data);
+          updateTrajectoryBar(data);
+          updateLogs(data.logs || []);
+        })
+        .catch(err => console.error('Status fetch error:', err));
+    }
+
+    function updatePills(data) {
+      // Camera
+      const pCam = document.getElementById('pill-camera');
+      const tCam = document.getElementById('txt-camera');
+      if (data.camera_connected) {
+        pCam.className = 'pill ok';
+        tCam.innerText = `Camera: /dev/video${data.camera_idx}`;
+      } else {
+        pCam.className = 'pill err';
+        tCam.innerText = 'Camera: Disconnected';
+      }
+
+      // xArm
+      const pArm = document.getElementById('pill-xarm');
+      const tArm = document.getElementById('txt-xarm');
+      if (data.xarm_connected) {
+        pArm.className = 'pill ok';
+        tArm.innerText = `xArm: ${data.xarm_port || 'Connected'}`;
+      } else {
+        pArm.className = 'pill warn';
+        tArm.innerText = 'xArm: Offline (Dry-Run)';
+      }
+
+      // Mode
+      const pMode = document.getElementById('pill-mode');
+      const tMode = document.getElementById('txt-mode');
+      if (data.dry_run) {
+        pMode.className = 'pill warn';
+        tMode.innerText = 'Mode: Simulation (Dry-Run)';
+      } else {
+        pMode.className = 'pill ok';
+        tMode.innerText = 'Mode: Live Hardware';
+      }
+
+      // Frame Freeze Badge
+      isFrozen = data.is_locked || false;
+      document.getElementById('freeze-badge').style.display = isFrozen ? 'block' : 'none';
+      const lockBtn = document.getElementById('btn-lock-toggle');
+      if (lockBtn) {
+        lockBtn.innerText = isFrozen ? '🔓 Resume Live' : '🔒 Freeze Frame';
+      }
+    }
+
+    function updateAssistHud(data) {
+      const markers = data.aruco_reports || {};
+      [0, 1, 2, 3].forEach(id => {
+        const dot = document.getElementById(`dot-m${id}`);
+        const rep = markers[id] || {};
+        if (rep.detected) {
+          dot.className = 'dot-indicator locked';
+        } else {
+          dot.className = 'dot-indicator unlocked';
+        }
+      });
+
+      const hEl = document.getElementById('val-height');
+      const aEl = document.getElementById('val-angle');
+      const sEl = document.getElementById('assist-status-text');
+
+      if (data.camera_height_mm) {
+        const cm = (data.camera_height_mm / 10.0).toFixed(1);
+        hEl.innerText = `${cm} cm`;
+        hEl.className = (cm >= 52 && cm <= 72) ? 'gauge-val optimal' : 'gauge-val suboptimal';
+      } else {
+        hEl.innerText = '-- cm';
+      }
+
+      if (data.depression_angle_deg) {
+        const deg = data.depression_angle_deg.toFixed(1);
+        aEl.innerText = `${deg}°`;
+        aEl.className = (deg >= 70) ? 'gauge-val optimal' : 'gauge-val suboptimal';
+      } else {
+        aEl.innerText = '--°';
+      }
+
+      if (data.all_markers_locked) {
+        sEl.style.color = 'var(--success)';
+        sEl.innerText = '✅ Perfect optical lock: All 4 ArUco markers verified. Ready to snap!';
+      } else {
+        sEl.style.color = 'var(--cyan)';
+        sEl.innerText = '🔍 Align camera nadir overhead until M0-M3 light up green.';
+      }
+    }
+
+    function updateQueueTable(data) {
+      const tbody = document.getElementById('target-tbody');
+      const badge = document.getElementById('queue-badge');
+      const queue = data.target_queue || [];
+
+      badge.innerText = `${queue.length} Objects`;
+      if (queue.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">
+          No active targets. Place blocks in Golden Zone and click <b>[Snap & Lock]</b>.
+        </td></tr>`;
+        return;
+      }
+
+      let html = '';
+      queue.forEach((item, idx) => {
+        const color = (item.color || 'red').toLowerCase();
+        const dest = color === 'red' ? 'Red Container (Yaw 650)' : 'Green Container (Yaw 354)';
+        const rollDesc = item.roll_tick === 130 ? '130 (90° Horiz)' : '500 (Level)';
+        const isActive = (idx === 0 && data.is_executing);
+
+        html += `<tr class="${isActive ? 'active-target' : ''}">
+          <td>${idx + 1}</td>
+          <td><span class="color-chip ${color}"></span>${color.toUpperCase()}</td>
+          <td>(${item.world_x.toFixed(1)}, ${item.world_y.toFixed(1)})</td>
+          <td>${item.reach_r.toFixed(1)} mm</td>
+          <td>${rollDesc}</td>
+          <td>${dest}</td>
+        </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    function updateTrajectoryBar(data) {
+      const step = data.trajectory_step || 'idle';
+      const steps = ['standoff', 'plunge', 'clamp', 'lift', 'rear', 'drop'];
+      const stepMap = {
+        'hover': 'standoff',
+        'standoff': 'standoff',
+        'plunge': 'plunge',
+        'clamp': 'clamp',
+        'lift': 'lift',
+        'transit': 'rear',
+        'rear': 'rear',
+        'drop': 'drop',
+        'release': 'drop'
+      };
+
+      const activeKey = stepMap[step.toLowerCase()] || null;
+      steps.forEach(s => {
+        const el = document.getElementById(`step-${s}`);
+        if (el) {
+          el.className = (s === activeKey) ? 'traj-step active' : 'traj-step';
+        }
+      });
+    }
+
+    function updateLogs(logs) {
+      const consoleEl = document.getElementById('log-console');
+      consoleEl.innerHTML = '';
+      logs.forEach(l => {
+        const div = document.createElement('div');
+        div.className = `log-line log-${l.level.toLowerCase()}`;
+        div.innerText = `[${l.time}] ${l.msg}`;
+        consoleEl.appendChild(div);
+      });
+      if (autoScrollLogs) {
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+    }
+
+    function appendLog(level, msg) {
+      const consoleEl = document.getElementById('log-console');
+      const div = document.createElement('div');
+      const timeStr = new Date().toLocaleTimeString();
+      div.className = `log-line log-${level}`;
+      div.innerText = `[${timeStr}] ${msg}`;
+      consoleEl.appendChild(div);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('log-console').innerHTML = '';
+    }
+
+    // Poll status every 450ms
+    setInterval(refreshStatus, 450);
+    refreshStatus();
+  </script>
+</body>
+</html>

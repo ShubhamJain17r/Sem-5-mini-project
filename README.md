@@ -235,6 +235,8 @@ Sem-5-mini-project/
 │           └── setup.py
 │
 ├── tools/                          # Utility & Calibration Tools (RUN IN VENV OR DOCKER)
+│   ├── autonomous_dashboard.py     # Web-based autonomous mission control & digital twin dashboard (:8080)
+│   ├── dashboard_ui/               # Single-page HTML/CSS/JS interface with camera assist HUD
 │   ├── run_autonomous_system.py    # 4-stage end-to-end autonomous pipeline (self-healing, ArUco validation, picking)
 │   ├── autonomous_pick_and_place.py # End-to-end vision-guided autonomous sorting bridge
 │   ├── render_sim_view.py          # Multi-view 3D/elevation digital twin trajectory renderer
@@ -356,7 +358,11 @@ python3 tools/telemetry_logger.py --arm xarm_1 --scan
 
 #### 4. Run Computer Vision Tools & Complete Autonomous System
 ```bash
-# Complete 4-stage autonomous sorting pipeline (self-healing, ArUco validation, picking):
+# Launch Web-Based Autonomous Mission Control Dashboard (Port 8080):
+python3 tools/autonomous_dashboard.py --dry-run     # Simulation / Mock Mode
+python3 tools/autonomous_dashboard.py               # Live Hardware Mode
+
+# Complete 4-stage terminal autonomous sorting pipeline:
 python3 tools/run_autonomous_system.py --dry-run   # Simulation / Dry-run
 python3 tools/run_autonomous_system.py             # Live Hardware Execution
 
