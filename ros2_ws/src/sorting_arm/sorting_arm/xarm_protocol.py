@@ -18,7 +18,7 @@ import logging
 import os
 import select
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger("xarm_protocol")
 
@@ -537,6 +537,18 @@ class XArmDriver:
         for sid in range(1, 7):
             positions[sid] = self.read_servo_position(sid, timeout_sec=timeout_sec)
         return positions
+
+    def get_servo_positions(self) -> Dict[int, Optional[int]]:
+        """Convenience alias for read_all_servo_positions."""
+        return self.read_all_servo_positions()
+
+    def set_servo_positions(self, ticks: Union[List[int], Dict[int, int]], duration_ms: int = 1000) -> bool:
+        """Convenience alias for send_multi_servo_move accepting either dict or list."""
+        if isinstance(ticks, (list, tuple)):
+            target_dict = {i + 1: int(t) for i, t in enumerate(ticks[:6])}
+        else:
+            target_dict = {int(k): int(v) for k, v in ticks.items()}
+        return self.send_multi_servo_move(target_dict, time_ms=duration_ms)
 
     def wait_in_position(
         self,
