@@ -533,13 +533,39 @@ class ArenaVisionPipeline:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (120, 120, 120), 1, cv2.LINE_AA
                     )
 
-            # Centerline (X = 200 mm) in cyan
+            # Centerline (X = 175 mm) in cyan
             mid_u, _ = self.world_to_pixel(self.midline_x_mm, 100.0)
             if 0 <= mid_u < self.rect_w:
                 cv2.line(annotated, (mid_u, 0), (mid_u, self.rect_h), (255, 255, 0), 1)
                 cv2.putText(
-                    annotated, "MIDLINE X=200", (mid_u - 45, 18),
+                    annotated, "MIDLINE X=175", (mid_u - 45, 18),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 0), 1, cv2.LINE_AA
+                )
+
+            # Highlight Central Green Pickup Zone (Rows 7..10, Cols 1..5: X in [50, 300], Y in [50, 250])
+            u_g1, v_g1 = self.world_to_pixel(50.0, 250.0)
+            u_g2, v_g2 = self.world_to_pixel(300.0, 50.0)
+            zone_overlay = annotated.copy()
+            cv2.rectangle(zone_overlay, (u_g1, v_g1), (u_g2, v_g2), (40, 180, 40), -1)
+            cv2.addWeighted(zone_overlay, 0.20, annotated, 0.80, 0, annotated)
+            cv2.rectangle(annotated, (u_g1, v_g1), (u_g2, v_g2), (0, 220, 0), 2)
+            cv2.putText(
+                annotated, "CENTRAL PICKUP ZONE (Rows 7-10, Cols 1-5)", (u_g1 + 8, v_g1 + 22),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 220, 0), 1, cv2.LINE_AA
+            )
+
+            # Label ArUco Markers matching user nomenclature & physical IDs
+            marker_labels = {
+                (25.0, 275.0): ("M0 (ID 2)", 8, 35),
+                (325.0, 275.0): ("M1 (ID 0)", -85, 35),
+                (25.0, 25.0): ("M2 (ID 3)", 8, -15),
+                (325.0, 25.0): ("M3 (ID 1)", -85, -15),
+            }
+            for (mx, my), (mtext, off_x, off_y) in marker_labels.items():
+                mu, mv = self.world_to_pixel(mx, my)
+                cv2.putText(
+                    annotated, mtext, (mu + off_x, mv + off_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 255), 1, cv2.LINE_AA
                 )
 
         for cube in cubes:

@@ -124,6 +124,12 @@ class AutonomousSorterBridge:
                 continue
             if not getattr(c, "targetable", True):
                 continue
+            # Strictly enforce Central Green Pickup Area: Rows 7..10 (Y in [45, 255]), Cols 1..5 (X in [45, 305])
+            # Cubes in the Orange Danger Zone are rejected for safety
+            if not (45.0 <= c.world_x <= 305.0 and 45.0 <= c.world_y <= 255.0):
+                print(f"[Danger Zone Warning] Detected {c.color.upper()} cube at ({c.world_x:.1f}, {c.world_y:.1f}) is in the Danger Zone! Skipping.")
+                continue
+
             if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm
                 if 120.0 <= active_r <= 320.0:
