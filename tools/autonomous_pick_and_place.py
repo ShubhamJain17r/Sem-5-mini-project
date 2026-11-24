@@ -98,10 +98,14 @@ class AutonomousSorterBridge:
         else:
             if cap is None:
                 raise ValueError("Camera capture object is None")
+            # Discard initial unexposed frames from camera buffer
+            for _ in range(8):
+                cap.read()
             ret, frame = cap.read()
-            if not ret:
+            if not ret or frame is None:
                 print("[Bridge] Warning: Failed to capture camera frame.")
                 return []
+            self.pipeline.calibrate_homography(frame)
 
         # Undistort, warp, and detect cubes
         _, _, cubes = self.pipeline.process_frame(frame, draw_grid=True)
@@ -199,9 +203,10 @@ class AutonomousSorterBridge:
 
 
 def main():
+    default_dev = "/dev/video4" if os.path.exists("/dev/video4") else "/dev/video0"
     parser = argparse.ArgumentParser(description="Autonomous Vision-Guided Color Sorting Bridge.")
     parser.add_argument("--arm", default="xarm_1", help="Manipulator under test (default: xarm_1)")
-    parser.add_argument("--device", default="/dev/video0", help="Camera device path or index (default: /dev/video0)")
+    parser.add_argument("--device", default=default_dev, help=f"Camera device path or index (default: {default_dev})")
     parser.add_argument("--port", default="auto", help="Serial port for arm communication (default: auto)")
     parser.add_argument("--config-dir", default="config", help="Directory containing config YAMLs")
     parser.add_argument("--dry-run", action="store_true", help="Simulate perception, coordinate transformation, and IK without moving hardware")

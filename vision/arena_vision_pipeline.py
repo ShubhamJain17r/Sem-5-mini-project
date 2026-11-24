@@ -124,11 +124,19 @@ class ArenaVisionPipeline:
         if hasattr(cv2.aruco, "ArucoDetector"):
             self.aruco_params = cv2.aruco.DetectorParameters()
             self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            self.aruco_params.adaptiveThreshWinSizeMin = 3
+            self.aruco_params.adaptiveThreshWinSizeMax = 23
+            self.aruco_params.adaptiveThreshWinSizeStep = 2
+            self.aruco_params.minMarkerPerimeterRate = 0.01
             self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
             self._use_new_aruco_api = True
         else:
             self.aruco_params = cv2.aruco.DetectorParameters_create()
             self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            self.aruco_params.adaptiveThreshWinSizeMin = 3
+            self.aruco_params.adaptiveThreshWinSizeMax = 23
+            self.aruco_params.adaptiveThreshWinSizeStep = 2
+            self.aruco_params.minMarkerPerimeterRate = 0.01
             self.aruco_detector = None
             self._use_new_aruco_api = False
 
@@ -294,11 +302,11 @@ class ArenaVisionPipeline:
 
         corners, ids = self.detect_aruco_markers(frame)
         if ids is None or len(ids) < 4:
-            return False
+            return self.H_matrix is not None
 
         detected_ids = ids.flatten()
         if not all(marker_id in detected_ids for marker_id in [0, 1, 2, 3]):
-            return False
+            return self.H_matrix is not None
 
         # Robust geometric ordering of detected marker centers:
         centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
@@ -446,15 +454,16 @@ class ArenaVisionPipeline:
 
                 # Oblique camera elevation correction for tall/glued cubes
                 bx, by, bw, bh = cv2.boundingRect(cnt)
-                if bh > bw * 1.2:
+                if bh > bw * 1.3:
                     v_base = by + bh
                     y_w_base = 275.0 - (v_base / self.scale_px_per_mm)
                     y_w = y_w_base + 12.5  # Half cube footprint offset
                     u_c = bx + bw / 2.0
                     x_w = 25.0 + (u_c / self.scale_px_per_mm)
-                    z_w = self.cube_center_z_mm
+                    z_w = 19.05  # Doubled block center
                 else:
-                    x_w, y_w, z_w = self.pixel_to_world(u_c, v_c)
+                    x_w, y_w, _ = self.pixel_to_world(u_c, v_c)
+                    z_w = 10.0   # Standard single cube center
 
                 # Exclude Rows 3..5: objects must be within active picking Rows 6..10
                 if y_w > 280.0 or y_w < 20.0:

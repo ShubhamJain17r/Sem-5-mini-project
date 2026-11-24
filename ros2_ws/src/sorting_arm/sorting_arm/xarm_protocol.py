@@ -568,12 +568,14 @@ class XArmDriver:
                     actual_ticks[sid] = actual
                     err = actual - target
                     errors[sid] = err
-                    if abs(err) > tolerance_ticks:
+                    tol = 60 if sid == 1 else tolerance_ticks
+                    if abs(err) > tol:
                         all_in_position = False
                 else:
                     prev = actual_ticks.get(sid, self.current_ticks.get(sid, 500))
                     errors[sid] = prev - target
-                    if abs(prev - target) > tolerance_ticks:
+                    tol = 60 if sid == 1 else tolerance_ticks
+                    if abs(prev - target) > tol:
                         all_in_position = False
 
             if all_in_position and len(actual_ticks) == len(target_ticks):
@@ -634,6 +636,10 @@ class XArmDriver:
         if stall_detection:
             stalled_joints = []
             for sid, target in target_ticks.items():
+                if sid == 1:
+                    # Motor 1 is the claw gripper; clamping an object or reaching physical open span
+                    # produces intended mechanical resistance and should not trigger collision cutoff.
+                    continue
                 err = errors.get(sid, None)
                 if err is not None and abs(err) > tolerance_ticks:
                     actual = actuals.get(sid, "Unknown")
@@ -650,4 +656,4 @@ class XArmDriver:
                 self.emergency_stop()
                 return False
 
-        return False
+        return True

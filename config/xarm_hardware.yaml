@@ -122,7 +122,7 @@ manipulators:
         motion_description: "Decreasing ticks opens claw (221 raw = 56mm); increasing ticks clamps/closes claw (787 raw = 0mm)"
         test_500_to_450_direction: "Fingers open wider toward 56mm limit"
         claw_span_mm:
-          fully_open: {tick: 226, span_mm: 56.0}
+          fully_open: {tick: 248, span_mm: 52.0}
           nominal_reset: {tick: 517, span_mm: 43.0}
           grip_cube_25mm: {tick: 630, span_mm: 25.0}
           grip_cube_31mm: {tick: 588, span_mm: 31.75}
