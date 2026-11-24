@@ -340,7 +340,7 @@ class AutonomousSortingSystem:
         # Start from Home Pose
         home_ticks = self.poses.get("home_tucked", {}).get("ticks", [500, 500, 500, 500, 500, 500])
         claw_open_tick = 250
-        claw_grip_tick = 580
+        claw_grip_tick = 520
 
         if not self.dry_run and self.driver:
             log_info("Moving to Upright Home Pose...")

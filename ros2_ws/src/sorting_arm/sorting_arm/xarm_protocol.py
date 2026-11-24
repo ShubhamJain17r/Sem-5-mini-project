@@ -149,7 +149,7 @@ class XArmDriver:
         if isinstance(target_port, (list, tuple)):
             target_port = target_port[0]
 
-        if target_port in ["auto", "", None]:
+        if target_port in ["auto", "", None] or not os.path.exists(str(target_port)):
             detected_port, detected_type = find_xarm_device()
             if not detected_port:
                 logger.error("No xArm device detected on USB HID or Serial interfaces.")
@@ -279,7 +279,22 @@ class XArmDriver:
                 os.write(self.hid_fd, report)
                 return True
             except Exception as e:
-                logger.error(f"HID write error: {e}")
+                logger.warning(f"HID write error: {e}. Attempting auto-reconnect...")
+                try:
+                    if self.hid_fd is not None:
+                        os.close(self.hid_fd)
+                except Exception:
+                    pass
+                self.hid_fd = None
+                self.is_connected = False
+                time.sleep(0.3)
+                if self.connect():
+                    logger.info(f"Reconnected to xArm on {self.port}. Retrying write...")
+                    try:
+                        os.write(self.hid_fd, report)
+                        return True
+                    except Exception as retry_err:
+                        logger.error(f"Retry write failed: {retry_err}")
                 return False
         else:
             if self.serial is None or not self.serial.is_open:
