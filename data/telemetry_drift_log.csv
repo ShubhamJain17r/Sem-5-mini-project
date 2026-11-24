@@ -41,3 +41,9 @@ timestamp_iso,arm_id,motor_id,joint_name,target_tick,actual_tick,tracking_error_
 2026-11-17T12:52:14.747795,xarm_1,4,Elbow Pitch,496,491,-5,0,False
 2026-11-17T12:52:14.747795,xarm_1,5,Shoulder Pitch,501,503,2,0,False
 2026-11-17T12:52:14.747795,xarm_1,6,Base Yaw,502,497,-5,0,False
+2026-11-24T12:38:35.600463,xarm_1,1,Claw Gripper,517,,,0,False
+2026-11-24T12:38:35.600463,xarm_1,2,Wrist Roll,503,,,0,False
+2026-11-24T12:38:35.600463,xarm_1,3,Wrist Pitch,504,,,0,False
+2026-11-24T12:38:35.600463,xarm_1,4,Elbow Pitch,496,,,0,False
+2026-11-24T12:38:35.600463,xarm_1,5,Shoulder Pitch,501,,,0,False
+2026-11-24T12:38:35.600463,xarm_1,6,Base Yaw,502,,,0,False

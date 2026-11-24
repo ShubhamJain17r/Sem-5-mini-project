@@ -54,6 +54,12 @@ class DetectedCube:
     confidence: float = 1.0
     targetable: bool = True
 
+    # Orientation, dimensions and wrist roll alignment
+    angle_deg: float = 0.0
+    width_px: float = 0.0
+    height_px: float = 0.0
+    gripper_roll_tick: int = 500
+
 
 class ArenaVisionPipeline:
     """Core perception pipeline for the Single xArm 1S color-sorting workcell."""
@@ -94,10 +100,11 @@ class ArenaVisionPipeline:
         self.midline_x_mm = 175.0
         self.mutex_corridor = (0.0, 0.0)  # No mutex corridor needed for single arm
 
-        # Camera Intrinsic Parameters
+        # Camera Intrinsic Parameters & Extrinsics Telemetry
         self.camera_matrix: Optional[np.ndarray] = None
         self.dist_coeffs: Optional[np.ndarray] = None
         self.has_calibration: bool = False
+        self.camera_extrinsics: Optional[Dict[str, Any]] = None
 
         # Homography Matrix
         self.H_matrix: Optional[np.ndarray] = None
@@ -248,9 +255,9 @@ class ArenaVisionPipeline:
                 "kernel_size": 5,
                 "open_iterations": 1,
                 "close_iterations": 2,
-                "min_area_px": 1400,
-                "max_area_px": 3800,
-                "max_aspect_ratio": 1.45,
+                "min_area_px": 1000,
+                "max_area_px": 25000,
+                "max_aspect_ratio": 2.5,
             }
 
         k_size = self.color_config.get("morphology", {}).get("kernel_size", 5)
@@ -429,7 +436,7 @@ class ArenaVisionPipeline:
         else:
             side = "North / Rear (behind manipulator)"
 
-        return {
+        result = {
             "success": True,
             "camera_position_world_mm": {
                 "x": round(float(cam_pos_world[0]), 1),
@@ -443,6 +450,8 @@ class ArenaVisionPipeline:
             "rvec": rvec.flatten().tolist(),
             "tvec": tvec.flatten().tolist(),
         }
+        self.camera_extrinsics = result
+        return result
 
     def verify_aruco_markers(self, frame: np.ndarray) -> Dict[str, Any]:
         """
@@ -685,6 +694,37 @@ class ArenaVisionPipeline:
                 while yaw > 45.0:
                     yaw -= 90.0
 
+                # Analyze rectangular block orientation & wrist roll (Motor 2) alignment
+                box_pts = cv2.boxPoints(rect)
+                p0, p1, p2, p3 = box_pts[0], box_pts[1], box_pts[2], box_pts[3]
+                d01 = float(np.linalg.norm(p1 - p0))
+                d12 = float(np.linalg.norm(p2 - p1))
+                if d01 >= d12:
+                    long_vec = p1 - p0
+                else:
+                    long_vec = p2 - p1
+
+                long_dx = abs(float(long_vec[0]))
+                long_dy = abs(float(long_vec[1]))
+
+                # In rectified image: u (x-axis) is along World X, v (y-axis) is along World -Y.
+                # Motor 2 at neutral 500 ticks has claw jaws level (opening horizontally along World X, span 55mm).
+                # If block is elongated (aspect >= 1.25, e.g. 60x35mm craft blocks):
+                #   If long_dx > long_dy: longer dimension (60mm) is along World X.
+                #     The 55mm claw span cannot span 60mm; rotate Motor 2 CW by 90° (130 ticks)
+                #     so jaws open along World Y to clamp the narrow 35mm width safely!
+                #   Else: longer dimension is along World Y.
+                #     Narrow dimension (35mm) is already along World X; keep neutral roll at 500 ticks.
+                # If block is square (aspect < 1.25):
+                #   Keep neutral roll at 500 ticks.
+                if aspect >= 1.25:
+                    if long_dx > long_dy:
+                        gripper_roll_tick = 130
+                    else:
+                        gripper_roll_tick = 500
+                else:
+                    gripper_roll_tick = 500
+
                 # Oblique camera elevation correction for tall/glued cubes
                 bx, by, bw, bh = cv2.boundingRect(cnt)
                 if bh > bw * 1.3:
@@ -698,6 +738,30 @@ class ArenaVisionPipeline:
                     x_w, y_w, _ = self.pixel_to_world(u_c, v_c)
                     z_w = 10.0   # Standard single cube center
 
+                # 3D Parallax Correction:
+                # If camera is mounted obliquely (e.g. East tripod, depression < 70°),
+                # the elevated top surface of a 20-25mm block projects toward camera in the image.
+                # For an East-mounted camera, shift world_x westward toward the true ground footprint.
+                # For an overhead/top-down camera (depression >= 70°), parallax shift is 0.
+                if self.camera_extrinsics and self.camera_extrinsics.get("success"):
+                    dep_angle = float(self.camera_extrinsics.get("depression_angle_deg", 90.0))
+                    side = str(self.camera_extrinsics.get("viewing_side", ""))
+                    if dep_angle < 70.0:
+                        rad = math.radians(max(20.0, dep_angle))
+                        shift_mm = z_w / math.tan(rad)
+                        if "East" in side:
+                            x_w -= shift_mm
+                        elif "West" in side:
+                            x_w += shift_mm
+                        elif "South" in side:
+                            y_w += shift_mm
+                        elif "North" in side:
+                            y_w -= shift_mm
+
+                # Clamp within physical arena bounds
+                x_w = max(25.0, min(325.0, x_w))
+                y_w = max(25.0, min(275.0, y_w))
+
                 # Exclude Rows 3..5: objects must be within active picking Rows 6..10
                 if y_w > 280.0 or y_w < 20.0:
                     continue
@@ -706,11 +770,11 @@ class ArenaVisionPipeline:
 
                 # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
                 if 110.0 <= r <= 325.0:
-                    box_points = cv2.boxPoints(rect).astype(np.int32)
+                    box_points = box_pts.astype(np.int32)
                     cube = DetectedCube(
                         color=color_key,
-                        world_x=x_w,
-                        world_y=y_w,
+                        world_x=round(x_w, 2),
+                        world_y=round(y_w, 2),
                         world_z=z_w,
                         yaw_deg=round(yaw, 2),
                         assigned_arm="xarm_1",
@@ -727,6 +791,10 @@ class ArenaVisionPipeline:
                         bounding_box=box_points,
                         contour_area_px=float(area),
                         targetable=targetable,
+                        angle_deg=round(angle, 2),
+                        width_px=round(float(min(w_box, h_box)), 1),
+                        height_px=round(float(max(w_box, h_box)), 1),
+                        gripper_roll_tick=gripper_roll_tick,
                     )
                     detected_cubes.append(cube)
 
@@ -775,16 +843,16 @@ class ArenaVisionPipeline:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 0), 1, cv2.LINE_AA
                 )
 
-            # Highlight Central Green Pickup Zone (Rows 7..10, Cols 1..5: X in [50, 300], Y in [50, 250])
-            u_g1, v_g1 = self.world_to_pixel(50.0, 250.0)
-            u_g2, v_g2 = self.world_to_pixel(300.0, 50.0)
+            # Highlight Golden Pickup Zone (Rows 7..9, Cols 2..4: X in [75, 275], Y in [100, 250])
+            u_g1, v_g1 = self.world_to_pixel(75.0, 250.0)
+            u_g2, v_g2 = self.world_to_pixel(275.0, 100.0)
             zone_overlay = annotated.copy()
             cv2.rectangle(zone_overlay, (u_g1, v_g1), (u_g2, v_g2), (40, 180, 40), -1)
             cv2.addWeighted(zone_overlay, 0.20, annotated, 0.80, 0, annotated)
             cv2.rectangle(annotated, (u_g1, v_g1), (u_g2, v_g2), (0, 220, 0), 2)
             cv2.putText(
-                annotated, "CENTRAL PICKUP ZONE (Rows 7-10, Cols 1-5)", (u_g1 + 8, v_g1 + 22),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 220, 0), 1, cv2.LINE_AA
+                annotated, "GOLDEN PICKUP ZONE (Rows 7-9, Cols 2-4)", (u_g1 + 8, v_g1 + 22),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 220, 0), 1, cv2.LINE_AA
             )
 
             # Label ArUco Markers matching user nomenclature & physical IDs
@@ -818,7 +886,8 @@ class ArenaVisionPipeline:
             cv2.arrowedLine(annotated, (uc, vc), (ex, ey), (0, 0, 255), 2, tipLength=0.3)
 
             tag = f"{cube.color.upper()}"
-            coords = f"r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°"
+            roll_str = f" roll:{cube.gripper_roll_tick}" if cube.gripper_roll_tick != 500 else ""
+            coords = f"r:{cube.target_r_mm:.0f}mm th:{cube.target_theta_deg:+.0f}°{roll_str}"
             
             text_y = max(vc - 16, 20)
             cv2.putText(annotated, tag, (uc - 20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 2, cv2.LINE_AA)

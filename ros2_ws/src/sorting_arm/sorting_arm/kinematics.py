@@ -46,6 +46,10 @@ class KinematicParameters:
     # Dynamic Cartesian tabletop depth offset (mm, compensates for suction cup/mounting differences)
     z_depth_trim_mm: float = 0.0
 
+    # Physical gravity droop / cantilever compliance compensation (mm)
+    gravity_sag_trim_mm: float = 10.0
+    reach_scale_factor: float = 0.05
+
     # Servo zero-reference angles (degrees when servo is at its nominal center tick)
     shoulder_zero_deg: float = 90.0  # Angle above horizontal at center tick (upright vertical)
     elbow_zero_deg: float = 180.0    # Interior angle between L1 and L2 at center tick (straight collinear)
@@ -157,6 +161,8 @@ def load_kinematic_parameters(
         base_mount = arm_cfg.get("base_mount_mm", {})
         base_heading = float(base_mount.get("nominal_heading_deg", 0.0))
         z_depth_trim = float(base_mount.get("z_depth_trim_mm", arm_cfg.get("z_depth_trim_mm", 0.0)))
+        sag_trim = float(base_mount.get("gravity_sag_trim_mm", 10.0))
+        reach_scale = float(base_mount.get("reach_scale_factor", 0.05))
 
         min_ticks = {
             1: int(motors.get("motor_1", {}).get("min_tick", 150)),
@@ -200,6 +206,8 @@ def load_kinematic_parameters(
             L3_grip=l3_grip,
             L3_tip=l3_tip,
             z_depth_trim_mm=z_depth_trim,
+            gravity_sag_trim_mm=sag_trim,
+            reach_scale_factor=reach_scale,
             shoulder_zero_deg=sh_zero,
             elbow_zero_deg=el_zero,
             wrist_zero_deg=wr_zero,
@@ -249,6 +257,7 @@ def solve_ik(
     auto_pitch_fallback: bool = True,
     params: Optional[KinematicParameters] = None,
     use_claw_tip: bool = False,
+    compensate_sag: bool = False,
 ) -> IKSolution:
     """
     Compute analytical inverse kinematics for target (r, theta, z) in cylindrical coordinates.
@@ -264,23 +273,28 @@ def solve_ik(
                                  searches nearby feasible pitches to find a valid solution.
     :param params: Optional KinematicParameters instance (defaults to DEFAULT_PARAMS).
     :param use_claw_tip: If True, uses L3_tip (168mm); if False, uses L3_grip (150mm).
+    :param compensate_sag: If True, applies empirical radial reach trim to compensate for gravity droop.
     :return: IKSolution with success flag, tick mapping, and joint angles.
     """
     p = params if params is not None else DEFAULT_PARAMS
 
+    effective_r = r
+    if compensate_sag:
+        effective_r = r + (p.gravity_sag_trim_mm + p.reach_scale_factor * max(0.0, r - 150.0))
+
     if phi is None:
-        target_phi = compute_natural_pitch(r, z)
+        target_phi = compute_natural_pitch(effective_r, z)
     else:
         target_phi = phi
 
-    sol = _solve_ik_internal(r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
+    sol = _solve_ik_internal(effective_r, theta, z, target_phi, claw_tick, roll_tick, p, use_claw_tip)
     if not sol.success and auto_pitch_fallback:
         # Fine-grained outward pitch search (±1° to ±25°) to guarantee convergence in tight near-base envelopes
         search_deltas = [d for delta in range(1, 26) for d in (-delta, delta)]
         for delta in search_deltas:
             candidate_phi = clip(target_phi + delta, -85.0, 0.0)
             alt_sol = _solve_ik_internal(
-                r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip
+                effective_r, theta, z, candidate_phi, claw_tick, roll_tick, p, use_claw_tip
             )
             if alt_sol.success:
                 return alt_sol

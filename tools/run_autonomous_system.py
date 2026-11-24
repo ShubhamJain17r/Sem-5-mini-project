@@ -200,14 +200,19 @@ class AutonomousSortingSystem:
             self.hw_config = yaml.safe_load(f)
         self.poses = self.hw_config.get("manipulators", {}).get("xarm_1", {}).get("poses", {})
 
-        # Boundaries of the Central Green Pickup Zone (Rows 7..10, Cols 1..5)
-        # In world coordinates (mm):
-        # Cols 1..5: X in [50.0, 300.0] mm
-        # Rows 7..10: Y in [50.0, 250.0] mm
-        self.pickup_zone_min_x = 50.0
-        self.pickup_zone_max_x = 300.0
-        self.pickup_zone_min_y = 50.0
-        self.pickup_zone_max_y = 250.0
+        # Boundaries of the Golden Pickup Zone (Rows 7..9, Cols 2..4)
+        # Keeps objects within the arm's kinematic sweet spot (140mm - 260mm radial reach)
+        golden_cfg = (
+            self.hw_config.get("workspace", {})
+            .get("picking_arena", {})
+            .get("golden_zone", {})
+        )
+        self.pickup_zone_min_x = float(golden_cfg.get("min_x_mm", 75.0))
+        self.pickup_zone_max_x = float(golden_cfg.get("max_x_mm", 275.0))
+        self.pickup_zone_min_y = float(golden_cfg.get("min_y_mm", 100.0))
+        self.pickup_zone_max_y = float(golden_cfg.get("max_y_mm", 250.0))
+        self.min_reach_mm = float(golden_cfg.get("min_radial_reach_mm", 140.0))
+        self.max_reach_mm = float(golden_cfg.get("max_radial_reach_mm", 260.0))
 
     def run_stage_1_hardware_check(self):
         """Stage 1: Verify and heal hardware access (Camera and xArm Manipulator)."""
@@ -306,26 +311,40 @@ class AutonomousSortingSystem:
             xw = c.world_x
             yw = c.world_y
 
-            # Check if within Central Green Pickup Zone (Rows 7..10, Cols 1..5)
+            # Check if within Golden Pickup Zone (Rows 7..9, Cols 2..4)
             in_pickup_zone = (
                 self.pickup_zone_min_x <= xw <= self.pickup_zone_max_x and
                 self.pickup_zone_min_y <= yw <= self.pickup_zone_max_y
             )
 
             if not in_pickup_zone:
-                log_warn(f"REJECTED: {c.color.upper()} cube at (X={xw:.1f}, Y={yw:.1f} mm) is inside ORANGE DANGER ZONE. Skipping.")
+                log_warn(f"REJECTED: {c.color.upper()} cube at (X={xw:.1f}, Y={yw:.1f} mm) is outside Golden Pickup Zone. Skipping.")
                 continue
 
             # Compute arm polar coordinates
             r, theta_arm, rel_z = world_to_arm_polar(xw, yw, c.world_z, arm_id="xarm_1", params=self.params)
-            
-            # Solve IK for tabletop grasp
-            ik_sol = solve_ik(r=r, theta=theta_arm, z=c.world_z, claw_tick=523, params=self.params)
+
+            # Check Golden Radial Reach bounds (140mm - 260mm)
+            if not (self.min_reach_mm <= r <= self.max_reach_mm):
+                log_warn(f"REJECTED: {c.color.upper()} cube at r={r:.1f}mm is outside Golden Reach [{self.min_reach_mm:.0f}, {self.max_reach_mm:.0f}]mm.")
+                continue
+
+            # Solve IK for tabletop grasp with sag compensation and dynamic wrist roll
+            ik_sol = solve_ik(
+                r=r,
+                theta=theta_arm,
+                z=22.0,
+                claw_tick=520,
+                roll_tick=c.gripper_roll_tick,
+                params=self.params,
+                compensate_sag=True,
+            )
             if not ik_sol.success:
                 log_warn(f"UNREACHABLE: {c.color.upper()} cube at (r={r:.1f}mm, th={theta_arm:.1f}°): {ik_sol.message}")
                 continue
 
-            log_info(f"ACCEPTED: {c.color.upper()} cube in Central Pickup Zone at (X={xw:.1f}, Y={yw:.1f}) -> Polar (r={r:.1f}mm, th={theta_arm:.1f}°)")
+            roll_desc = f", roll={c.gripper_roll_tick}" if c.gripper_roll_tick != 500 else ""
+            log_info(f"ACCEPTED: {c.color.upper()} block in Golden Pickup Zone at (X={xw:.1f}, Y={yw:.1f}) -> Polar (r={r:.1f}mm, th={theta_arm:.1f}°{roll_desc})")
             valid_targets.append((c, r, theta_arm, ik_sol.ticks))
 
         log_info(f"Stage 3 Complete: {len(valid_targets)} validated targets ready for autonomous scheduling.")
@@ -366,7 +385,9 @@ class AutonomousSortingSystem:
 
         for idx, (cube, r, theta_arm, pick_ticks) in enumerate(targets_sorted):
             color = cube.color.lower()
-            print(f"\n{TermColor.BOLD}{TermColor.BLUE}>>> Executing Target {idx + 1}/{len(targets_sorted)}: {color.upper()} Cube <<<{TermColor.ENDC}")
+            roll_tick = cube.gripper_roll_tick
+            roll_desc = " [WRIST ROLL 90°]" if roll_tick != 500 else " [NEUTRAL ROLL]"
+            print(f"\n{TermColor.BOLD}{TermColor.BLUE}>>> Executing Target {idx + 1}/{len(targets_sorted)}: {color.upper()} Block{roll_desc} <<<{TermColor.ENDC}")
 
             if self.step_mode:
                 ans = input(f"Press [{TermColor.BOLD}Enter{TermColor.ENDC}] to execute pick-and-place (or 's' to skip): ").strip().lower()
@@ -374,21 +395,74 @@ class AutonomousSortingSystem:
                     log_warn(f"Skipping target {idx + 1}")
                     continue
 
-            # Trajectory Waypoints:
-            # 1. Standoff Hover: R - 35mm, Z = 50.0mm (use_claw_tip=True to prevent table rubbing)
-            standoff_r = max(135.0, r - 35.0)
-            standoff_z = 50.0
-            standoff_sol = solve_ik(r=standoff_r, theta=theta_arm, z=standoff_z, claw_tick=claw_open_tick, params=self.params, use_claw_tip=True)
+            # Pure Top-Down Plunge Trajectory Waypoints:
+            # 1. Overhead Hover: directly above the block (r, theta, Z = 75.0mm) with claw open
+            #    Eliminates diagonal horizontal nudging into foreground blocks.
+            hover_z = 75.0
+            hover_sol = solve_ik(
+                r=r,
+                theta=theta_arm,
+                z=hover_z,
+                claw_tick=claw_open_tick,
+                roll_tick=roll_tick,
+                params=self.params,
+                compensate_sag=True,
+            )
+            if not hover_sol.success:
+                hover_sol = solve_ik(
+                    r=r,
+                    theta=theta_arm,
+                    z=hover_z,
+                    claw_tick=claw_open_tick,
+                    roll_tick=roll_tick,
+                    params=self.params,
+                    compensate_sag=False,
+                )
             
-            # 2. Descent & Advance: R, Z safe tabletop grasp clearance
-            grasp_z = max(20.0, cube.world_z)
-            grasp_sol = solve_ik(r=r, theta=theta_arm, z=grasp_z, claw_tick=claw_open_tick, params=self.params)
+            # 2. Pure Vertical Descent Plunge: straight down along Z to tabletop grasp (Z = 22.0mm)
+            #    Fingers surround the block without any horizontal advance or pushing.
+            grasp_z = 22.0
+            grasp_sol = solve_ik(
+                r=r,
+                theta=theta_arm,
+                z=grasp_z,
+                claw_tick=claw_open_tick,
+                roll_tick=roll_tick,
+                params=self.params,
+                compensate_sag=True,
+            )
+            if not grasp_sol.success:
+                grasp_sol = solve_ik(
+                    r=r,
+                    theta=theta_arm,
+                    z=grasp_z,
+                    claw_tick=claw_open_tick,
+                    roll_tick=roll_tick,
+                    params=self.params,
+                    compensate_sag=False,
+                )
 
-            # 3. Pure Vertical Lift: R, Z = 90.0mm (keeps object elevated cleanly off arena surface)
+            # 3. Pure Vertical Lift: ascends straight up along Z to 90.0mm with firm clamp
             lift_z = 90.0
-            lift_sol = solve_ik(r=r, theta=theta_arm, z=lift_z, claw_tick=claw_grip_tick, params=self.params)
+            lift_sol = solve_ik(
+                r=r,
+                theta=theta_arm,
+                z=lift_z,
+                claw_tick=claw_grip_tick,
+                roll_tick=roll_tick,
+                params=self.params,
+                compensate_sag=True,
+            )
             if not lift_sol.success:
-                lift_sol = solve_ik(r=standoff_r, theta=theta_arm, z=75.0, claw_tick=claw_grip_tick, params=self.params)
+                lift_sol = solve_ik(
+                    r=r,
+                    theta=theta_arm,
+                    z=75.0,
+                    claw_tick=claw_grip_tick,
+                    roll_tick=roll_tick,
+                    params=self.params,
+                    compensate_sag=True,
+                )
 
             # 4. Rear Drop Target
             drop_target = get_compartment_target(color, arm_id="xarm_1")
@@ -399,32 +473,32 @@ class AutonomousSortingSystem:
             drop_ticks = drop_target["ik_ticks"]
 
             if self.dry_run:
-                log_info(f"[DRY-RUN] Standoff ticks: {standoff_sol.ticks}")
-                log_info(f"[DRY-RUN] Grasp ticks:    {grasp_sol.ticks}")
-                log_info(f"[DRY-RUN] Lift ticks:     {lift_sol.ticks}")
-                log_info(f"[DRY-RUN] Drop ticks:     {drop_ticks}")
+                log_info(f"[DRY-RUN] Hover ticks:   {hover_sol.ticks}")
+                log_info(f"[DRY-RUN] Grasp ticks:   {grasp_sol.ticks}")
+                log_info(f"[DRY-RUN] Lift ticks:    {lift_sol.ticks}")
+                log_info(f"[DRY-RUN] Drop ticks:    {drop_ticks}")
                 continue
 
             # Physical Execution Sequence
-            # Step 1: Standoff Hover
-            log_info("Phase 1: Transit to Standoff Hover...")
-            self.driver.set_servo_positions(list(standoff_sol.ticks.values()), duration_ms=1400)
+            # Step 1: Overhead Hover directly above object
+            log_info(f"Phase 1: Transit to Overhead Hover directly above object (Z={hover_z:.0f}mm)...")
+            self.driver.set_servo_positions(list(hover_sol.ticks.values()), duration_ms=1400)
             time.sleep(1.5)
 
-            # Step 2: Advance to Grasp
-            log_info("Phase 2: Advancing to Tabletop Grasp...")
+            # Step 2: Pure Vertical Plunge Descent
+            log_info(f"Phase 2: Pure Vertical Descent Plunge to Grasp (Z={grasp_z:.0f}mm)...")
             self.driver.set_servo_positions(list(grasp_sol.ticks.values()), duration_ms=1000)
             time.sleep(1.1)
 
-            # Step 3: Clamp Gripper
-            log_info("Phase 3: Clamping Claw Gripper...")
+            # Step 3: Clamp Gripper (Firm 520 ticks grip without motor stall)
+            log_info(f"Phase 3: Clamping Claw Gripper (grip={claw_grip_tick} ticks)...")
             clamp_ticks = dict(grasp_sol.ticks)
             clamp_ticks[1] = claw_grip_tick
             self.driver.set_servo_positions(list(clamp_ticks.values()), duration_ms=600)
             time.sleep(0.7)
 
             # Step 4: Pure Vertical Lift
-            log_info("Phase 4: Ascending with object...")
+            log_info(f"Phase 4: Ascending straight up with object (Z={lift_z:.0f}mm)...")
             self.driver.set_servo_positions(list(lift_sol.ticks.values()), duration_ms=1000)
             time.sleep(1.1)
 

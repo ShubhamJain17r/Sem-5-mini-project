@@ -254,3 +254,16 @@ def test_dynamic_tick_adaptation():
     assert abs(fk.theta - theta) < 0.5
     assert abs(fk.z - z) < 1.0
 
+
+def test_sag_compensation():
+    """Verify that compensate_sag=True extends effective reach to neutralize cantilever droop."""
+    params = KinematicParameters(gravity_sag_trim_mm=10.0, reach_scale_factor=0.05)
+    r = 200.0
+    sol_nom = solve_ik(r=r, theta=0.0, z=25.0, params=params, compensate_sag=False)
+    sol_sag = solve_ik(r=r, theta=0.0, z=25.0, params=params, compensate_sag=True)
+    assert sol_nom.success and sol_sag.success
+    # Effective r with sag comp is 200 + 10.0 + 0.05 * 50 = 212.5mm
+    # Shoulder pitch (Motor 5) tilts further forward (larger tick) for larger reach
+    assert sol_sag.ticks[5] > sol_nom.ticks[5]
+
+

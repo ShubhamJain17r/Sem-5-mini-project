@@ -124,15 +124,14 @@ class AutonomousSorterBridge:
                 continue
             if not getattr(c, "targetable", True):
                 continue
-            # Strictly enforce Central Green Pickup Area: Rows 7..10 (Y in [45, 255]), Cols 1..5 (X in [45, 305])
-            # Cubes in the Orange Danger Zone are rejected for safety
-            if not (45.0 <= c.world_x <= 305.0 and 45.0 <= c.world_y <= 255.0):
-                print(f"[Danger Zone Warning] Detected {c.color.upper()} cube at ({c.world_x:.1f}, {c.world_y:.1f}) is in the Danger Zone! Skipping.")
+            # Strictly enforce Golden Pickup Area: Rows 7..9 (Y in [100, 250]), Cols 2..4 (X in [75, 275])
+            if not (75.0 <= c.world_x <= 275.0 and 100.0 <= c.world_y <= 250.0):
+                print(f"[Zone Notice] Detected {c.color.upper()} block at ({c.world_x:.1f}, {c.world_y:.1f}) is outside Golden Pickup Zone! Skipping.")
                 continue
 
             if c.assigned_arm in (self.arm_id, "xarm_1", "xarm", "all") or self.arm_id in ("xarm_1", "xarm"):
                 active_r = c.target_r_mm
-                if 120.0 <= active_r <= 320.0:
+                if 140.0 <= active_r <= 260.0:
                     assigned_cubes.append(c)
 
         # Nearest-First policy: sort by ascending target radius r
@@ -152,13 +151,13 @@ class AutonomousSorterBridge:
         z = cube.world_z
 
         print("\n------------------------------------------------------------------------")
-        print(f"  TARGET: {cube.color.upper()} cube at World=({cube.world_x:.1f}, {cube.world_y:.1f}, Z={z:.1f}) mm")
+        print(f"  TARGET: {cube.color.upper()} block at World=({cube.world_x:.1f}, {cube.world_y:.1f}, Z={z:.1f}) mm")
         print(f"  ARM COORDINATES: r = {r:.1f} mm, theta = {theta:+.1f} deg, yaw = {cube.yaw_deg:+.1f} deg")
         print(f"  ASSIGNED MANIPULATOR: {self.arm_id}")
         print("------------------------------------------------------------------------")
 
-        # 1. Compute Pick IK with wrist roll aligned to cube orientation
-        roll_tick = int(round(500 + cube.yaw_deg * (1000.0 / 240.0)))
+        # 1. Compute Pick IK with wrist roll aligned to block orientation and sag compensation
+        roll_tick = getattr(cube, "gripper_roll_tick", 500)
         pick_ik = solve_ik(
             r=r,
             theta=theta,
@@ -166,6 +165,7 @@ class AutonomousSorterBridge:
             phi=None,  # Use natural adaptive pitch
             roll_tick=roll_tick,
             params=self.params,
+            compensate_sag=True,
         )
 
         if not pick_ik.success:

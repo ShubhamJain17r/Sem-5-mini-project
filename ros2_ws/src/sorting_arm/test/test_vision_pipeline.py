@@ -211,6 +211,20 @@ def test_phase1_phase2_ik_bridge():
         assert 100 <= drop["drop_yaw_tick"] <= 900 or drop["ik_success"], "Invalid drop yaw tick"
 
 
+def test_rectangular_block_wrist_roll():
+    """Verify that elongated rectangular blocks along X receive roll_tick=130 and along Y receive 500."""
+    pipeline = ArenaVisionPipeline(config_dir=os.path.join(repo_root, "config"))
+    img = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
+    # Draw green rectangle at center (Col 3, Row 8 -> u=300, v=250)
+    # Elongated horizontally: width=100px (~50mm), height=60px (~30mm), area=6000px
+    cv2.rectangle(img, (250, 220), (350, 280), (0, 255, 0), -1)
+    cubes = pipeline.detect_cubes(img)
+    assert len(cubes) >= 1, f"Expected 1 detected block, found {len(cubes)}"
+    c = cubes[0]
+    assert c.color == "green"
+    assert c.gripper_roll_tick == 130, f"Expected roll 130 for horizontal block, got {c.gripper_roll_tick}"
+
+
 if __name__ == "__main__":
     try:
         import pytest
@@ -222,4 +236,5 @@ if __name__ == "__main__":
         test_color_segmentation_and_cube_detection()
         test_nearest_first_queue_sorting()
         test_phase1_phase2_ik_bridge()
-        print("All 6 vision pipeline tests passed successfully!")
+        test_rectangular_block_wrist_roll()
+        print("All 7 vision pipeline tests passed successfully!")

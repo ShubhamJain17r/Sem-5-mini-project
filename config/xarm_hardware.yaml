@@ -41,6 +41,13 @@ workspace:
     max_x_mm: 325.0
     min_y_mm: 25.0
     max_y_mm: 275.0                # Active picking zone across Rows 6..10 (Rows 3..5 excluded)
+    golden_zone:
+      min_x_mm: 75.0               # Columns 2, 3, 4 (X in [75.0, 275.0])
+      max_x_mm: 275.0
+      min_y_mm: 100.0              # Rows 7, 8, 9 (Y in [100.0, 250.0])
+      max_y_mm: 250.0
+      min_radial_reach_mm: 140.0
+      max_radial_reach_mm: 260.0
     excluded_rows: [3, 4, 5]       # Arm clearance zone; no objects placed or dropped
   aruco_markers:
     dict: "DICT_4X4_50"
@@ -67,6 +74,8 @@ manipulators:
       y: 375.0
       z: 5.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
+      gravity_sag_trim_mm: 10.0    # Neutralizes physical cantilever droop & gear backlash
+      reach_scale_factor: 0.05     # Additional reach per mm beyond 150mm
       nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world) down Column 3 midline
 
     # Serial / USB Interface
