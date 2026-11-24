@@ -146,6 +146,8 @@ class XArmDriver:
     def connect(self) -> bool:
         """Open connection over USB HID or Serial UART."""
         target_port = self.requested_port
+        if isinstance(target_port, (list, tuple)):
+            target_port = target_port[0]
 
         if target_port in ["auto", "", None]:
             detected_port, detected_type = find_xarm_device()

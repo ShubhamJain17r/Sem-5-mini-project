@@ -145,7 +145,12 @@ def check_and_heal_xarm(preferred_port: str = "auto", dry_run: bool = False) -> 
             continue
 
         try:
-            target_port = preferred_port if preferred_port != "auto" else (ports[0] if ports else "auto")
+            if preferred_port != "auto":
+                target_port = preferred_port
+            elif ports:
+                target_port = ports[0][0] if isinstance(ports[0], (list, tuple)) else ports[0]
+            else:
+                target_port = "auto"
             driver = XArmDriver(port=target_port)
             if not driver.connect():
                 raise RuntimeError(f"Failed to open connection on port {target_port}")
@@ -358,8 +363,8 @@ class AutonomousSortingSystem:
             standoff_z = 50.0
             standoff_sol = solve_ik(r=standoff_r, theta=theta_arm, z=standoff_z, claw_tick=claw_open_tick, params=self.params, use_claw_tip=True)
             
-            # 2. Descent & Advance: R, Z = 19.05mm
-            grasp_z = cube.world_z  # 19.05 mm
+            # 2. Descent & Advance: R, Z safe tabletop grasp clearance
+            grasp_z = max(20.0, cube.world_z)
             grasp_sol = solve_ik(r=r, theta=theta_arm, z=grasp_z, claw_tick=claw_open_tick, params=self.params)
 
             # 3. Retract & Ascend: R - 35mm, Z = 75.0mm
