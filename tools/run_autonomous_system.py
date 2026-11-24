@@ -340,7 +340,7 @@ class AutonomousSortingSystem:
         # Start from Home Pose
         home_ticks = self.poses.get("home_tucked", {}).get("ticks", [500, 500, 500, 500, 500, 500])
         claw_open_tick = 250
-        claw_grip_tick = 523
+        claw_grip_tick = 580
 
         if not self.dry_run and self.driver:
             log_info("Moving to Upright Home Pose...")
@@ -367,9 +367,11 @@ class AutonomousSortingSystem:
             grasp_z = max(20.0, cube.world_z)
             grasp_sol = solve_ik(r=r, theta=theta_arm, z=grasp_z, claw_tick=claw_open_tick, params=self.params)
 
-            # 3. Retract & Ascend: R - 35mm, Z = 75.0mm
-            lift_z = 75.0
-            lift_sol = solve_ik(r=standoff_r, theta=theta_arm, z=lift_z, claw_tick=claw_grip_tick, params=self.params)
+            # 3. Pure Vertical Lift: R, Z = 90.0mm (keeps object elevated cleanly off arena surface)
+            lift_z = 90.0
+            lift_sol = solve_ik(r=r, theta=theta_arm, z=lift_z, claw_tick=claw_grip_tick, params=self.params)
+            if not lift_sol.success:
+                lift_sol = solve_ik(r=standoff_r, theta=theta_arm, z=75.0, claw_tick=claw_grip_tick, params=self.params)
 
             # 4. Rear Drop Target
             drop_target = get_compartment_target(color, arm_id="xarm_1")
@@ -404,17 +406,19 @@ class AutonomousSortingSystem:
             self.driver.set_servo_positions(list(clamp_ticks.values()), duration_ms=600)
             time.sleep(0.7)
 
-            # Step 4: Ascend and Lift
+            # Step 4: Pure Vertical Lift
             log_info("Phase 4: Ascending with object...")
             self.driver.set_servo_positions(list(lift_sol.ticks.values()), duration_ms=1000)
             time.sleep(1.1)
 
-            # Step 5: Transfer to Rear Flank Container Box
+            # Step 5: Transfer to Rear Flank Container Box (maintaining firm clamp on object)
             log_info(f"Phase 5: Transferring to {color.upper()} rear container box...")
-            self.driver.set_servo_positions(list(drop_ticks.values()), duration_ms=1600)
-            time.sleep(1.7)
+            transfer_ticks = dict(drop_ticks)
+            transfer_ticks[1] = claw_grip_tick
+            self.driver.set_servo_positions(list(transfer_ticks.values()), duration_ms=1800)
+            time.sleep(1.9)
 
-            # Step 6: Release Gripper
+            # Step 6: Release Gripper into container
             log_info("Phase 6: Releasing object...")
             release_ticks = dict(drop_ticks)
             release_ticks[1] = claw_open_tick
