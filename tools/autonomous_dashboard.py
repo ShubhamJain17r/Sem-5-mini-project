@@ -93,6 +93,74 @@ class LogManager:
             self.entries.clear()
 
 
+def get_available_cameras() -> List[Dict[str, Any]]:
+    """
+    Scans host V4L2 video nodes and enumerates active video capture streams.
+    Filters out metadata nodes (stream index 1) and labels internal vs external cameras.
+    """
+    cameras = []
+    sys_nodes = sorted(
+        glob.glob("/sys/class/video4linux/video*"),
+        key=lambda p: int(os.path.basename(p).replace("video", "")) if os.path.basename(p).replace("video", "").isdigit() else 999
+    )
+    if sys_nodes:
+        for node in sys_nodes:
+            bname = os.path.basename(node)
+            try:
+                idx = int(bname.replace("video", ""))
+            except ValueError:
+                continue
+            name_file = os.path.join(node, "name")
+            index_file = os.path.join(node, "index")
+            name = "USB Camera"
+            stream_idx = 0
+            if os.path.exists(name_file):
+                try:
+                    with open(name_file, "r") as f:
+                        name = f.read().strip()
+                except Exception:
+                    pass
+            if os.path.exists(index_file):
+                try:
+                    with open(index_file, "r") as f:
+                        stream_idx = int(f.read().strip())
+                except Exception:
+                    pass
+
+            # Only stream index 0 is valid video capture; stream index 1 is metadata
+            if stream_idx == 0:
+                dev_path = f"/dev/{bname}"
+                is_integ = any(w in name.lower() for w in ["integrated", "internal", "built-in", "facetime", "webcam"])
+                is_acc = os.access(dev_path, os.R_OK | os.W_OK) if os.path.exists(dev_path) else False
+                label = f"Camera {idx}: {name} ({dev_path})"
+                if is_integ:
+                    label += " [Laptop Webcam]"
+                else:
+                    label += " [Overhead / USB Camera]"
+                cameras.append({
+                    "index": idx,
+                    "device": dev_path,
+                    "name": name,
+                    "label": label,
+                    "is_integrated": is_integ,
+                    "accessible": is_acc,
+                })
+
+    if not cameras:
+        for i in range(4):
+            dev = f"/dev/video{i}"
+            if os.path.exists(dev):
+                cameras.append({
+                    "index": i,
+                    "device": dev,
+                    "name": f"Video Device {i}",
+                    "label": f"Camera {i} ({dev})",
+                    "is_integrated": False,
+                    "accessible": os.access(dev, os.R_OK | os.W_OK),
+                })
+    return cameras
+
+
 class AutonomousSystemManager:
     """
     Central controller managing camera capture, perception, digital twin,
@@ -117,7 +185,8 @@ class AutonomousSystemManager:
         self.camera_perm_ok = True
         self.xarm_connected = False
         self.xarm_port: Optional[str] = None
-        self.xarm_perm_ok = True
+        self.xarm_type: Optional[str] = None
+        self.xarm_perm_ok = False
 
         # Frame & Snap-and-Lock State
         self.latest_frame: Optional[np.ndarray] = None
@@ -190,25 +259,24 @@ class AutonomousSystemManager:
         while self.running:
             try:
                 # 1. Probe Video Nodes
-                video_nodes = sorted(glob.glob("/dev/video*"))
                 dev_path = f"/dev/video{self.camera_idx}"
                 if os.path.exists(dev_path):
                     self.camera_perm_ok = os.access(dev_path, os.R_OK | os.W_OK)
                 else:
-                    self.camera_perm_ok = len(video_nodes) > 0 and all(os.access(v, os.R_OK | os.W_OK) for v in video_nodes)
+                    self.camera_perm_ok = False
 
-                # 2. Probe xArm
-                if not self.dry_run:
-                    devices = find_all_xarm_devices()
-                    if devices:
-                        self.xarm_port = devices[0][0]
-                        self.xarm_connected = True
-                        self.xarm_perm_ok = os.access(self.xarm_port, os.R_OK | os.W_OK)
-                    else:
-                        self.xarm_connected = False
-                else:
+                # 2. Probe physical xArm connection
+                devices = find_all_xarm_devices()
+                if devices:
+                    self.xarm_port = devices[0][0]
+                    self.xarm_type = devices[0][1]
                     self.xarm_connected = True
-                    self.xarm_port = "Mock Simulation"
+                    self.xarm_perm_ok = os.access(self.xarm_port, os.R_OK | os.W_OK)
+                else:
+                    self.xarm_port = None
+                    self.xarm_type = None
+                    self.xarm_connected = False
+                    self.xarm_perm_ok = False
             except Exception as e:
                 self.logger.log("WARN", f"Watchdog error: {e}")
 
@@ -290,15 +358,33 @@ class AutonomousSystemManager:
         """Attempts opening the selected camera device."""
         try:
             if self.cap is not None:
-                self.cap.release()
+                try:
+                    self.cap.release()
+                except Exception:
+                    pass
+                self.cap = None
+
+            dev_path = f"/dev/video{self.camera_idx}"
+            if not os.path.exists(dev_path):
+                self.camera_connected = False
+                self.logger.log("WARN", f"Device {dev_path} not found on host.")
+                return
+
             self.cap = cv2.VideoCapture(self.camera_idx, cv2.CAP_V4L2)
+            if not self.cap.isOpened():
+                # Fallback to default backend
+                self.cap = cv2.VideoCapture(self.camera_idx)
+
             if self.cap.isOpened():
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                 for _ in range(3):
                     self.cap.read()
                 self.camera_connected = True
-                self.logger.log("SUCCESS", f"Camera opened on /dev/video{self.camera_idx}")
+                self.logger.log("SUCCESS", f"Camera active on {dev_path}")
             else:
                 self.camera_connected = False
+                self.logger.log("WARN", f"Failed to capture frames from {dev_path}")
         except Exception as e:
             self.camera_connected = False
             self.logger.log("WARN", f"Failed to open /dev/video{self.camera_idx}: {e}")
@@ -306,12 +392,25 @@ class AutonomousSystemManager:
     # -------------------------------------------------------------------------
     # Actions & Command Handlers
     # -------------------------------------------------------------------------
-    def switch_camera(self, new_idx: int):
-        self.camera_idx = new_idx
-        self.is_locked = False
-        self.locked_frame = None
+    def switch_camera(self, new_idx: int) -> bool:
+        """Dynamically switches active camera device index."""
+        with self.frame_lock:
+            if self.cap is not None:
+                try:
+                    self.cap.release()
+                except Exception:
+                    pass
+                self.cap = None
+            self.camera_idx = new_idx
+            self.is_locked = False
+            self.locked_frame = None
+            self.latest_frame = None
+            self.latest_warped = None
+            self.camera_connected = False
+
         self._open_camera()
-        self.logger.log("INFO", f"Switched to camera index {new_idx}")
+        self.logger.log("INFO", f"Camera switched to index {new_idx} (/dev/video{new_idx})")
+        return self.camera_connected
 
     def snap_and_lock(self):
         """Captures stationary frame, locks matrix, and extracts targets."""
@@ -618,17 +717,38 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                 self.send_error(500, f"Error reading index.html: {e}")
             return
 
+        elif path == "/api/cameras":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            cams = get_available_cameras()
+            payload = {
+                "active_camera_idx": MANAGER.camera_idx if MANAGER else 0,
+                "cameras": cams,
+            }
+            self.wfile.write(json.dumps(payload).encode("utf-8"))
+            return
+
         elif path == "/api/status":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
 
+            cams = get_available_cameras()
+            active_cam = next((c for c in cams if c["index"] == (MANAGER.camera_idx if MANAGER else 0)), None)
+
             status_payload = {
                 "camera_connected": MANAGER.camera_connected if MANAGER else False,
                 "camera_idx": MANAGER.camera_idx if MANAGER else 0,
+                "camera_perm_ok": MANAGER.camera_perm_ok if MANAGER else True,
+                "active_camera": active_cam,
+                "available_cameras": cams,
                 "xarm_connected": MANAGER.xarm_connected if MANAGER else False,
                 "xarm_port": MANAGER.xarm_port if MANAGER else None,
+                "xarm_type": getattr(MANAGER, "xarm_type", None) if MANAGER else None,
+                "xarm_perm_ok": MANAGER.xarm_perm_ok if MANAGER else False,
                 "dry_run": MANAGER.dry_run if MANAGER else False,
                 "is_locked": MANAGER.is_locked if MANAGER else False,
                 "all_markers_locked": MANAGER.all_markers_locked if MANAGER else False,
@@ -664,9 +784,10 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                     MANAGER.snap_and_lock()
                 elif action == "unlock_camera":
                     MANAGER.unlock_camera()
-                elif action == "switch_camera":
-                    new_idx = int(data.get("camera_idx", 0))
+                elif action in ("switch_camera", "set_camera"):
+                    new_idx = int(data.get("camera_idx", data.get("index", 0)))
                     MANAGER.switch_camera(new_idx)
+                    res = {"success": True, "message": f"Switched to camera index {new_idx}"}
                 elif action == "scan_arena":
                     MANAGER.scan_arena_targets()
                 elif action == "sync_simulation":
@@ -763,8 +884,12 @@ def main():
         sys.exit(1)
 
     print("\n" + "=" * 78)
-    print(f"  🚀 xArm 1S Autonomous Dashboard & Mission Control Ready!")
-    print(f"  👉 Open URL in Browser: http://localhost:{port}")
+    print("  🚀 xArm 1S Autonomous Dashboard & Mission Control")
+    print(f"  👉 Web Dashboard URL: http://localhost:{port}")
+    print("  " + "-" * 74)
+    print("  ⚠️  STRICT TWO-ENVIRONMENT EXECUTION POLICY:")
+    print("     • ANY command related to ROS 2 MUST run in Docker: ./docker/run.sh")
+    print("     • ANY Python command MUST run in virtualenv: source venv/bin/activate")
     print("=" * 78 + "\n")
 
     try:

@@ -4,18 +4,22 @@ Comprehensive operational manual for running, testing, calibrating, and troubles
 
 ---
 
-## 🎯 Strict Environment Separation Policy
+## 🎯 The Absolute Rule of Execution: Strict Two-Environment Separation
 
-To ensure 100% reproducibility and prevent package conflicts:
+> [!CAUTION]
+> ### ⚠️ MANDATORY SYSTEM EXECUTION POLICY
+> 1. 🐳 **ANY command related to ROS 2 MUST be executed inside the Docker container** (`./docker/run.sh`).
+>    - Permitted: `colcon build`, `ros2 launch ...`, `ros2 run ...`, `ros2 topic ...`, `ros2 service ...`, `rviz2`, `pytest`.
+> 2. 🐍 **ANY Python command MUST be executed inside the Python virtual environment** (`source venv/bin/activate`).
+>    - Permitted: `python3 tools/autonomous_dashboard.py`, `python3 tools/run_autonomous_system.py`, `python3 tools/web_config/server.py`, `python3 vision/*.py`.
+> 
+> 🚫 **NEVER** run ROS 2 commands directly on the host operating system.  
+> 🚫 **NEVER** run project Python scripts without activating the Python virtual environment (`venv`).
 
 | Environment | Purpose | Permitted Operations |
 | :--- | :--- | :--- |
-| **Host Python `venv`** | Python scripts, web config, telemetry, standalone direct tests | `python3 tools/web_config/server.py`<br>`python3 tools/telemetry_logger.py`<br>`python3 ros2_ws/src/sorting_arm/sorting_arm/*.py`<br>`python3 ros2_ws/src/sorting_arm/test/run_tests.py` |
-| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations | `colcon build`<br>`ros2 launch sorting_arm xarm.launch.py`<br>`ros2 topic echo`<br>`ros2 service call` |
-
-> [!IMPORTANT]
-> **ROS 2 commands must NEVER be run directly on the host.**  
-> Always execute them through `./docker/run.sh` or inside the Docker interactive shell (`./docker/run.sh bash`).
+| **Host Python `venv`** | Python scripts, web dashboard, telemetry, standalone direct tests | `python3 tools/autonomous_dashboard.py`<br>`python3 tools/web_config/server.py`<br>`python3 tools/telemetry_logger.py`<br>`python3 ros2_ws/src/sorting_arm/test/run_tests.py` |
+| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations & simulation | `colcon build`<br>`ros2 launch sorting_arm simulation.launch.py`<br>`ros2 launch sorting_arm xarm.launch.py`<br>`rviz2`<br>`pytest src/sorting_arm/test/` |
 
 ---
 

@@ -4,6 +4,23 @@ An autonomous robotic sorting system powered by **ROS 2 Humble**, **OpenCV**, an
 
 ---
 
+> [!CAUTION]
+> ## ⚠️ THE ABSOLUTE RULE OF EXECUTION: STRICT TWO-ENVIRONMENT SEPARATION
+> This rule is fundamental and must NEVER be violated under any circumstances:
+> 
+> 1. 🐳 **ANY command related to ROS 2 MUST be executed inside the Docker container** (`./docker/run.sh`).
+>    - Examples: `colcon build`, `ros2 launch ...`, `ros2 run ...`, `ros2 topic ...`, `ros2 service ...`, `rviz2`, ROS test suites (`pytest`).
+>    - **Why**: ROS 2 Humble packages and system dependencies are containerized to eliminate host operating system library conflicts (especially on Ubuntu 24.04/26.04) and ensure 100% deterministic reproducibility.
+> 
+> 2. 🐍 **ANY standalone Python command MUST be executed inside the Python virtual environment** (`source venv/bin/activate`).
+>    - Examples: `python3 tools/autonomous_dashboard.py`, `python3 tools/run_autonomous_system.py`, `python3 tools/web_config/server.py`, `python3 vision/*.py`.
+>    - **Why**: Protects system Python from package corruption and guarantees matching library versions (`opencv-python`, `pyserial`, `pyyaml`).
+> 
+> 🚫 **NEVER** run ROS 2 commands directly on the host operating system.  
+> 🚫 **NEVER** run project Python scripts without activating the Python virtual environment (`venv`).
+
+---
+
 ## 📌 Project Overview
 
 This project automates target object sorting using classical computer vision, analytical kinematics, and minimum-jerk trajectory execution under real-world physical and mechanical constraints:
@@ -290,8 +307,12 @@ From the repository root:
 ```
 *(This automatically configures Intel GPU acceleration `/dev/dri`, X11 GUI forwarding for RViz2/OpenCV, and passes through USB serial and video devices).*
 
-#### 4. Build Workspace & Run Nodes (Inside Container)
+#### 4. Build Workspace & Run ROS 2 Nodes (Inside Docker Container)
 ```bash
+# ==============================================================================
+# [DOCKER ENVIRONMENT] Execute strictly inside Docker container (./docker/run.sh)
+# ==============================================================================
+
 # 1. Build ROS 2 workspace
 cd /workspace/ros2_ws
 colcon build --symlink-install
@@ -300,19 +321,22 @@ source install/setup.bash
 # 2. Run automated analytical kinematics tests
 pytest src/sorting_arm/test/test_kinematics.py
 
-# 3. 3D Digital Twin Simulation & RViz2 (NO physical hardware required):
+# 3. Run full ROS 2 mock driver & trajectory simulation pipeline tests (9 tests)
+pytest src/sorting_arm/test/test_simulation_pipeline.py
+
+# 4. 3D Digital Twin Simulation & RViz2 (NO physical hardware required):
 ros2 launch sorting_arm simulation.launch.py gui:=true mock_vision:=true auto_start:=true
 
 # Or run headless simulation in background/CI:
 ros2 launch sorting_arm simulation.launch.py gui:=false mock_vision:=true auto_start:=true
 
-# 4. Launch xArm 1S hardware driver node (auto-detects USB HID / serial)
+# 5. Launch xArm 1S hardware driver node (auto-detects USB HID / serial)
 ros2 launch sorting_arm xarm_driver.launch.py
 
-# 5. Or run interactive polar teleoperation node
+# 6. Or run interactive polar teleoperation node
 ros2 run sorting_arm polar_teleop_node
 
-# 6. Full Physical Vision-Guided Sorting Pipeline:
+# 7. Full Physical Vision-Guided Sorting Pipeline:
 ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
 
@@ -320,63 +344,61 @@ ros2 launch sorting_arm xarm.launch.py auto_start:=true
 
 ### Option B: Host Python Virtual Environment (Standalone Python Tools Only)
 
-For running standalone Python scripts (Web Configuration Dashboard, servo calibration, telemetry analysis, direct tests) without spinning up Docker:
+For running standalone Python scripts (Web Configuration Dashboard, Web Mission Control Dashboard, camera calibration, telemetry analysis, direct tests) without spinning up Docker:
 
-> [!WARNING]
-> **ROS 2 Execution Policy**: All ROS 2 nodes, launches, and coordination services must run **strictly inside the Docker container** (`./docker/run.sh`). Python commands on the host must be run exclusively inside the dedicated Python virtual environment (`.venv`).
+> [!CAUTION]
+> **Strict Environment Isolation Rule**:
+> - **ROS 2 commands (`ros2 ...`, `colcon ...`) MUST NEVER be run directly on the host.**
+> - **Python commands on the host MUST ALWAYS be run inside the dedicated Python virtual environment (`source venv/bin/activate`).**
 
-#### 1. Setup Host Virtual Environment
+#### 1. Setup & Activate Host Virtual Environment
 ```bash
-# Run one-click setup script (creates .venv and installs dependencies)
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host Machine
+# ==============================================================================
+
+# Run one-click setup script (creates venv/ and installs dependencies)
 ./setup_venv.sh
 
-# Or activate manually
-source .venv/bin/activate
+# Whenever opening a new terminal session, activate the venv:
+source venv/bin/activate
 ```
 
-#### 2. Run Web Configuration & Calibration Tool
+#### 2. Run Web Mission Control Dashboard & Digital Twin (Port 8080)
 ```bash
-# Launch dynamic auto-detecting web server on port 8000
-python3 tools/web_config/server.py
-# Open http://localhost:8000 in your browser
-```
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host (source venv/bin/activate)
+# ==============================================================================
 
-#### 3. Run Standalone Tests & Motion Test Suite
-```bash
-# Run 36 offline simulation unit tests (no hardware required)
-python3 ros2_ws/src/sorting_arm/test/run_tests.py
-
-# Run 9 full ROS 2 simulation & mock trajectory tests (inside Docker)
-pytest ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py
-
-# Run comprehensive 13-motion single-arm trajectory test suite
-python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
-
-# Run sub-millimeter telemetry drift logger
-python3 tools/telemetry_logger.py --arm xarm_1 --scan
-```
-
-#### 4. Run Computer Vision Tools & Complete Autonomous System
-```bash
-# Launch Web-Based Autonomous Mission Control Dashboard (Port 8080):
+# Launch Web Mission Control Dashboard (connects to camera, probes xArm, renders twin):
 python3 tools/autonomous_dashboard.py --dry-run     # Simulation / Mock Mode
 python3 tools/autonomous_dashboard.py               # Live Hardware Mode
+# Open http://localhost:8080 in your browser
+```
 
-# Complete 4-stage terminal autonomous sorting pipeline:
+#### 3. Run Terminal Autonomous Pipeline & Hardware Calibration
+```bash
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host (source venv/bin/activate)
+# ==============================================================================
+
+# Launch real-time Web Hardware Configuration & Potentiometer Server (Port 8000):
+python3 tools/web_config/server.py
+
+# Run 36 offline simulation unit tests (no physical hardware required):
+PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+
+# Run 4-stage terminal autonomous sorting pipeline:
 python3 tools/run_autonomous_system.py --dry-run   # Simulation / Dry-run
 python3 tools/run_autonomous_system.py             # Live Hardware Execution
 
-# Test 4-point ArUco planar homography & metric grid (press 'l' lock, 'g' grid, 's' save)
-python3 vision/test_aruco_warp.py --synthetic  # or --device /dev/video0
+# Camera Calibration & ArUco Homography Tools:
+python3 vision/test_aruco_warp.py --synthetic      # Test ArUco metric rectification
+python3 vision/tune_hsv.py --synthetic             # Interactive 6-trackbar HSV tuner
+python3 vision/calibrate_camera.py --synthetic     # Camera lens intrinsics
 
-# Tune real-time HSV color thresholds interactively (keys 1:Red, 2:Green, 3:Blue, 4:Yellow, 's' save)
-python3 vision/tune_hsv.py --synthetic         # or --device /dev/video0
-
-# Calibrate overhead camera intrinsics with 9x6 checkerboard
-python3 vision/calibrate_camera.py --synthetic # or --device /dev/video0
-
-# Run vision-guided autonomous pick-and-place bridge (Phase 1 + Phase 2 merge)
-python3 tools/autonomous_pick_and_place.py --arm xarm_1 --synthetic --dry-run
+# Run sub-millimeter telemetry drift logger:
+python3 tools/telemetry_logger.py --arm xarm_1 --scan
 ```
 
 For the comprehensive guide, see 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md) and 📄 [**`docs/08_servo_limits_and_calibration_guide.md`**](docs/08_servo_limits_and_calibration_guide.md).

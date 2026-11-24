@@ -18,6 +18,18 @@
 
 ---
 
+> [!CAUTION]
+> ## ⚠️ THE ABSOLUTE RULE OF EXECUTION: STRICT TWO-ENVIRONMENT SEPARATION
+> 1. 🐳 **ANY command related to ROS 2 MUST run inside Docker** (`./docker/run.sh`).
+>    - Examples: `colcon build`, `ros2 launch ...`, `ros2 run ...`, `ros2 topic ...`, `rviz2`.
+> 2. 🐍 **ANY Python command MUST run in the Python virtual environment** (`source venv/bin/activate`).
+>    - Examples: `python3 tools/autonomous_dashboard.py`, `python3 tools/web_config/server.py`, `python3 vision/*.py`.
+> 
+> **NEVER** run ROS 2 commands directly on the host operating system.  
+> **NEVER** run project Python scripts without activating `venv`.
+
+---
+
 ## 1. Mental Model: Host vs. Container
 
 Understanding what runs where avoids 99% of common beginner issues:
@@ -272,17 +284,27 @@ chmod +x docker/*.sh
 
 ## 11. Command Cheat Sheet
 
-| Action | Command | Where to Execute |
+### 🐳 ROS 2 Operations (STRICTLY INSIDE DOCKER CONTAINER)
+| Action | Command | Environment |
 | :--- | :--- | :--- |
-| **Build Docker image** | `./docker/build.sh` | Host Terminal |
 | **Start / Enter container** | `./docker/run.sh` | Host Terminal |
-| **Open another shell in container** | `docker exec -it xarm_sorting_env bash` | New Host Terminal Tab |
+| **Open another shell in container** | `docker exec -it xarm-humble-container bash` | Host Terminal Tab |
 | **Build ROS 2 packages** | `colcon build --symlink-install` | Inside Container (`/workspace/ros2_ws`) |
 | **Source workspace overlay** | `source install/setup.bash` | Inside Container (`/workspace/ros2_ws`) |
-| **Launch Single xArm 1S System** | `ros2 launch sorting_arm xarm.launch.py auto_start:=true` | Inside Container |
-| **Launch Driver Only** | `ros2 launch sorting_arm xarm_driver.launch.py` | Inside Container |
+| **Run ROS 2 tests** | `pytest src/sorting_arm/test/test_kinematics.py` | Inside Container (`/workspace/ros2_ws`) |
+| **Launch Digital Twin Simulation** | `ros2 launch sorting_arm simulation.launch.py gui:=true` | Inside Container |
+| **Launch Full Physical Workcell** | `ros2 launch sorting_arm xarm.launch.py auto_start:=true` | Inside Container |
+| **Launch xArm Hardware Driver** | `ros2 launch sorting_arm xarm_driver.launch.py` | Inside Container |
 | **Run 3D Visualizer (RViz2)** | `rviz2` | Inside Container |
-| **Check connected cameras** | `v4l2-ctl --list-devices` | Inside Container |
-| **Check connected xArm ports** | `ls -l /dev/ttyUSB*` | Inside Container |
-| **Exit container** | `exit` | Inside Container |
-| **Commit project code** | `git add . && git commit -m "..."` | Host Terminal |
+
+### 🐍 Standalone Python Operations (STRICTLY IN PYTHON VIRTUAL ENVIRONMENT ON HOST)
+| Action | Command | Environment |
+| :--- | :--- | :--- |
+| **Setup Virtual Environment** | `./setup_venv.sh` | Host Terminal |
+| **Activate Virtual Environment** | `source venv/bin/activate` | Host Terminal |
+| **Run Web Mission Control Dashboard** | `python3 tools/autonomous_dashboard.py --dry-run` | Host Terminal (`venv`) |
+| **Run Web Hardware Config Server** | `python3 tools/web_config/server.py` | Host Terminal (`venv`) |
+| **Run Terminal Autonomous Sorter** | `python3 tools/run_autonomous_system.py --dry-run` | Host Terminal (`venv`) |
+| **Run Offline Kinematics Tests** | `python3 ros2_ws/src/sorting_arm/test/run_tests.py` | Host Terminal (`venv`) |
+| **Calibrate Camera / ArUco Warp** | `python3 vision/test_aruco_warp.py --synthetic` | Host Terminal (`venv`) |
+

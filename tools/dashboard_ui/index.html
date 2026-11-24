@@ -3,240 +3,401 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>xArm 1S Autonomous Workcell — Mission Control & Digital Twin</title>
+  <title>xArm 1S Sorting Workcell — Operator Console & Digital Twin</title>
   <style>
     :root {
-      --bg: #090d16;
-      --card: #121826;
-      --card-hover: #1a2236;
-      --border: #232f48;
-      --border-focus: #3b82f6;
-      --text: #f1f5f9;
-      --text-muted: #8492a6;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --purple: #8b5cf6;
-      --cyan: #06b6d4;
+      --bg-app: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-surface-elevated: #334155;
+      --bg-input: #0f172a;
+      --border-subtle: #334155;
+      --border-strong: #475569;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-green: #10b981;
+      --accent-green-hover: #059669;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-red-hover: #dc2626;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 16px;
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      padding: 12px 16px;
       line-height: 1.4;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Header */
+    /* Top Application Bar */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 10px 16px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      margin-bottom: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      margin-bottom: 10px;
       flex-shrink: 0;
+      gap: 16px;
     }
-    .brand {
+
+    .brand-section {
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 260px;
     }
-    .logo-badge {
-      background: linear-gradient(135deg, var(--primary), var(--purple));
+
+    .brand-logo {
+      background: #2563eb;
       color: #fff;
-      font-weight: 800;
-      font-size: 14px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      letter-spacing: 0.5px;
-    }
-    .title-group h1 {
-      font-size: 16px;
       font-weight: 700;
-      color: #fff;
+      font-size: 13px;
+      padding: 5px 9px;
+      border-radius: 5px;
+      letter-spacing: 0.3px;
+      font-family: var(--font-mono);
     }
-    .title-group p {
-      font-size: 11px;
+
+    .brand-titles h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+    }
+
+    .brand-titles .env-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .env-tag {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
       color: var(--text-muted);
     }
-    .status-pills {
+
+    .env-tag.docker { color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); }
+    .env-tag.venv { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
+
+    /* Hardware Watchdog & Camera Toolbar */
+    .hardware-toolbar {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
-    .pill {
+
+    .camera-control-box {
       display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .camera-control-box label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .camera-select {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      font-size: 11px;
+      padding: 4px 8px;
+      outline: none;
+      max-width: 280px;
+      cursor: pointer;
+    }
+
+    .camera-select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 4px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+    }
+
+    .status-badge-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: 6px;
       font-size: 11px;
-      font-weight: 600;
-      background: #1e293b;
-      border: 1px solid var(--border);
+      font-weight: 500;
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
     }
-    .pill-dot {
+
+    .status-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--text-muted);
+      background: var(--text-dim);
     }
-    .pill.ok .pill-dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
-    .pill.warn .pill-dot { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
-    .pill.err .pill-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-    .pill.info .pill-dot { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
 
+    .status-badge.connected .status-dot { background: var(--accent-green); }
+    .status-badge.disconnected .status-dot { background: var(--accent-red); }
+    .status-badge.warning .status-dot { background: var(--accent-amber); }
+
+    .help-hint {
+      cursor: help;
+      color: var(--text-dim);
+      font-size: 11px;
+      text-decoration: underline dotted;
+    }
+
+    /* Header Actions */
     .header-actions {
       display: flex;
+      align-items: center;
       gap: 8px;
     }
+
     button {
-      padding: 7px 14px;
-      border-radius: 6px;
+      padding: 6px 12px;
+      border-radius: 5px;
       border: 1px solid transparent;
-      font-weight: 600;
+      font-family: var(--font-sans);
+      font-weight: 500;
       font-size: 12px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.15s ease;
+      transition: background-color 0.1s ease, border-color 0.1s ease;
     }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-success:hover { background: #059669; }
-    .btn-purple { background: var(--purple); color: #fff; }
-    .btn-purple:hover { background: #7c3aed; }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn-danger:hover { background: #dc2626; }
-    .btn-secondary { background: #1e293b; color: var(--text); border-color: var(--border); }
-    .btn-secondary:hover { background: #334155; }
-    .btn-sm { padding: 4px 8px; font-size: 11px; }
 
-    /* Main Grid Layout */
-    .dashboard-grid {
+    .btn-primary { background: var(--accent-blue); color: #fff; }
+    .btn-primary:hover { background: var(--accent-blue-hover); }
+
+    .btn-success { background: var(--accent-green); color: #fff; }
+    .btn-success:hover { background: var(--accent-green-hover); }
+
+    .btn-danger { background: var(--accent-red); color: #fff; }
+    .btn-danger:hover { background: var(--accent-red-hover); }
+
+    .btn-secondary {
+      background: #0f172a;
+      color: var(--text-main);
+      border-color: var(--border-subtle);
+    }
+    .btn-secondary:hover { background: var(--bg-surface-elevated); }
+
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
+
+    /* Dashboard Layout Grid */
+    .dashboard-layout {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: 1.2fr 0.8fr;
       gap: 12px;
       flex: 1;
       min-height: 0;
     }
+
     .col-left, .col-right {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       min-height: 0;
     }
 
     /* Cards */
     .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
     }
+
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
     }
+
     .card-title {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
     }
 
-    /* Hand-held Camera Assist HUD */
-    .assist-hud {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr) auto auto;
-      gap: 8px;
+    /* Camera Assist HUD */
+    .camera-hud-bar {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      background: #0f1523;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      margin-bottom: 10px;
+      background: #0f172a;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    .aruco-dot {
+
+    .marker-indicators {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .marker-tag {
       display: flex;
       align-items: center;
       gap: 5px;
       font-size: 11px;
-      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
     }
-    .dot-indicator {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #334155;
-    }
-    .dot-indicator.locked { background: var(--success); box-shadow: 0 0 8px var(--success); }
-    .dot-indicator.unlocked { background: var(--danger); }
-    .metric-gauge {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 8px;
-      border-left: 1px solid var(--border);
-    }
-    .gauge-label { font-size: 9px; text-transform: uppercase; color: var(--text-muted); }
-    .gauge-val { font-size: 13px; font-weight: 700; color: #fff; }
-    .gauge-val.optimal { color: var(--success); }
-    .gauge-val.suboptimal { color: var(--warning); }
 
-    /* Video Stream Container */
+    .marker-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #475569;
+    }
+
+    .marker-dot.locked { background: var(--accent-green); }
+
+    .hud-metrics {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .metric-item {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .metric-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--text-main);
+    }
+
+    .metric-value.ok { color: var(--accent-green); }
+    .metric-value.warn { color: var(--accent-amber); }
+
+    .camera-guidance-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .webcam-notice {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #f59e0b;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-bottom: 8px;
+      display: none;
+    }
+
+    /* Video Viewport */
     .viewport-card {
       flex: 1;
       display: flex;
       flex-direction: column;
       min-height: 0;
     }
-    .stream-tabs {
+
+    .tab-group {
       display: flex;
-      gap: 6px;
+      gap: 4px;
     }
-    .tab-btn {
-      background: #1e293b;
+
+    .tab-item {
+      background: #0f172a;
       color: var(--text-muted);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-subtle);
       padding: 4px 10px;
-      border-radius: 6px;
+      border-radius: 4px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
     }
-    .tab-btn.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
+
+    .tab-item.active {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-strong);
     }
-    .stream-viewport {
+
+    .viewport-screen {
       flex: 1;
-      background: #060911;
-      border-radius: 8px;
-      border: 1px solid var(--border);
+      background: #000;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
       position: relative;
       overflow: hidden;
       display: flex;
@@ -244,301 +405,315 @@
       justify-content: center;
       min-height: 0;
     }
-    .stream-img {
+
+    .viewport-img {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
       display: block;
     }
-    .stream-overlay {
+
+    .viewport-tag {
       position: absolute;
       top: 8px;
       left: 8px;
-      background: rgba(10, 15, 25, 0.85);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(4px);
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-family: monospace;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
       color: #38bdf8;
       pointer-events: none;
     }
-    .freeze-badge {
+
+    .freeze-indicator {
       position: absolute;
       bottom: 8px;
       right: 8px;
-      background: rgba(16, 185, 129, 0.9);
+      background: #10b981;
       color: #fff;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: var(--font-mono);
       display: none;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.9; }
-      50% { opacity: 0.6; }
     }
 
-    /* Right Column Cards */
+    /* Target Queue Table */
     .queue-card {
       height: 38%;
       display: flex;
       flex-direction: column;
     }
-    .queue-table-wrap {
+
+    .table-container {
       flex: 1;
       overflow-y: auto;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #0f1523;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      background: #0f172a;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 11px;
       text-align: left;
     }
+
     th {
-      background: #182238;
+      background: #1e293b;
       padding: 6px 8px;
       color: var(--text-muted);
-      font-weight: 700;
+      font-weight: 600;
       position: sticky;
       top: 0;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-subtle);
     }
+
     td {
       padding: 5px 8px;
-      border-bottom: 1px solid #1a2236;
-      font-family: monospace;
+      border-bottom: 1px solid #1a2436;
+      font-family: var(--font-mono);
+      color: var(--text-main);
     }
-    tr.active-target {
-      background: rgba(59, 130, 246, 0.2);
+
+    tr.active-row {
+      background: rgba(37, 99, 235, 0.15);
     }
-    .color-chip {
+
+    .color-pill {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       border-radius: 2px;
-      margin-right: 4px;
+      margin-right: 5px;
       vertical-align: middle;
     }
-    .color-chip.red { background: #ef4444; }
-    .color-chip.green { background: #10b981; }
 
-    /* Trajectory State Card */
-    .trajectory-bar {
+    .color-pill.red { background: #ef4444; }
+    .color-pill.green { background: #10b981; }
+
+    /* Trajectory Progress */
+    .trajectory-sequence {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       margin-top: 6px;
     }
-    .traj-step {
+
+    .seq-step {
       flex: 1;
-      background: #182238;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px;
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 4px 2px;
       text-align: center;
       font-size: 10px;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-    .traj-step.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: #60a5fa;
-      box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
-    }
-    .traj-step.done {
-      background: #064e3b;
-      color: #34d399;
-      border-color: #059669;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
     }
 
-    /* Terminal Logs Card */
+    .seq-step.active {
+      background: var(--accent-blue);
+      color: #fff;
+      border-color: var(--accent-blue-hover);
+    }
+
+    /* Log Console */
     .log-card {
       flex: 1;
       display: flex;
       flex-direction: column;
       min-height: 0;
     }
-    .log-console {
+
+    .terminal-window {
       flex: 1;
-      background: #060911;
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      background: #080c14;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
       padding: 8px;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-family: var(--font-mono);
       font-size: 11px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
       line-height: 1.45;
     }
-    .log-line { margin-bottom: 2px; }
-    .log-info { color: #94a3b8; }
-    .log-stage { color: #38bdf8; font-weight: 700; }
-    .log-success { color: #34d399; font-weight: 600; }
-    .log-warn { color: #fbbf24; }
-    .log-err { color: #f87171; font-weight: 700; }
+
+    .term-line { margin-bottom: 2px; }
+    .term-info { color: #94a3b8; }
+    .term-stage { color: #38bdf8; font-weight: 600; }
+    .term-success { color: #34d399; font-weight: 600; }
+    .term-warn { color: #fbbf24; }
+    .term-err { color: #f87171; font-weight: 600; }
   </style>
 </head>
 <body>
 
-  <!-- Top Header Bar -->
+  <!-- Top Application Bar -->
   <header>
-    <div class="brand">
-      <div class="logo-badge">xArm 1S</div>
-      <div class="title-group">
-        <h1>Autonomous Color-Sorting Mission Control & Digital Twin</h1>
-        <p>4-Stage Self-Healing Perception · Golden Zone Kinematics · Real-Time ROS 2 Synchronizer</p>
+    <div class="brand-section">
+      <div class="brand-logo">xArm 1S</div>
+      <div class="brand-titles">
+        <h1>Workcell Operator Console</h1>
+        <div class="env-tags">
+          <span class="env-tag docker" title="All ROS 2 commands must run inside Docker">🐳 ROS 2: Docker Humble</span>
+          <span class="env-tag venv" title="All Python scripts must run inside virtualenv">🐍 Python: venv</span>
+        </div>
       </div>
     </div>
 
-    <!-- Status Indicators -->
-    <div class="status-pills">
-      <div id="pill-camera" class="pill warn">
-        <div class="pill-dot"></div>
-        <span id="txt-camera">Camera: Probing</span>
+    <!-- Hardware Watchdog & Camera Selector -->
+    <div class="hardware-toolbar">
+      <!-- Camera Selection Dropdown -->
+      <div class="camera-control-box">
+        <label for="camera-select">Video Device:</label>
+        <select id="camera-select" class="camera-select" onchange="onCameraChanged()">
+          <option value="0">Camera 0 (/dev/video0)</option>
+        </select>
+        <button class="btn-icon" title="Rescan video devices" onclick="rescanCameras()">🔄</button>
       </div>
-      <div id="pill-xarm" class="pill warn">
-        <div class="pill-dot"></div>
-        <span id="txt-xarm">xArm: Probing</span>
-      </div>
-      <div id="pill-ros2" class="pill info">
-        <div class="pill-dot"></div>
-        <span id="txt-ros2">ROS 2: Active</span>
-      </div>
-      <div id="pill-mode" class="pill info">
-        <div class="pill-dot"></div>
-        <span id="txt-mode">Mode: Live</span>
+
+      <!-- Live Status Badges -->
+      <div class="status-badge-group">
+        <div id="badge-camera" class="status-badge warning">
+          <div class="status-dot"></div>
+          <span id="txt-camera">Camera: Probing</span>
+        </div>
+
+        <div id="badge-xarm" class="status-badge warning">
+          <div class="status-dot"></div>
+          <span id="txt-xarm">xArm: Checking</span>
+        </div>
+
+        <div id="badge-mode" class="status-badge">
+          <div class="status-dot"></div>
+          <span id="txt-mode">Mode: Live</span>
+        </div>
       </div>
     </div>
 
-    <!-- Quick Action Buttons -->
+    <!-- Header Actions -->
     <div class="header-actions">
-      <button class="btn-primary" onclick="triggerAction('snap_and_lock')">📸 Snap & Lock</button>
-      <button class="btn-purple" onclick="triggerAction('sync_simulation')">🌐 Sync Digital Twin</button>
-      <button class="btn-success" onclick="triggerAction('sort_all')">▶ Sort All</button>
-      <button class="btn-danger" onclick="triggerAction('estop')">🛑 E-STOP</button>
+      <button class="btn-primary" onclick="triggerAction('snap_and_lock')">📸 Snap Frame</button>
+      <button class="btn-secondary" onclick="triggerAction('home')">Home Pose</button>
+      <button class="btn-success" onclick="triggerAction('sort_all')">▶ Start Sort</button>
+      <button class="btn-danger" onclick="triggerAction('estop')">🛑 E-Stop</button>
     </div>
   </header>
 
-  <!-- Main Dashboard Grid -->
-  <div class="dashboard-grid">
+  <!-- Main Layout -->
+  <div class="dashboard-layout">
 
-    <!-- Left Column: Hand-Held Camera Assist & Video Streams -->
+    <!-- Left Column: Vision, Optical HUD & Viewport -->
     <div class="col-left">
 
-      <!-- Hand-Held Camera Leveling & ArUco Assist Card -->
+      <!-- Camera Guidance & ArUco HUD -->
       <div class="card" style="flex-shrink: 0;">
-        <div class="assist-hud">
-          <div class="aruco-dot">
-            <div id="dot-m0" class="dot-indicator"></div>
-            <span>M0 (TL)</span>
-          </div>
-          <div class="aruco-dot">
-            <div id="dot-m1" class="dot-indicator"></div>
-            <span>M1 (TR)</span>
-          </div>
-          <div class="aruco-dot">
-            <div id="dot-m2" class="dot-indicator"></div>
-            <span>M2 (BL)</span>
-          </div>
-          <div class="aruco-dot">
-            <div id="dot-m3" class="dot-indicator"></div>
-            <span>M3 (BR)</span>
+        <div id="webcam-warning-banner" class="webcam-notice">
+          ⚠️ <b>Laptop Webcam Active</b>: You are currently capturing from your integrated laptop camera. If using an overhead USB camera, select it from the Video Device dropdown above.
+        </div>
+
+        <div class="camera-hud-bar">
+          <div class="marker-indicators">
+            <div class="marker-tag">
+              <div id="dot-m0" class="marker-dot"></div>
+              <span>M0 (TL)</span>
+            </div>
+            <div class="marker-tag">
+              <div id="dot-m1" class="marker-dot"></div>
+              <span>M1 (TR)</span>
+            </div>
+            <div class="marker-tag">
+              <div id="dot-m2" class="marker-dot"></div>
+              <span>M2 (BL)</span>
+            </div>
+            <div class="marker-tag">
+              <div id="dot-m3" class="marker-dot"></div>
+              <span>M3 (BR)</span>
+            </div>
           </div>
 
-          <div class="metric-gauge">
-            <span class="gauge-label">Height Hc</span>
-            <span id="val-height" class="gauge-val optimal">-- cm</span>
-          </div>
-
-          <div class="metric-gauge">
-            <span class="gauge-label">Depression</span>
-            <span id="val-angle" class="gauge-val optimal">--°</span>
+          <div class="hud-metrics">
+            <div class="metric-item">
+              <span class="metric-label">Height:</span>
+              <span id="val-height" class="metric-value">-- cm</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Tilt:</span>
+              <span id="val-angle" class="metric-value">--°</span>
+            </div>
           </div>
 
           <div style="display: flex; gap: 6px;">
-            <select id="cam-select" style="background: #1e293b; color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; padding: 2px 6px;">
-              <option value="0">/dev/video0</option>
-              <option value="2">/dev/video2</option>
-              <option value="4">/dev/video4</option>
-            </select>
-            <button class="btn-secondary btn-sm" onclick="switchCamera()">Switch</button>
+            <button id="btn-freeze-toggle" class="btn-secondary btn-sm" onclick="toggleFreeze()">🔒 Freeze Frame</button>
+            <button class="btn-secondary btn-sm" onclick="triggerAction('check_hardware')">Re-Probe</button>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-          <span id="assist-status-text" style="color: var(--cyan); font-weight: 600;">
-            🔍 Ready to scan: Hold camera overhead (~60cm) until all 4 markers light up green.
+        <div class="camera-guidance-line">
+          <span id="hud-status-text">
+            Align camera overhead (~60 cm). Once all 4 markers turn green, click Snap Frame (or press Space).
           </span>
-          <div style="display: flex; gap: 6px;">
-            <button id="btn-lock-toggle" class="btn-secondary btn-sm" onclick="toggleLock()">🔒 Freeze Frame</button>
-            <button class="btn-secondary btn-sm" onclick="triggerAction('check_hardware')">🔄 Re-Probe</button>
-          </div>
+          <span style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Shortcuts: Space=Snap, H=Home, S=Sort</span>
         </div>
       </div>
 
-      <!-- Video Viewport Card -->
+      <!-- Viewport Display -->
       <div class="card viewport-card">
         <div class="card-header">
-          <div class="card-title">
-            <span>Live Vision & Digital Twin Viewports</span>
-          </div>
-          <div class="stream-tabs">
-            <button class="tab-btn active" onclick="switchTab('warped')">Rectified Metric Grid (2px/mm)</button>
-            <button class="tab-btn" onclick="switchTab('camera')">Raw Overhead Camera</button>
-            <button class="tab-btn" onclick="switchTab('sim')">3D Digital Twin View</button>
+          <div class="card-title">Viewport Display</div>
+          <div class="tab-group">
+            <button class="tab-item active" onclick="switchViewportTab('warped')">Rectified Grid (2px/mm)</button>
+            <button class="tab-item" onclick="switchViewportTab('camera')">Raw Camera</button>
+            <button class="tab-item" onclick="switchViewportTab('sim')">3D Digital Twin</button>
           </div>
         </div>
 
-        <div class="stream-viewport">
-          <img id="active-stream-img" class="stream-img" src="/stream/warped" alt="Video Stream">
-          <div id="stream-overlay-text" class="stream-overlay">FEED: WARPED METRIC GRID (2px/mm)</div>
-          <div id="freeze-badge" class="freeze-badge">FRAME LOCKED (STATIONARY SCAN)</div>
+        <div class="viewport-screen">
+          <img id="active-viewport-img" class="viewport-img" src="/stream/warped" alt="Vision Stream">
+          <div id="viewport-overlay-label" class="viewport-tag">WARPED ARENA GRID (2.0 PX/MM)</div>
+          <div id="freeze-indicator" class="freeze-indicator">FRAME FROZEN (STATIONARY SCAN)</div>
         </div>
       </div>
 
     </div>
 
-    <!-- Right Column: Target Queue, Trajectory & Logs -->
+    <!-- Right Column: Target Queue, Sequence & Diagnostics -->
     <div class="col-right">
 
-      <!-- Target Queue & Golden Zone Objects -->
+      <!-- Target Queue Table -->
       <div class="card queue-card">
         <div class="card-header">
           <div class="card-title">
-            <span>Golden Zone Target Queue (Nearest-First)</span>
-            <span id="queue-badge" style="font-size: 11px; background: #1e293b; padding: 2px 8px; border-radius: 9999px; color: var(--text);">0 Objects</span>
+            <span>Golden Zone Targets</span>
+            <span id="queue-counter" style="font-size: 11px; background: #0f172a; padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); color: var(--text-muted);">0 blocks</span>
           </div>
           <div style="display: flex; gap: 6px;">
-            <button class="btn-secondary btn-sm" onclick="triggerAction('sort_next')">Sort Next</button>
             <button class="btn-secondary btn-sm" onclick="triggerAction('scan_arena')">Scan Arena</button>
+            <button class="btn-secondary btn-sm" onclick="triggerAction('sort_next')">Sort Next</button>
           </div>
         </div>
 
-        <div class="queue-table-wrap">
+        <div class="table-container">
           <table>
             <thead>
               <tr>
                 <th>#</th>
                 <th>Color</th>
-                <th>World (X, Y)</th>
-                <th>Reach r</th>
+                <th>Arena (X, Y)</th>
+                <th>Reach (r)</th>
                 <th>Roll Tick</th>
-                <th>Drop Target</th>
+                <th>Container</th>
               </tr>
             </thead>
-            <tbody id="target-tbody">
+            <tbody id="target-table-body">
               <tr>
-                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">
-                  No targets scanned. Click <b>[Snap & Lock]</b> or <b>[Scan Arena]</b> to detect craft blocks.
+                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">
+                  No targets scanned. Click <b>[Snap Frame]</b> to acquire objects.
                 </td>
               </tr>
             </tbody>
@@ -546,28 +721,28 @@
         </div>
 
         <!-- Trajectory Progression Pipeline -->
-        <div class="trajectory-bar">
-          <div id="step-standoff" class="traj-step">1. Hover (Z=75)</div>
-          <div id="step-plunge" class="traj-step">2. Plunge (Z=22)</div>
-          <div id="step-clamp" class="traj-step">3. Clamp (520)</div>
-          <div id="step-lift" class="traj-step">4. Lift (Z=90)</div>
-          <div id="step-rear" class="traj-step">5. Rear Transit</div>
-          <div id="step-drop" class="traj-step">6. Release (250)</div>
+        <div class="trajectory-sequence">
+          <div id="step-standoff" class="seq-step">1. Hover (Z=75)</div>
+          <div id="step-plunge" class="seq-step">2. Plunge (Z=22)</div>
+          <div id="step-clamp" class="seq-step">3. Grip (520)</div>
+          <div id="step-lift" class="seq-step">4. Lift (Z=90)</div>
+          <div id="step-rear" class="seq-step">5. Rear Transit</div>
+          <div id="step-drop" class="seq-step">6. Release (250)</div>
         </div>
       </div>
 
-      <!-- Real-Time Log Console -->
+      <!-- Execution Logs & Terminal Output -->
       <div class="card log-card">
         <div class="card-header">
-          <div class="card-title">
-            <span>Execution Telemetry & Diagnostic Logs</span>
-          </div>
+          <div class="card-title">System Telemetry & Logs</div>
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn-secondary btn-sm" onclick="triggerAction('home')">Home Pose</button>
-            <button class="btn-secondary btn-sm" onclick="clearLogs()">Clear</button>
+            <label style="font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="chk-autoscroll" checked> Auto-scroll
+            </label>
+            <button class="btn-secondary btn-sm" onclick="clearTerminal()">Clear</button>
           </div>
         </div>
-        <div id="log-console" class="log-console"></div>
+        <div id="terminal-output" class="terminal-window"></div>
       </div>
 
     </div>
@@ -575,187 +750,260 @@
   </div>
 
   <script>
-    let currentTab = 'warped';
-    let isFrozen = false;
-    let autoScrollLogs = true;
+    let activeTab = 'warped';
+    let isFrameFrozen = false;
+    let knownCameras = [];
 
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    // Switch Viewport Tabs
+    function switchViewportTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
 
-      const img = document.getElementById('active-stream-img');
-      const overlay = document.getElementById('stream-overlay-text');
-      
-      if (tab === 'warped') {
+      const img = document.getElementById('active-viewport-img');
+      const label = document.getElementById('viewport-overlay-label');
+
+      if (tabName === 'warped') {
         img.src = '/stream/warped?' + Date.now();
-        overlay.innerText = 'FEED: WARPED METRIC GRID (2px/mm)';
-      } else if (tab === 'camera') {
+        label.innerText = 'WARPED ARENA GRID (2.0 PX/MM)';
+      } else if (tabName === 'camera') {
         img.src = '/stream/camera?' + Date.now();
-        overlay.innerText = 'FEED: RAW OVERHEAD CAMERA';
+        label.innerText = 'RAW OVERHEAD CAMERA FEED';
       } else {
         img.src = '/stream/sim?' + Date.now();
-        overlay.innerText = 'FEED: 3D DIGITAL TWIN RENDER';
+        label.innerText = '3D DIGITAL TWIN SIMULATION';
       }
     }
 
-    function switchCamera() {
-      const idx = document.getElementById('cam-select').value;
+    // Camera Switch Event
+    function onCameraChanged() {
+      const select = document.getElementById('camera-select');
+      const chosenIdx = parseInt(select.value);
       fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'switch_camera', camera_idx: parseInt(idx) })
-      }).then(() => refreshStatus());
+        body: JSON.stringify({ action: 'switch_camera', camera_idx: chosenIdx })
+      })
+      .then(r => r.json())
+      .then(data => {
+        appendTerminal('info', `Switched camera device to /dev/video${chosenIdx}`);
+        refreshStatus();
+      });
     }
 
-    function toggleLock() {
-      const action = isFrozen ? 'unlock_camera' : 'snap_and_lock';
+    function rescanCameras() {
+      fetch('/api/cameras')
+        .then(r => r.json())
+        .then(data => {
+          updateCameraSelect(data.cameras || [], data.active_camera_idx || 0);
+          appendTerminal('info', 'Probed video devices.');
+        });
+    }
+
+    function updateCameraSelect(cameras, activeIdx) {
+      const select = document.getElementById('camera-select');
+      knownCameras = cameras;
+
+      // Keep selection if same
+      const currentVal = parseInt(select.value);
+      select.innerHTML = '';
+
+      if (cameras.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = activeIdx;
+        opt.innerText = `Camera ${activeIdx} (/dev/video${activeIdx})`;
+        select.appendChild(opt);
+        return;
+      }
+
+      cameras.forEach(cam => {
+        const opt = document.createElement('option');
+        opt.value = cam.index;
+        opt.innerText = cam.label || `Camera ${cam.index} (${cam.device})`;
+        if (cam.index === activeIdx) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+
+      // Show/hide laptop webcam notice banner
+      const activeCam = cameras.find(c => c.index === activeIdx);
+      const banner = document.getElementById('webcam-warning-banner');
+      if (activeCam && activeCam.is_integrated) {
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    // Freeze / Snap Frame Toggle
+    function toggleFreeze() {
+      const action = isFrameFrozen ? 'unlock_camera' : 'snap_and_lock';
       triggerAction(action);
     }
 
+    // Generic Action Trigger
     function triggerAction(actionName) {
       fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: actionName })
-      }).then(r => r.json()).then(data => {
+      })
+      .then(r => r.json())
+      .then(data => {
         if (data.message) {
-          appendLog('info', data.message);
+          appendTerminal('info', data.message);
         }
         refreshStatus();
+      })
+      .catch(err => {
+        appendTerminal('err', `Action failed: ${err}`);
       });
     }
 
+    // Periodic Telemetry Refresh
     function refreshStatus() {
       fetch('/api/status')
         .then(r => r.json())
         .then(data => {
-          updatePills(data);
-          updateAssistHud(data);
+          updateBadges(data);
+          updateCameraSelect(data.available_cameras || [], data.camera_idx || 0);
+          updateOpticalHud(data);
           updateQueueTable(data);
-          updateTrajectoryBar(data);
-          updateLogs(data.logs || []);
+          updateTrajectoryPipeline(data);
+          updateTerminalLogs(data.logs || []);
         })
-        .catch(err => console.error('Status fetch error:', err));
+        .catch(err => {
+          // Connection lost
+          const pArm = document.getElementById('badge-xarm');
+          pArm.className = 'status-badge disconnected';
+          document.getElementById('txt-xarm').innerText = 'Server Offline';
+        });
     }
 
-    function updatePills(data) {
-      // Camera
-      const pCam = document.getElementById('pill-camera');
+    function updateBadges(data) {
+      // 1. Camera Badge
+      const bCam = document.getElementById('badge-camera');
       const tCam = document.getElementById('txt-camera');
       if (data.camera_connected) {
-        pCam.className = 'pill ok';
-        tCam.innerText = `Camera: /dev/video${data.camera_idx}`;
+        bCam.className = 'status-badge connected';
+        tCam.innerText = `Camera: /dev/video${data.camera_idx} (Active)`;
       } else {
-        pCam.className = 'pill err';
-        tCam.innerText = 'Camera: Disconnected';
+        bCam.className = 'status-badge disconnected';
+        tCam.innerText = `Camera: /dev/video${data.camera_idx} (No Signal)`;
       }
 
-      // xArm
-      const pArm = document.getElementById('pill-xarm');
+      // 2. xArm Badge (Explicitly reports physical connection)
+      const bArm = document.getElementById('badge-xarm');
       const tArm = document.getElementById('txt-xarm');
       if (data.xarm_connected) {
-        pArm.className = 'pill ok';
-        tArm.innerText = `xArm: ${data.xarm_port || 'Connected'}`;
+        bArm.className = 'status-badge connected';
+        const portStr = data.xarm_port ? data.xarm_port.replace('/dev/', '') : 'USB';
+        const iface = data.xarm_type ? ` (${data.xarm_type.toUpperCase()})` : '';
+        tArm.innerText = `xArm: Connected [${portStr}${iface}]`;
+        bArm.title = `Physical manipulator connected on ${data.xarm_port}`;
       } else {
-        pArm.className = 'pill warn';
-        tArm.innerText = 'xArm: Offline (Dry-Run)';
+        bArm.className = 'status-badge disconnected';
+        tArm.innerText = 'xArm: Disconnected (Simulation)';
+        bArm.title = 'Physical robot not detected. Check USB cable and run: sudo chmod 666 /dev/hidraw* /dev/ttyUSB*';
       }
 
-      // Mode
-      const pMode = document.getElementById('pill-mode');
+      // 3. Mode Badge
+      const bMode = document.getElementById('badge-mode');
       const tMode = document.getElementById('txt-mode');
       if (data.dry_run) {
-        pMode.className = 'pill warn';
-        tMode.innerText = 'Mode: Simulation (Dry-Run)';
+        bMode.className = 'status-badge warning';
+        tMode.innerText = 'Mode: Dry-Run (Safety)';
       } else {
-        pMode.className = 'pill ok';
-        tMode.innerText = 'Mode: Live Hardware';
+        bMode.className = 'status-badge connected';
+        tMode.innerText = 'Mode: Live Execution';
       }
 
-      // Frame Freeze Badge
-      isFrozen = data.is_locked || false;
-      document.getElementById('freeze-badge').style.display = isFrozen ? 'block' : 'none';
-      const lockBtn = document.getElementById('btn-lock-toggle');
-      if (lockBtn) {
-        lockBtn.innerText = isFrozen ? '🔓 Resume Live' : '🔒 Freeze Frame';
+      // 4. Freeze Status
+      isFrameFrozen = data.is_locked || false;
+      document.getElementById('freeze-indicator').style.display = isFrameFrozen ? 'block' : 'none';
+      const freezeBtn = document.getElementById('btn-freeze-toggle');
+      if (freezeBtn) {
+        freezeBtn.innerText = isFrameFrozen ? '🔓 Live Feed' : '🔒 Freeze Frame';
       }
     }
 
-    function updateAssistHud(data) {
+    function updateOpticalHud(data) {
       const markers = data.aruco_reports || {};
       [0, 1, 2, 3].forEach(id => {
         const dot = document.getElementById(`dot-m${id}`);
         const rep = markers[id] || {};
         if (rep.detected) {
-          dot.className = 'dot-indicator locked';
+          dot.className = 'marker-dot locked';
         } else {
-          dot.className = 'dot-indicator unlocked';
+          dot.className = 'marker-dot';
         }
       });
 
       const hEl = document.getElementById('val-height');
       const aEl = document.getElementById('val-angle');
-      const sEl = document.getElementById('assist-status-text');
+      const sEl = document.getElementById('hud-status-text');
 
       if (data.camera_height_mm) {
         const cm = (data.camera_height_mm / 10.0).toFixed(1);
         hEl.innerText = `${cm} cm`;
-        hEl.className = (cm >= 52 && cm <= 72) ? 'gauge-val optimal' : 'gauge-val suboptimal';
+        hEl.className = (cm >= 52 && cm <= 72) ? 'metric-value ok' : 'metric-value warn';
       } else {
         hEl.innerText = '-- cm';
+        hEl.className = 'metric-value';
       }
 
       if (data.depression_angle_deg) {
         const deg = data.depression_angle_deg.toFixed(1);
         aEl.innerText = `${deg}°`;
-        aEl.className = (deg >= 70) ? 'gauge-val optimal' : 'gauge-val suboptimal';
+        aEl.className = (deg >= 72) ? 'metric-value ok' : 'metric-value warn';
       } else {
         aEl.innerText = '--°';
+        aEl.className = 'metric-value';
       }
 
       if (data.all_markers_locked) {
-        sEl.style.color = 'var(--success)';
-        sEl.innerText = '✅ Perfect optical lock: All 4 ArUco markers verified. Ready to snap!';
+        sEl.style.color = 'var(--accent-green)';
+        sEl.innerText = 'All 4 ArUco markers locked. Scene verified and ready to snap.';
       } else {
-        sEl.style.color = 'var(--cyan)';
-        sEl.innerText = '🔍 Align camera nadir overhead until M0-M3 light up green.';
+        sEl.style.color = 'var(--text-muted)';
+        sEl.innerText = 'Align camera overhead until M0-M3 turn green, then click Snap Frame.';
       }
     }
 
     function updateQueueTable(data) {
-      const tbody = document.getElementById('target-tbody');
-      const badge = document.getElementById('queue-badge');
+      const tbody = document.getElementById('target-table-body');
+      const counter = document.getElementById('queue-counter');
       const queue = data.target_queue || [];
 
-      badge.innerText = `${queue.length} Objects`;
+      counter.innerText = `${queue.length} blocks`;
       if (queue.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">
-          No active targets. Place blocks in Golden Zone and click <b>[Snap & Lock]</b>.
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">
+          No targets in Golden Zone. Click <b>[Snap Frame]</b> to scan blocks.
         </td></tr>`;
         return;
       }
 
-      let html = '';
+      let rows = '';
       queue.forEach((item, idx) => {
         const color = (item.color || 'red').toLowerCase();
-        const dest = color === 'red' ? 'Red Container (Yaw 650)' : 'Green Container (Yaw 354)';
-        const rollDesc = item.roll_tick === 130 ? '130 (90° Horiz)' : '500 (Level)';
+        const dest = color === 'red' ? 'Red Box (Yaw 650)' : 'Green Box (Yaw 354)';
+        const rollStr = item.roll_tick === 130 ? '130 (Horizontal)' : '500 (Level)';
         const isActive = (idx === 0 && data.is_executing);
 
-        html += `<tr class="${isActive ? 'active-target' : ''}">
+        rows += `<tr class="${isActive ? 'active-row' : ''}">
           <td>${idx + 1}</td>
-          <td><span class="color-chip ${color}"></span>${color.toUpperCase()}</td>
+          <td><span class="color-pill ${color}"></span>${color.toUpperCase()}</td>
           <td>(${item.world_x.toFixed(1)}, ${item.world_y.toFixed(1)})</td>
           <td>${item.reach_r.toFixed(1)} mm</td>
-          <td>${rollDesc}</td>
+          <td>${rollStr}</td>
           <td>${dest}</td>
         </tr>`;
       });
-      tbody.innerHTML = html;
+      tbody.innerHTML = rows;
     }
 
-    function updateTrajectoryBar(data) {
+    function updateTrajectoryPipeline(data) {
       const step = data.trajectory_step || 'idle';
       const steps = ['standoff', 'plunge', 'clamp', 'lift', 'rear', 'drop'];
       const stepMap = {
@@ -774,41 +1022,58 @@
       steps.forEach(s => {
         const el = document.getElementById(`step-${s}`);
         if (el) {
-          el.className = (s === activeKey) ? 'traj-step active' : 'traj-step';
+          el.className = (s === activeKey) ? 'seq-step active' : 'seq-step';
         }
       });
     }
 
-    function updateLogs(logs) {
-      const consoleEl = document.getElementById('log-console');
-      consoleEl.innerHTML = '';
+    function updateTerminalLogs(logs) {
+      const win = document.getElementById('terminal-output');
+      win.innerHTML = '';
       logs.forEach(l => {
         const div = document.createElement('div');
-        div.className = `log-line log-${l.level.toLowerCase()}`;
-        div.innerText = `[${l.time}] ${l.msg}`;
-        consoleEl.appendChild(div);
+        div.className = `term-line term-${l.level.toLowerCase()}`;
+        div.innerText = `[${l.time}] [${l.level}] ${l.msg}`;
+        win.appendChild(div);
       });
-      if (autoScrollLogs) {
-        consoleEl.scrollTop = consoleEl.scrollHeight;
+      if (document.getElementById('chk-autoscroll').checked) {
+        win.scrollTop = win.scrollHeight;
       }
     }
 
-    function appendLog(level, msg) {
-      const consoleEl = document.getElementById('log-console');
+    function appendTerminal(level, msg) {
+      const win = document.getElementById('terminal-output');
       const div = document.createElement('div');
       const timeStr = new Date().toLocaleTimeString();
-      div.className = `log-line log-${level}`;
-      div.innerText = `[${timeStr}] ${msg}`;
-      consoleEl.appendChild(div);
-      consoleEl.scrollTop = consoleEl.scrollHeight;
+      div.className = `term-line term-${level}`;
+      div.innerText = `[${timeStr}] [${level.toUpperCase()}] ${msg}`;
+      win.appendChild(div);
+      if (document.getElementById('chk-autoscroll').checked) {
+        win.scrollTop = win.scrollHeight;
+      }
     }
 
-    function clearLogs() {
-      document.getElementById('log-console').innerHTML = '';
+    function clearTerminal() {
+      document.getElementById('terminal-output').innerHTML = '';
     }
 
-    // Poll status every 450ms
-    setInterval(refreshStatus, 450);
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        triggerAction('snap_and_lock');
+      } else if (e.key === 'h' || e.key === 'H') {
+        triggerAction('home');
+      } else if (e.key === 's' || e.key === 'S') {
+        triggerAction('sort_all');
+      } else if (e.key === 'Escape') {
+        triggerAction('estop');
+      }
+    });
+
+    // Start polling status every 400ms
+    setInterval(refreshStatus, 400);
     refreshStatus();
   </script>
 </body>

@@ -9,6 +9,16 @@ This engineering guide provides the complete development standard for building, 
 
 It eliminates global installation conflicts on modern Linux hosts (Ubuntu 24.04 / 26.04), provides hardware acceleration for Intel graphics and NVIDIA Jetson (ARM64), and defines the exact workspace scaffolding for the project's ROS 2 node graph.
 
+> [!CAUTION]
+> ### ⚠️ THE ABSOLUTE RULE OF EXECUTION: STRICT TWO-ENVIRONMENT SEPARATION
+> 1. 🐳 **ANY command related to ROS 2 MUST be executed inside the Docker container** (`./docker/run.sh`).
+>    - Examples: `colcon build`, `ros2 launch ...`, `ros2 run ...`, `ros2 topic ...`, `rviz2`, `pytest`.
+> 2. 🐍 **ANY Python command MUST be executed inside the Python virtual environment** (`source venv/bin/activate`).
+>    - Examples: `python3 tools/autonomous_dashboard.py`, `python3 tools/run_autonomous_system.py`, `python3 tools/web_config/server.py`, `python3 vision/*.py`.
+> 
+> 🚫 **NEVER** run ROS 2 commands directly on the host operating system.  
+> 🚫 **NEVER** run project Python scripts without activating the Python virtual environment (`venv`).
+
 ---
 
 ## 1. Architectural Philosophy: The Hybrid Workflow
