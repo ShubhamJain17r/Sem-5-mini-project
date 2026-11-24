@@ -96,12 +96,12 @@ def test_protocol_calibration_and_limits():
 def test_load_kinematic_parameters():
     cfg = "config/xarm_hardware.yaml"
     params1 = load_kinematic_parameters(config_path=cfg, arm_id="xarm_1")
-    assert params1.d1 == 65.0
+    assert params1.d1 == 70.0
     assert params1.L1 == 101.0
     assert params1.L2 == 95.0
     assert params1.L3_grip == 150.0
     assert params1.L3_tip == 168.0
-    assert 200 <= params1.min_safe_ticks[1] <= 230
+    assert 200 <= params1.min_safe_ticks[1] <= 260
     assert 850 <= params1.max_safe_ticks[6] <= 950
 
 
@@ -156,13 +156,14 @@ def test_ik_with_claw_tip():
 
 
 def test_world_to_arm_polar():
-    # Single xArm 1S is centered at (175, 375, 0) with nominal heading -90.0 deg (South down Col 3)
+    # Single xArm 1S is centered at (175, 375, 5.0) with nominal heading -90.0 deg (South down Col 3)
     # Point at (175, 175, 12.5) is dx=0, dy=-200 (directly South): r=200, theta_world=-90 deg
+    # rel_z = 12.5 - 5.0 = 7.5 mm
     # theta_arm = -90 - (-90) = 0.0 deg
     r, th, z = world_to_arm_polar(175.0, 175.0, 12.5, arm_id="xarm_1")
     assert abs(r - 200.0) < 0.1
     assert abs(th - 0.0) < 0.1
-    assert abs(z - 12.5) < 0.1
+    assert abs(z - 7.5) < 0.1
 
 
 def test_base_zero_and_heading_kinematics():

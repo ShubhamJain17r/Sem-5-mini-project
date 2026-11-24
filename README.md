@@ -27,11 +27,14 @@ This project automates target object sorting using classical computer vision, an
    - **Green Container Box**: Rows 0..1, Cols 5..6 ($100\times 100\text{ mm}$); Drop Target $(X = 300.0\text{ mm}, Y = 550.0\text{ mm}, Z = 45.0\text{ mm})$, base yaw tick **$354$**.
 6. **Table-Coplanar ArUco Markers ($50\text{ mm} \times 50\text{ mm}$, $Z = 0.0\text{ mm}$)**:
    - 4 matte vinyl ArUco markers (`DICT_4X4_50`, IDs 0..3) positioned at:
-     - Marker 0: $(25.0, 425.0\text{ mm})$ [Row 3, Col 0] $\to$ Pixel $(0, 0)$ (Top-Left)
-     - Marker 1: $(325.0, 425.0\text{ mm})$ [Row 3, Col 6] $\to$ Pixel $(600, 0)$ (Top-Right)
-     - Marker 2: $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 800)$ (Bottom-Left)
-     - Marker 3: $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 800)$ (Bottom-Right)
-   - Planar homography rectifies the active arena into a metric $600 \times 800\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
+     - Marker 0 (ID 2): $(25.0, 275.0\text{ mm})$ [Row 6, Col 0] $\to$ Pixel $(0, 0)$ (Top-Left, pointing West)
+     - Marker 1 (ID 0): $(325.0, 275.0\text{ mm})$ [Row 6, Col 6] $\to$ Pixel $(600, 0)$ (Top-Right, pointing West)
+     - Marker 2 (ID 3): $(25.0, 25.0\text{ mm})$ [Row 11, Col 0] $\to$ Pixel $(0, 500)$ (Bottom-Left, pointing East)
+     - Marker 3 (ID 1): $(325.0, 25.0\text{ mm})$ [Row 11, Col 6] $\to$ Pixel $(600, 500)$ (Bottom-Right, pointing East)
+   - Planar homography rectifies the active arena into a metric $600 \times 500\text{ px}$ image at $2.0\text{ px/mm}$ ($1\text{ px} = 0.5\text{ mm}$).
+7. **Manipulator Mounting & Base Elevation**:
+   - Centered at $(X = 175.0\text{ mm}, Y = 375.0\text{ mm})$ ($100\text{ mm}$ behind Row 6 line).
+   - Elevated on a $5.0\text{ mm}$ cardboard baseplate ($Z_{\text{base}} = 5.0\text{ mm}$, shoulder pivot height from table $d_1 = 70.0\text{ mm}$).
 
 ---
 
@@ -44,29 +47,35 @@ This project automates target object sorting using classical computer vision, an
    │  │ REAR OF WORKSPACE (Row 0, Y = 600 mm)                      │
    │  │ ┌───────────────────────┐        ┌───────────────────────┐ │
    │  │ │   RED CONTAINER BOX   │        │  GREEN CONTAINER BOX  │ │
-   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │
+   │  │ │  (Rows 0..1, Cols 0..1)        │  (Rows 0..1, Cols 5..6) │ │
    │  │ │ Drop Yaw: 650 ticks   │        │ Drop Yaw: 354 ticks   │ │
    │  │ └───────────────────────┘        └───────────────────────┘ │
-   │  │   [ArUco #0] (50x50mm)      ┌───────────────────┐ [ArUco #1│
-   │  │   (25, 425) [Row 3, Col 0]  │   xArm 1S MOUNT   │ (325, 425│
-   │  │                             │ (X=175.0, Y=375.0)│ [Row 3, C│
-   │  │                             │ Heading: -90° (S) │          │
-   │  │                             └───────────────────┘          │
    │  │                                                            │
-   │  │               ACTIVE PICKING ARENA (Rows 7..10)            │
-   │  │                     (r = 160..300 mm reach)                │
-   │  │             [Red & Green Targets | Nearest-First]          │
+   │  │                         ┌───────────────────┐              │
+   │  │                         │   xArm 1S MOUNT   │              │
+   │  │                         │ (X=175.0, Y=375.0)│              │
+   │  │                         │ Z_base = +5.0 mm  │              │
+   │  │                         │ Heading: -90° (S) │              │
+   │  │                         └───────────────────┘              │
+   │  │   [ArUco M0 / ID 2] (50x50mm)      [ArUco M1 / ID 0] (50x50│
+   │  │   (25, 275) [Row 6, Col 0]         (325, 275) [Row 6, Col 6│
+   │  │   Heading: West (180°)             Heading: West (180°)    │
+   │  │ ┌────────────────────────────────────────────────────────┐ │
+   │  │ │       CENTRAL GREEN PICKUP ZONE (Rows 7..10, Cols 1..5)│ │
+   │  │ │           (Active picking: r = 145..300 mm reach)      │ │
+   │  │ │       [Nearest-First Ordering | Rear-Flip Transfer]    │ │
+   │  │ └────────────────────────────────────────────────────────┘ │
+   │  │   [ArUco M2 / ID 3] (50x50mm)      [ArUco M3 / ID 1] (50x50│
+   │  │   (25, 25) [Row 11, Col 0]         (325, 25) [Row 11, Col 6│
+   │  │   Heading: East (0°)               Heading: East (0°)      │
    │  │                                                            │
-   │  │   [ArUco #2] (50x50mm)                            [ArUco #3] (50x50mm) │
-   │  │   (25, 25) [Row 11, Col 0]                        (325, 25) [Row 11, C6│
-   │  │                                                                        │
-   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)              │
-   │  └────────────────────────────────────────────────────────────────────────┘
-   └───────────────────────────────────────────────────────────────────────────> X (Width: 350 mm)
+   │  │ FRONT OF WORKSPACE (Operator Position @ Row 11, Y = 0 mm)  │
+   │  └────────────────────────────────────────────────────────────┘
+   └───────────────────────────────────────────────────────────────> X (Width: 350 mm)
 
   Platform Grid:   7 columns x 12 rows of 50x50 mm squares (350 x 600 mm)
-  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0 mm), Heading -90.0° (South)
-  Vision Rect:     600 x 800 px metric grid at 2.0 px/mm between ArUco centers
+  Robot Mounting:  Rows 3..5, Cols 2..4 (Center: 175.0, 375.0, 5.0 mm), Heading -90.0° (South)
+  Vision Rect:     600 x 500 px metric grid at 2.0 px/mm between ArUco centers (Rows 6..11)
   Drop Motion:     Overhead rear-flip: Red box @ 650 ticks, Green box @ 354 ticks
 ```
 

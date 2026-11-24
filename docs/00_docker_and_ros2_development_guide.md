@@ -246,3 +246,47 @@ When deploying to the onboard Jetson computer, the workflow remains identical:
 | **Inspect** | Telemetry check (`ros2 topic list`, `ros2 topic echo ...`) | Attached Terminal (`docker exec`) |
 | **Visualize** | 3D visualizer (`rviz2`) | Container Terminal |
 | **Commit** | Stage & commit changes (`git commit`) | Laptop Host Terminal |
+
+---
+
+## 7. Master Autonomous Pipeline & Self-Healing Execution
+
+The repository provides a single, unified master CLI that runs the complete autonomous system:
+[`tools/run_autonomous_system.py`](file:///home/shubham/Projects/Sem-5-mini-project/tools/run_autonomous_system.py)
+
+### Presetup Commands:
+```bash
+# 1. Build and run Docker (Host Terminal)
+./docker/build.sh
+./docker/run.sh
+
+# 2. Inside Container Terminal: Build ROS 2 workspace
+cd /workspace/ros2_ws
+colcon build --symlink-install
+source install/setup.bash
+
+# 3. Launch Master Autonomous Sorting Pipeline
+python3 tools/run_autonomous_system.py
+```
+
+### Command Flags:
+- `--dry-run`: Simulates the entire vision perception, extrinsics, filtering, and kinematic trajectories without physically driving manipulator motors.
+- `--step`: Prompts for user `[Enter]` before picking each target cube (ideal for verification and grading).
+- `--auto`: Continuously sorts all detected objects autonomously.
+- `--camera <idx>`: Specifies video capture device index (default: `4`).
+- `--port <dev>`: Specifies xArm controller port (default: `auto`).
+
+### Self-Healing & Interactive Diagnostics:
+1. **Stage 1 (Hardware & Access)**:
+   - If `/dev/video*` or `/dev/hidraw*` permissions are restricted, the program **does not crash**.
+   - It prints the exact `sudo chmod 666 ...` command in the terminal and waits for `[Enter]` in a retry loop.
+2. **Stage 2 (Vision Extrinsics & Marker Verification)**:
+   - Measures camera mounting height $H_c$, Euclidean distance $D_c$, and depression angle $\theta_{\text{dep}}$.
+   - Verifies all 4 ArUco markers (M0, M1, M2, M3). If tilted or displaced, prints exact degrees and rotation direction to adjust.
+3. **Stage 3 (Perception & Spatial Filtering)**:
+   - Warps arena to $2.0\text{ px/mm}$ metric grid.
+   - Enforces the **Central Green Pickup Zone (Rows 7..10, Cols 1..5)**.
+   - Rejects and logs any cubes placed in the **Orange Danger Zone**.
+4. **Stage 4 (Scheduling & Pick-and-Place)**:
+   - Sorts targets using Nearest-First radial reach ordering.
+   - Transits grasped cubes to Rear Flank Red and Green collection boxes via collision-free overhead rear-flip trajectories.

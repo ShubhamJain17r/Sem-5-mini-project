@@ -284,15 +284,20 @@ class ArenaVisionPipeline:
             return frame
         return cv2.undistort(frame, self.camera_matrix, self.dist_coeffs)
 
-    def detect_aruco_markers(self, frame: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """Detects ArUco markers and returns corners and IDs."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    def detect_aruco_markers(self, frame: np.ndarray) -> Tuple[Optional[List[np.ndarray]], Optional[np.ndarray]]:
+        """Detects ArUco markers and returns corners and IDs with edge padding to preserve quiet zones."""
+        pad = 20
+        padded = cv2.copyMakeBorder(frame, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        gray = cv2.cvtColor(padded, cv2.COLOR_BGR2GRAY)
         if self._use_new_aruco_api:
             corners, ids, _ = self.aruco_detector.detectMarkers(gray)
         else:
             corners, ids, _ = cv2.aruco.detectMarkers(
                 gray, self.aruco_dict, parameters=self.aruco_params
             )
+        if corners is not None and len(corners) > 0:
+            unpadded_corners = [c - pad for c in corners]
+            return unpadded_corners, ids
         return corners, ids
 
     def calibrate_homography(self, frame: np.ndarray, force_update: bool = False) -> bool:
@@ -308,20 +313,211 @@ class ArenaVisionPipeline:
         if not all(marker_id in detected_ids for marker_id in [0, 1, 2, 3]):
             return self.H_matrix is not None
 
-        # Robust geometric ordering of detected marker centers:
-        centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
-        sorted_by_y = centers[np.argsort(centers[:, 1])]
-        top_2 = sorted_by_y[:2]
-        bot_2 = sorted_by_y[2:]
+        id_to_center = {}
+        for i, mid in enumerate(detected_ids):
+            id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
 
-        tl = top_2[np.argmin(top_2[:, 0])]
-        tr = top_2[np.argmax(top_2[:, 0])]
-        bl = bot_2[np.argmin(bot_2[:, 0])]
-        br = bot_2[np.argmax(bot_2[:, 0])]
+        # Exact ID mapping:
+        # Marker 2: Top-Left (Row 6, Col 0) -> dst_pts[0]
+        # Marker 0: Top-Right (Row 6, Col 6) -> dst_pts[1]
+        # Marker 1: Bottom-Right (Row 11, Col 6) -> dst_pts[2]
+        # Marker 3: Bottom-Left (Row 11, Col 0) -> dst_pts[3]
+        if all(k in id_to_center for k in [2, 0, 1, 3]):
+            tl = id_to_center[2]
+            tr = id_to_center[0]
+            br = id_to_center[1]
+            bl = id_to_center[3]
+        else:
+            centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
+            sorted_by_y = centers[np.argsort(centers[:, 1])]
+            top_2 = sorted_by_y[:2]
+            bot_2 = sorted_by_y[2:]
+            tl = top_2[np.argmin(top_2[:, 0])]
+            tr = top_2[np.argmax(top_2[:, 0])]
+            bl = bot_2[np.argmin(bot_2[:, 0])]
+            br = bot_2[np.argmax(bot_2[:, 0])]
 
         src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
         self.H_matrix = cv2.getPerspectiveTransform(src_pts, self.dst_pts)
         return True
+
+    def compute_camera_extrinsics(self, frame: np.ndarray) -> Dict[str, Any]:
+        """
+        Computes 3D camera extrinsics (position, height Hc, distance Dc, depression angle, side)
+        using cv2.solvePnP against the 4 ground-truth ArUco marker coordinates.
+        """
+        corners, ids = self.detect_aruco_markers(frame)
+        if ids is None or len(ids) < 4:
+            return {
+                "success": False,
+                "message": f"Requires all 4 markers, found {len(ids) if ids is not None else 0}",
+            }
+
+        id_to_center = {}
+        for i, mid in enumerate(ids.flatten()):
+            id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
+
+        if not all(k in id_to_center for k in [2, 0, 1, 3]):
+            missing = [k for k in [2, 0, 1, 3] if k not in id_to_center]
+            return {
+                "success": False,
+                "message": f"Missing required markers: {missing}",
+            }
+
+        object_pts = np.array([
+            [25.0, 275.0, 0.0],   # M2 (Row 6, Col 0)
+            [325.0, 275.0, 0.0],  # M0 (Row 6, Col 6)
+            [325.0, 25.0, 0.0],   # M1 (Row 11, Col 6)
+            [25.0, 25.0, 0.0],    # M3 (Row 11, Col 0)
+        ], dtype=np.float64)
+
+        image_pts = np.array([
+            id_to_center[2],
+            id_to_center[0],
+            id_to_center[1],
+            id_to_center[3],
+        ], dtype=np.float64)
+
+        if self.camera_matrix is not None:
+            K = self.camera_matrix.astype(np.float64)
+            dist = self.dist_coeffs.astype(np.float64) if self.dist_coeffs is not None else np.zeros(5)
+        else:
+            h, w = frame.shape[:2]
+            K = np.array([
+                [float(w), 0.0, float(w) / 2.0],
+                [0.0, float(w), float(h) / 2.0],
+                [0.0, 0.0, 1.0]
+            ], dtype=np.float64)
+            dist = np.zeros(5)
+
+        ret, rvec, tvec = cv2.solvePnP(object_pts, image_pts, K, dist, flags=cv2.SOLVEPNP_ITERATIVE)
+        if not ret:
+            return {"success": False, "message": "solvePnP failed to converge"}
+
+        R, _ = cv2.Rodrigues(rvec)
+        cam_pos_world = (-R.T @ tvec).flatten()
+        optical_axis_world = (R.T @ np.array([0, 0, 1.0])).flatten()
+        
+        # Depression angle (pitch below horizontal plane)
+        sin_dep = max(-1.0, min(1.0, -optical_axis_world[2]))
+        depression_deg = float(np.degrees(np.arcsin(sin_dep)))
+
+        arena_center = np.array([175.0, 150.0, 0.0])
+        dist_to_center = float(np.linalg.norm(cam_pos_world - arena_center))
+
+        x_c, y_c = cam_pos_world[0], cam_pos_world[1]
+        if y_c < 25.0:
+            side = "South / Front (looking North toward manipulator)"
+        elif y_c > 275.0:
+            side = "North / Rear (behind manipulator)"
+        elif x_c < 25.0:
+            side = "West / Left"
+        else:
+            side = "East / Right"
+
+        return {
+            "success": True,
+            "camera_position_world_mm": {
+                "x": round(float(cam_pos_world[0]), 1),
+                "y": round(float(cam_pos_world[1]), 1),
+                "z": round(float(cam_pos_world[2]), 1),
+            },
+            "height_mm": round(float(cam_pos_world[2]), 1),
+            "distance_to_arena_center_mm": round(dist_to_center, 1),
+            "depression_angle_deg": round(depression_deg, 1),
+            "viewing_side": side,
+            "rvec": rvec.flatten().tolist(),
+            "tvec": tvec.flatten().tolist(),
+        }
+
+    def verify_aruco_markers(self, frame: np.ndarray) -> Dict[str, Any]:
+        """
+        Validates presence, corner clearances, and orientation angles of all 4 markers:
+        - M2 at (Row 6, Col 0): pointing West (~180°)
+        - M0 at (Row 6, Col 6): pointing West (~180°)
+        - M3 at (Row 11, Col 0): pointing East (~0°)
+        - M1 at (Row 11, Col 6): pointing East (~0°)
+        Returns diagnostic reports with actionable adjustment guidance.
+        """
+        specs = {
+            2: {"name": "Marker 2 (Row 6, Col 0 / Top-Left)", "expected_deg": 180.0, "expected_dir": "West"},
+            0: {"name": "Marker 0 (Row 6, Col 6 / Top-Right)", "expected_deg": 180.0, "expected_dir": "West"},
+            3: {"name": "Marker 3 (Row 11, Col 0 / Bottom-Left)", "expected_deg": 0.0, "expected_dir": "East"},
+            1: {"name": "Marker 1 (Row 11, Col 6 / Bottom-Right)", "expected_deg": 0.0, "expected_dir": "East"},
+        }
+
+        corners, ids = self.detect_aruco_markers(frame)
+        h, w = frame.shape[:2]
+
+        reports = {}
+        all_detected = True
+        all_aligned = True
+
+        detected_map = {}
+        if ids is not None:
+            for i, mid in enumerate(ids.flatten()):
+                detected_map[int(mid)] = corners[i][0]
+
+        for mid, spec in specs.items():
+            if mid not in detected_map:
+                all_detected = False
+                all_aligned = False
+                reports[mid] = {
+                    "id": mid,
+                    "name": spec["name"],
+                    "detected": False,
+                    "is_oriented_correctly": False,
+                    "orientation_error_deg": 999.0,
+                    "measured_angle_deg": None,
+                    "edge_clearance_px": 0.0,
+                    "advice": f"{spec['name']} is NOT detected. Check if occluded or partially outside camera frame.",
+                }
+                continue
+
+            c = detected_map[mid]
+            center = np.mean(c, axis=0)
+            min_dist_to_edge = min(center[0], w - center[0], center[1], h - center[1])
+
+            # Heading vector: corner 0 to corner 1
+            v = c[1] - c[0]
+            raw_angle = float(np.degrees(np.arctan2(v[1], v[0])))
+            
+            # Angle error relative to expected heading
+            ang_err = (raw_angle - spec["expected_deg"] + 180.0) % 360.0 - 180.0
+            is_oriented = abs(ang_err) <= 25.0
+
+            if not is_oriented:
+                all_aligned = False
+                rot_dir = "counter-clockwise" if ang_err > 0 else "clockwise"
+                advice = (
+                    f"{spec['name']} is tilted by {abs(ang_err):.1f}° (measured {raw_angle:.1f}°, "
+                    f"expected {spec['expected_dir']} {spec['expected_deg']}°). "
+                    f"Please rotate marker {abs(ang_err):.0f}° {rot_dir}."
+                )
+            elif min_dist_to_edge < 25.0:
+                advice = (
+                    f"{spec['name']} is oriented correctly, but sits close to the frame boundary "
+                    f"({min_dist_to_edge:.0f}px from edge). Consider shifting arena slightly inward."
+                )
+            else:
+                advice = f"{spec['name']} is correctly placed and oriented ({spec['expected_dir']})."
+
+            reports[mid] = {
+                "id": mid,
+                "name": spec["name"],
+                "detected": True,
+                "is_oriented_correctly": is_oriented,
+                "orientation_error_deg": round(abs(ang_err), 1),
+                "measured_angle_deg": round(raw_angle, 1),
+                "edge_clearance_px": round(float(min_dist_to_edge), 1),
+                "advice": advice,
+            }
+
+        return {
+            "all_detected": all_detected,
+            "all_aligned": all_aligned,
+            "reports": reports,
+        }
 
     def lock_homography(self, locked: bool = True):
         """Freezes or unlocks the homography matrix to prevent drift or jitter."""
