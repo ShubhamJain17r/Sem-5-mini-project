@@ -295,6 +295,20 @@ class ArenaVisionPipeline:
             corners, ids, _ = cv2.aruco.detectMarkers(
                 gray, self.aruco_dict, parameters=self.aruco_params
             )
+
+        if corners is None or len(corners) < 4:
+            # Fallback with CLAHE for low-contrast marker borders or uneven illumination
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            cl_gray = clahe.apply(gray)
+            if self._use_new_aruco_api:
+                c_cl, ids_cl, _ = self.aruco_detector.detectMarkers(cl_gray)
+            else:
+                c_cl, ids_cl, _ = cv2.aruco.detectMarkers(
+                    cl_gray, self.aruco_dict, parameters=self.aruco_params
+                )
+            if ids_cl is not None and (ids is None or len(ids_cl) > len(ids)):
+                corners, ids = c_cl, ids_cl
+
         if corners is not None and len(corners) > 0:
             unpadded_corners = [c - pad for c in corners]
             return unpadded_corners, ids

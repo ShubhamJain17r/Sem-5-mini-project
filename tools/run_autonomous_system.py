@@ -147,6 +147,8 @@ def check_and_heal_xarm(preferred_port: str = "auto", dry_run: bool = False) -> 
         try:
             target_port = preferred_port if preferred_port != "auto" else (ports[0] if ports else "auto")
             driver = XArmDriver(port=target_port)
+            if not driver.connect():
+                raise RuntimeError(f"Failed to open connection on port {target_port}")
             log_info(f"Connected to xArm 1S on {driver.port}")
             # Query positions
             curr_pos = driver.get_servo_positions()
@@ -165,11 +167,12 @@ def check_and_heal_xarm(preferred_port: str = "auto", dry_run: bool = False) -> 
 class AutonomousSortingSystem:
     """Master controller managing perception, extrinsics, filtering, and pick-and-place execution."""
 
-    def __init__(self, camera_idx: int = 4, port: str = "auto", dry_run: bool = False, step_mode: bool = False):
+    def __init__(self, camera_idx: int = 4, port: str = "auto", dry_run: bool = False, step_mode: bool = False, ignore_marker_angles: bool = False):
         self.camera_idx = camera_idx
         self.port = port
         self.dry_run = dry_run
         self.step_mode = step_mode
+        self.ignore_marker_angles = ignore_marker_angles
 
         self.cap: Optional[cv2.VideoCapture] = None
         self.driver: Optional[XArmDriver] = None
@@ -220,7 +223,7 @@ class AutonomousSortingSystem:
             reports = marker_status["reports"]
 
             print(f"\n{TermColor.BOLD}--- ArUco Marker Diagnostic Status ---{TermColor.ENDC}")
-            for mid in [2, 0, 3, 1]:
+            for mid in [0, 1, 2, 3]:
                 rep = reports.get(mid, {})
                 status_color = TermColor.GREEN if rep.get("is_oriented_correctly") else TermColor.WARNING
                 deg_str = f"{rep.get('measured_angle_deg')}°" if rep.get("measured_angle_deg") is not None else "N/A"
@@ -239,8 +242,11 @@ class AutonomousSortingSystem:
                     print(f"  - Depression Angle:     {extrinsics['depression_angle_deg']:.1f}°")
                     print(f"  - Viewing Side:         {extrinsics['viewing_side']}")
 
-            if all_detected and all_aligned:
-                log_info("All 4 ArUco markers are placed and oriented correctly!")
+            if all_detected and (all_aligned or self.ignore_marker_angles):
+                if all_aligned:
+                    log_info("All 4 ArUco markers are placed and oriented correctly!")
+                else:
+                    log_info("All 4 ArUco markers detected. Proceeding with current marker orientations.")
                 self.pipeline.calibrate_homography(frame, force_update=True)
                 self.pipeline.lock_homography(True)
                 log_info("Planar homography matrix H successfully calibrated and locked.")
@@ -439,6 +445,7 @@ def main():
     parser.add_argument("--auto", action="store_true", help="Execute continuously without pausing")
     parser.add_argument("--camera", type=int, default=4, help="Camera device index (default: 4)")
     parser.add_argument("--port", type=str, default="auto", help="xArm controller port (default: auto)")
+    parser.add_argument("--ignore-marker-angles", action="store_true", help="Calibrate if all 4 markers are detected, ignoring heading angle warnings")
     args = parser.parse_args()
 
     system = AutonomousSortingSystem(
@@ -446,6 +453,7 @@ def main():
         port=args.port,
         dry_run=args.dry_run,
         step_mode=args.step,
+        ignore_marker_angles=args.ignore_marker_angles,
     )
     system.run()
 
