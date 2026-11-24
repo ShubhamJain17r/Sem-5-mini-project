@@ -16,7 +16,7 @@ Features:
 from dataclasses import dataclass, field
 import math
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
