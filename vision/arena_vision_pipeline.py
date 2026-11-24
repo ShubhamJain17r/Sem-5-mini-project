@@ -65,10 +65,10 @@ class ArenaVisionPipeline:
         # ArUco Reference Markers Ground Truth Coordinates (mm at Z = 0.0 mm)
         # Arena: 300 mm (W) x 250 mm (D) between marker centers in Rows 6..11 (Rows 3..5 excluded)
         self.marker_world_corners: Dict[int, Tuple[float, float]] = {
-            2: (25.0, 275.0),   # Marker 2 / Top-Left (Row 6, Col 0)
-            0: (325.0, 275.0),  # Marker 0 / Top-Right (Row 6, Col 6)
-            3: (25.0, 25.0),    # Marker 3 / Bottom-Left (Row 11, Col 0)
-            1: (325.0, 25.0),   # Marker 1 / Bottom-Right (Row 11, Col 6)
+            0: (25.0, 275.0),   # Marker 0 / Top-Left (Row 6, Col 0)
+            1: (325.0, 275.0),  # Marker 1 / Top-Right (Row 6, Col 6)
+            2: (25.0, 25.0),    # Marker 2 / Bottom-Left (Row 11, Col 0)
+            3: (325.0, 25.0),   # Marker 3 / Bottom-Right (Row 11, Col 6)
         }
 
         # Arena physical dimensions between marker centers
@@ -318,15 +318,15 @@ class ArenaVisionPipeline:
             id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
 
         # Exact ID mapping:
-        # Marker 2: Top-Left (Row 6, Col 0) -> dst_pts[0]
-        # Marker 0: Top-Right (Row 6, Col 6) -> dst_pts[1]
-        # Marker 1: Bottom-Right (Row 11, Col 6) -> dst_pts[2]
-        # Marker 3: Bottom-Left (Row 11, Col 0) -> dst_pts[3]
-        if all(k in id_to_center for k in [2, 0, 1, 3]):
-            tl = id_to_center[2]
-            tr = id_to_center[0]
-            br = id_to_center[1]
-            bl = id_to_center[3]
+        # Marker 0: Top-Left (Row 6, Col 0) -> dst_pts[0]
+        # Marker 1: Top-Right (Row 6, Col 6) -> dst_pts[1]
+        # Marker 3: Bottom-Right (Row 11, Col 6) -> dst_pts[2]
+        # Marker 2: Bottom-Left (Row 11, Col 0) -> dst_pts[3]
+        if all(k in id_to_center for k in [0, 1, 3, 2]):
+            tl = id_to_center[0]
+            tr = id_to_center[1]
+            br = id_to_center[3]
+            bl = id_to_center[2]
         else:
             centers = np.array([np.mean(c[0], axis=0) for c in corners[:4]], dtype=np.float32)
             sorted_by_y = centers[np.argsort(centers[:, 1])]
@@ -357,25 +357,25 @@ class ArenaVisionPipeline:
         for i, mid in enumerate(ids.flatten()):
             id_to_center[int(mid)] = np.mean(corners[i][0], axis=0)
 
-        if not all(k in id_to_center for k in [2, 0, 1, 3]):
-            missing = [k for k in [2, 0, 1, 3] if k not in id_to_center]
+        if not all(k in id_to_center for k in [0, 1, 3, 2]):
+            missing = [k for k in [0, 1, 3, 2] if k not in id_to_center]
             return {
                 "success": False,
                 "message": f"Missing required markers: {missing}",
             }
 
         object_pts = np.array([
-            [25.0, 275.0, 0.0],   # M2 (Row 6, Col 0)
-            [325.0, 275.0, 0.0],  # M0 (Row 6, Col 6)
-            [325.0, 25.0, 0.0],   # M1 (Row 11, Col 6)
-            [25.0, 25.0, 0.0],    # M3 (Row 11, Col 0)
+            [25.0, 275.0, 0.0],   # M0 (Row 6, Col 0)
+            [325.0, 275.0, 0.0],  # M1 (Row 6, Col 6)
+            [325.0, 25.0, 0.0],   # M3 (Row 11, Col 6)
+            [25.0, 25.0, 0.0],    # M2 (Row 11, Col 0)
         ], dtype=np.float64)
 
         image_pts = np.array([
-            id_to_center[2],
             id_to_center[0],
             id_to_center[1],
             id_to_center[3],
+            id_to_center[2],
         ], dtype=np.float64)
 
         if self.camera_matrix is not None:
@@ -406,14 +406,14 @@ class ArenaVisionPipeline:
         dist_to_center = float(np.linalg.norm(cam_pos_world - arena_center))
 
         x_c, y_c = cam_pos_world[0], cam_pos_world[1]
-        if y_c < 25.0:
+        if x_c > 350.0:
+            side = "East / Right (facing West toward arena)"
+        elif x_c < 0.0:
+            side = "West / Left (facing East toward arena)"
+        elif y_c < 0.0:
             side = "South / Front (looking North toward manipulator)"
-        elif y_c > 275.0:
-            side = "North / Rear (behind manipulator)"
-        elif x_c < 25.0:
-            side = "West / Left"
         else:
-            side = "East / Right"
+            side = "North / Rear (behind manipulator)"
 
         return {
             "success": True,
@@ -432,18 +432,18 @@ class ArenaVisionPipeline:
 
     def verify_aruco_markers(self, frame: np.ndarray) -> Dict[str, Any]:
         """
-        Validates presence, corner clearances, and orientation angles of all 4 markers:
-        - M2 at (Row 6, Col 0): pointing West (~180°)
-        - M0 at (Row 6, Col 6): pointing West (~180°)
-        - M3 at (Row 11, Col 0): pointing East (~0°)
-        - M1 at (Row 11, Col 6): pointing East (~0°)
+        Validates presence, corner clearances, and physical orientation angles of all 4 markers:
+        - M0 at (Row 6, Col 0 / Top-Left): pointing West (~180°)
+        - M1 at (Row 6, Col 6 / Top-Right): pointing West (~180°)
+        - M2 at (Row 11, Col 0 / Bottom-Left): pointing East (~0°)
+        - M3 at (Row 11, Col 6 / Bottom-Right): pointing East (~0°)
         Returns diagnostic reports with actionable adjustment guidance.
         """
         specs = {
-            2: {"name": "Marker 2 (Row 6, Col 0 / Top-Left)", "expected_deg": 180.0, "expected_dir": "West"},
-            0: {"name": "Marker 0 (Row 6, Col 6 / Top-Right)", "expected_deg": 180.0, "expected_dir": "West"},
-            3: {"name": "Marker 3 (Row 11, Col 0 / Bottom-Left)", "expected_deg": 0.0, "expected_dir": "East"},
-            1: {"name": "Marker 1 (Row 11, Col 6 / Bottom-Right)", "expected_deg": 0.0, "expected_dir": "East"},
+            0: {"name": "Marker 0 (Row 6, Col 0 / Top-Left)", "expected_deg": 180.0, "expected_dir": "West"},
+            1: {"name": "Marker 1 (Row 6, Col 6 / Top-Right)", "expected_deg": 180.0, "expected_dir": "West"},
+            2: {"name": "Marker 2 (Row 11, Col 0 / Bottom-Left)", "expected_deg": 0.0, "expected_dir": "East"},
+            3: {"name": "Marker 3 (Row 11, Col 6 / Bottom-Right)", "expected_deg": 0.0, "expected_dir": "East"},
         }
 
         corners, ids = self.detect_aruco_markers(frame)
@@ -457,6 +457,17 @@ class ArenaVisionPipeline:
         if ids is not None:
             for i, mid in enumerate(ids.flatten()):
                 detected_map[int(mid)] = corners[i][0]
+
+        # Calculate temporary H matrix to map orientation into arena coordinate system
+        temp_H = None
+        if all(k in detected_map for k in [0, 1, 3, 2]):
+            src_pts = np.array([
+                np.mean(detected_map[0], axis=0),
+                np.mean(detected_map[1], axis=0),
+                np.mean(detected_map[3], axis=0),
+                np.mean(detected_map[2], axis=0),
+            ], dtype=np.float32)
+            temp_H = cv2.getPerspectiveTransform(src_pts, self.dst_pts)
 
         for mid, spec in specs.items():
             if mid not in detected_map:
@@ -478,25 +489,37 @@ class ArenaVisionPipeline:
             center = np.mean(c, axis=0)
             min_dist_to_edge = min(center[0], w - center[0], center[1], h - center[1])
 
-            # Heading vector: corner 0 to corner 1
+            # Top edge heading vector (c1 - c0)
             v = c[1] - c[0]
-            raw_angle = float(np.degrees(np.arctan2(v[1], v[0])))
             
-            # Angle error relative to expected heading
-            ang_err = (raw_angle - spec["expected_deg"] + 180.0) % 360.0 - 180.0
+            # Map into physical arena frame if homography is available
+            if temp_H is not None:
+                p0 = np.array([center[0], center[1], 1.0])
+                p1 = np.array([center[0] + v[0], center[1] + v[1], 1.0])
+                P0 = temp_H @ p0
+                P0 = P0[:2] / P0[2]
+                P1 = temp_H @ p1
+                P1 = P1[:2] / P1[2]
+                V_arena = P1 - P0
+                arena_angle = float(np.degrees(np.arctan2(V_arena[1], V_arena[0])))
+            else:
+                arena_angle = float(np.degrees(np.arctan2(v[1], v[0])))
+
+            # Angle error relative to expected heading in arena frame
+            ang_err = (arena_angle - spec["expected_deg"] + 180.0) % 360.0 - 180.0
             is_oriented = abs(ang_err) <= 25.0
 
             if not is_oriented:
                 all_aligned = False
                 rot_dir = "counter-clockwise" if ang_err > 0 else "clockwise"
                 advice = (
-                    f"{spec['name']} is tilted by {abs(ang_err):.1f}° (measured {raw_angle:.1f}°, "
+                    f"{spec['name']} is tilted by {abs(ang_err):.1f}° (points at {arena_angle:.1f}°, "
                     f"expected {spec['expected_dir']} {spec['expected_deg']}°). "
                     f"Please rotate marker {abs(ang_err):.0f}° {rot_dir}."
                 )
             elif min_dist_to_edge < 25.0:
                 advice = (
-                    f"{spec['name']} is oriented correctly, but sits close to the frame boundary "
+                    f"{spec['name']} is oriented correctly, but sits close to the camera frame boundary "
                     f"({min_dist_to_edge:.0f}px from edge). Consider shifting arena slightly inward."
                 )
             else:
@@ -508,7 +531,7 @@ class ArenaVisionPipeline:
                 "detected": True,
                 "is_oriented_correctly": is_oriented,
                 "orientation_error_deg": round(abs(ang_err), 1),
-                "measured_angle_deg": round(raw_angle, 1),
+                "measured_angle_deg": round(arena_angle, 1),
                 "edge_clearance_px": round(float(min_dist_to_edge), 1),
                 "advice": advice,
             }

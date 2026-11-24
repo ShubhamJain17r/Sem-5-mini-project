@@ -46,10 +46,10 @@ workspace:
     dict: "DICT_4X4_50"
     marker_size_mm: 50.0
     markers:
-      marker_0: {id: 2, col: 0, row: 6, center_world_mm: {x: 25.0, y: 275.0, z: 1.0}}
-      marker_1: {id: 0, col: 6, row: 6, center_world_mm: {x: 325.0, y: 275.0, z: 1.0}}
-      marker_2: {id: 3, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
-      marker_3: {id: 1, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
+      marker_0: {id: 0, col: 0, row: 6, center_world_mm: {x: 25.0, y: 275.0, z: 1.0}}
+      marker_1: {id: 1, col: 6, row: 6, center_world_mm: {x: 325.0, y: 275.0, z: 1.0}}
+      marker_2: {id: 2, col: 0, row: 11, center_world_mm: {x: 25.0, y: 25.0, z: 1.0}}
+      marker_3: {id: 3, col: 6, row: 11, center_world_mm: {x: 325.0, y: 25.0, z: 1.0}}
 
 # -------------------------------------------------------------------------------------
 # MANIPULATOR CONFIGURATION (xarm_1)
