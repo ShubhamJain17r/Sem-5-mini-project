@@ -60,6 +60,7 @@ docs/
 | [**`05_hardware_bringup_and_firmware_control.md`**](05_hardware_bringup_and_firmware_control.md) | Hiwonder 115200 baud binary packet framing, Arduino Uno R4 test bench, servo deviation zeroing | ✅ Complete |
 | [**`06_system_testing_diagnostics_and_verification.md`**](06_system_testing_diagnostics_and_verification.md) | Verification runbooks, empirical Z-sag compensation factor ($k_{\text{sag}} \approx 0.07$), claw grasp discrimination | ✅ Complete |
 | [**`08_servo_limits_and_calibration_guide.md`**](08_servo_limits_and_calibration_guide.md) | Comprehensive servo travel boundaries, physical-to-tick math ($0.24^\circ/\text{tick}$), Web Config Portal | ✅ Complete |
+| [**`09_web_dashboard_guide.md`**](09_web_dashboard_guide.md) | **Web Mission Control Dashboard & Digital Twin Guide**: Dynamic camera switcher, hardware watchdog, hand-held camera leveling HUD, Snap & Lock stationary frame buffer, and simultaneous RViz digital twin sync | ✅ Complete |
 
 ---
 

@@ -176,9 +176,11 @@ The project documentation is organized into modular **Stepping-Stone Engineering
 - 📄 **Stepping Stone 5**: [`docs/05_hardware_bringup_and_firmware_control.md`](docs/05_hardware_bringup_and_firmware_control.md) — Low-level serial packet protocol (binary/ASCII), direct USB-HID/UART bringup, xArm PC App servo calibration, and tick-to-angle conversion.
 - 📄 **Stepping Stone 6**: [`docs/06_system_testing_diagnostics_and_verification.md`](docs/06_system_testing_diagnostics_and_verification.md) — Nearest-First corridor collision avoidance, Motor 1 grip verification, empirical Z-sag compensation, and lens undistortion pipeline.
 - 📄 **Stepping Stone 8**: [`docs/08_servo_limits_and_calibration_guide.md`](docs/08_servo_limits_and_calibration_guide.md) — Comprehensive guide for servo min/max angles, physical-to-tick math ($0.24^\circ/\text{tick}$), safe boundary discovery, Web Config Portal integration, and Cartesian Z-depth trim adjustment.
+- 📄 **Stepping Stone 9**: [`docs/09_web_dashboard_guide.md`](docs/09_web_dashboard_guide.md) — **Web Mission Control Dashboard & Digital Twin Guide**: Dynamic camera switcher, hardware watchdog, hand-held camera leveling HUD, Snap & Lock stationary frame buffer, and simultaneous RViz digital twin sync.
 
 ### System Integration & Planning
 
+- 📖 [**`docs/09_web_dashboard_guide.md`**](docs/09_web_dashboard_guide.md): **Web Mission Control & Digital Twin Operator Guide** (zero-dependency web interface, camera switcher, hotkeys, and troubleshooting).
 - 📖 [**`docs/MANUAL.md`**](docs/MANUAL.md): **Comprehensive Operator Manual & Debugging Guide** (Python venv testing, Web Config Server, ROS 2 Docker workflow, and fault troubleshooting).
 - 📄 [`docs/implementation_plan.md`](docs/implementation_plan.md): High-level System Architecture Blueprint, coordinate transformations, custom ROS 2 message definitions (`DetectedObject.msg`, `ArmTask.msg`, `ArmStatus.msg`), and pipelined execution rules.
 - 📄 [`docs/roadmap.md`](docs/roadmap.md): Milestone-driven Phase-Gate Verification Checklist (Gate 0 to Gate 4).
