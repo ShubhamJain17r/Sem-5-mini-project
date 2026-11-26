@@ -62,6 +62,7 @@ docker run -it --rm \
     "${VIDEO_FLAGS[@]}" \
     "${SERIAL_FLAGS[@]}" \
     -v "${REPO_ROOT}:/workspace" \
+    -v "${REPO_ROOT}/docker/entrypoint.sh:/entrypoint.sh:ro" \
     -w /workspace \
     --name xarm_sorting_env \
     "${IMAGE_NAME}" \

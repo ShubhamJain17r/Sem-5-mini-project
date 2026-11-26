@@ -46,6 +46,7 @@ RUN pip3 install --no-cache-dir \
     numpy \
     opencv-python-headless \
     pyserial \
+    pytest \
     scipy
 
 # Create a non-root user matching the host UID/GID to preserve file ownership on mounted volumes
