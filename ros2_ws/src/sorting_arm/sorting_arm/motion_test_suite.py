@@ -99,9 +99,9 @@ class ArmController:
         hw_cfg = load_yaml(self.hw_yaml)
         arm_cfg = hw_cfg.get("manipulators", {}).get(self.arm_id, {})
         m1_cfg = arm_cfg.get("motors", {}).get("motor_1", {}).get("claw_span_mm", {})
-        self.claw_open = int(m1_cfg.get("fully_open", {}).get("tick", 228))
-        self.claw_grip = int(m1_cfg.get("grip_cube_25mm", {}).get("tick", 610))
-        self.claw_closed = int(m1_cfg.get("fully_closed_empty", {}).get("tick", 791))
+        self.claw_open = int(m1_cfg.get("fully_open", {}).get("tick", 250))
+        self.claw_closed = int(m1_cfg.get("fully_closed_empty", {}).get("tick", 750))
+        self.claw_grip = self.claw_closed
 
     def log(self, text: str):
         print(f"[{self.arm_id.upper()}] {text}")

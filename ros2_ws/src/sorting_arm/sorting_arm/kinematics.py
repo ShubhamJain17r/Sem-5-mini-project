@@ -226,24 +226,31 @@ def compute_natural_pitch(r: float, z: float) -> float:
     """
     Compute kinematically optimal approach pitch phi (degrees) based on reach and height.
 
-    - For near-base picking (r < 160mm, Z < 50mm): targets -74.0° for extreme near-base clearance.
-    - For inner-mid tabletop picking (160 <= r < 210mm, Z < 50mm): blends -70° to -64° so Motor 4
-      stays >= 165 ticks (well clear of its ~153 mechanical hard stop) with smooth shoulder progression.
-    - For mid-to-far tabletop picking (Z < 50mm): transitions smoothly toward shallower angles.
-    - For elevated transit (Z >= 50mm): transitions toward horizontal clearance.
+    - For near-base objects (r < 195mm, Z < 50mm): steep top-down "jar-from-box" grip
+      (-79° to -72°) for clean vertical clearance and centered grasping.
+    - For mid-to-far objects (r >= 195mm, Z < 50mm): smooth transition to shallower
+      "holding-a-cup" grip (-72° toward -25°).
+    - For elevated hover/transit (Z >= 50mm): keeps steep downward pitch (-55°) for
+      near objects (r < 200mm) and transitions toward horizontal for far reach.
     """
     if r < 160.0 and z < 50.0:
-        return -74.0
+        return -79.0
 
     if z < 50.0:
-        if r < 210.0:
-            phi = -70.0 + 0.12 * (r - 160.0) + 0.10 * (z - 21.0)
+        if r < 195.0:
+            phi = -78.0 + 0.17 * (r - 160.0) + 0.10 * (z - 21.0)
+        elif r < 230.0:
+            phi = -72.0 + 0.37 * (r - 195.0) + 0.10 * (z - 21.0)
         else:
-            phi = -64.0 + 0.24 * (r - 210.0) + 0.10 * (z - 21.0)
-        return clip(phi, -75.0, -25.0)
+            phi = -59.0 + 0.24 * (r - 230.0) + 0.10 * (z - 21.0)
+        return clip(phi, -82.0, -25.0)
 
-    # Elevated heights
-    phi = -35.0 + 0.20 * (r - 220.0) + 0.25 * (z - 50.0)
+    # Elevated heights: keep near-field hover/lift steep rather than horizontal
+    if r < 200.0:
+        phi = -55.0 + 0.10 * (z - 50.0)
+        return clip(phi, -60.0, -35.0)
+
+    phi = -45.0 + 0.20 * (r - 200.0) + 0.25 * (z - 50.0)
     return clip(phi, -60.0, 0.0)
 
 

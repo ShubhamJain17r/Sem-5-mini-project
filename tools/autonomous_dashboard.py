@@ -285,7 +285,8 @@ class AutonomousSystemManager:
         self.align_prompts: List[str] = []
         self.frame_lock = threading.Lock()
 
-        # Dynamic cube size & claw clamp tick from config/xarm_hardware.yaml
+        # Dynamic cube size & claw open/clamp ticks from config/xarm_hardware.yaml
+        self.open_claw_tick = int((self.params.min_safe_ticks or {}).get(1, 250))
         self.clamp_claw_tick, self.cube_center_z_mm = self._load_cube_grasp_config(
             os.path.join(repo_root, "config", "xarm_hardware.yaml")
         )
@@ -566,26 +567,25 @@ class AutonomousSystemManager:
 
     @staticmethod
     def _load_cube_grasp_config(hw_yaml: str) -> Tuple[int, float]:
-        """Loads calibrated claw clamp tick and cube center Z from xarm_hardware.yaml."""
-        clamp_tick = 580  # Firm calibrated clamp tick for 37.5 mm cube
+        """Loads full-close claw clamp tick and cube center Z from xarm_hardware.yaml."""
+        clamp_tick = 750  # Full close so objects are gripped firmly without slipping
         center_z = 22.5   # Default for 45.0 mm tall cube
         try:
             with open(hw_yaml, "r") as f:
                 data = yaml.safe_load(f) or {}
             arena_cfg = data.get("workspace", {}).get("picking_arena", {})
-            cube_size = float(arena_cfg.get("cube_size_mm", 37.5))
             center_z = float(arena_cfg.get("cube_center_z_mm", 22.5))
-            span_map = (
+            m1_cfg = (
                 data.get("manipulators", {})
                 .get("xarm_1", {})
                 .get("motors", {})
                 .get("motor_1", {})
-                .get("claw_span_mm", {})
             )
-            if cube_size >= 35.0 and "tick" in span_map.get("grip_cube_37_5mm", {}):
-                clamp_tick = int(span_map["grip_cube_37_5mm"]["tick"])
-            elif "tick" in span_map.get("grip_cube_25mm", {}):
-                clamp_tick = int(span_map["grip_cube_25mm"]["tick"])
+            span_map = m1_cfg.get("claw_span_mm", {})
+            if "tick" in span_map.get("fully_closed_empty", {}):
+                clamp_tick = int(span_map["fully_closed_empty"]["tick"])
+            elif "max_tick" in m1_cfg:
+                clamp_tick = int(m1_cfg["max_tick"])
         except Exception:
             pass
         return clamp_tick, center_z
@@ -1002,7 +1002,7 @@ class AutonomousSystemManager:
             standoff_ik = solve_ik(r=r, theta=theta, z=80.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
             if standoff_ik.success:
                 ticks = dict(standoff_ik.ticks)
-                ticks[1] = 250  # Open claw
+                ticks[1] = self.open_claw_tick  # Fully open claw before approaching
                 self.logger.log("INFO", f"  Phase 1: Overhead Standoff (Z=80mm) -> Ticks {ticks}")
                 dispatch(ticks, 750)
 
@@ -1013,7 +1013,7 @@ class AutonomousSystemManager:
             pick_ik = solve_ik(r=r, theta=theta, z=pick_z, roll_tick=roll_tick, params=self.params, compensate_sag=False)
             if pick_ik.success:
                 ticks = dict(pick_ik.ticks)
-                ticks[1] = 250
+                ticks[1] = self.open_claw_tick  # Keep claw fully open for plunge
                 self.logger.log("INFO", f"  Phase 2: Vertical Plunge (Z_rel={pick_z:.1f}mm, Roll={roll_tick}) -> Ticks {ticks}")
                 dispatch(ticks, 700)
 
@@ -1069,7 +1069,7 @@ class AutonomousSystemManager:
             target_drop[1] = self.clamp_claw_tick
             dispatch(target_drop, 650)
 
-            target_drop[1] = 250  # Open claw
+            target_drop[1] = self.open_claw_tick  # Fully open claw
             if sim_cube is not None:
                 sim_cube["state"] = "placed"
                 sim_cube["x"] = 50.0 if color == "red" else 300.0
@@ -1080,7 +1080,7 @@ class AutonomousSystemManager:
 
             # Phase 7: Home Pose Reset
             self.trajectory_step = "home"
-            home_ticks = {1: 250, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
+            home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
             dispatch(home_ticks, 700)
             self.trajectory_step = "idle"
 

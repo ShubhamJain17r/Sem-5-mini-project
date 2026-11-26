@@ -13,6 +13,7 @@ from sorting_arm.kinematics import (
     MAX_SAFE_TICKS,
     MIN_SAFE_TICKS,
     KinematicParameters,
+    compute_natural_pitch,
     get_compartment_target,
     load_kinematic_parameters,
     solve_fk,
@@ -274,5 +275,31 @@ def test_sag_compensation():
     # Effective r with sag comp is 200 + 10.0 + 0.05 * 50 = 212.5mm
     # Shoulder pitch (Motor 5) tilts further forward (larger tick) for larger reach
     assert sol_sag.ticks[5] > sol_nom.ticks[5]
+
+
+def test_distance_based_grip_pitch_and_full_claw():
+    """Verify steep top-down pitch for near objects, shallower pitch for mid/far, and full claw close."""
+    params = load_kinematic_parameters("config/xarm_hardware.yaml", arm_id="xarm_1")
+
+    # Near objects: steep top-down "jar-from-box" pitch at tabletop and hover
+    for near_r in (145.0, 165.0, 185.0):
+        phi_pick = compute_natural_pitch(near_r, 22.5)
+        phi_hover = compute_natural_pitch(near_r, 80.0)
+        assert phi_pick <= -72.0, f"Expected steep top-down pitch for near r={near_r}, got {phi_pick}"
+        assert phi_hover <= -50.0, f"Expected downward hover pitch for near r={near_r}, got {phi_hover}"
+        sol = solve_ik(r=near_r, theta=0.0, z=22.5, params=params)
+        assert sol.success, f"Near IK failed at r={near_r}: {sol.message}"
+
+    # Mid-to-far objects: shallower "holding-a-cup" pitch
+    for far_r in (240.0, 280.0, 315.0):
+        phi_pick = compute_natural_pitch(far_r, 22.5)
+        assert -60.0 <= phi_pick <= -25.0, f"Expected cup-grip pitch for r={far_r}, got {phi_pick}"
+        sol = solve_ik(r=far_r, theta=0.0, z=22.5, params=params)
+        assert sol.success, f"Far IK failed at r={far_r}: {sol.message}"
+
+    # Claw full-open (250) and full-close (750) from hardware config
+    assert params.min_safe_ticks[1] == 250
+    assert params.max_safe_ticks[1] == 750
+
 
 

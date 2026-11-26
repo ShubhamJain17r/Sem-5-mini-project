@@ -132,23 +132,20 @@ class AutonomousSorterNode(Node):
         }
 
     def _compute_clamp_claw_tick(self) -> int:
-        """Determines claw grasp tick from hardware YAML claw_span_mm or cube_size_mm."""
+        """Determines full-close claw grasp tick from hardware YAML."""
         try:
             with open(self.hardware_yaml, "r") as f:
                 data = yaml.safe_load(f) or {}
-            cube_size = float(data.get("workspace", {}).get("picking_arena", {}).get("cube_size_mm", 37.5))
             arm_cfg = data.get("manipulators", {}).get(self.arm_id, {})
             m1 = arm_cfg.get("motors", {}).get("motor_1", {})
             span_map = m1.get("claw_span_mm", {})
-            if cube_size >= 35.0 and "tick" in span_map.get("grip_cube_37_5mm", {}):
-                return int(span_map["grip_cube_37_5mm"]["tick"])
-            if "tick" in span_map.get("grip_cube_25mm", {}):
-                return int(span_map["grip_cube_25mm"]["tick"])
+            if "tick" in span_map.get("fully_closed_empty", {}):
+                return int(span_map["fully_closed_empty"]["tick"])
+            if "max_tick" in m1:
+                return int(m1["max_tick"])
         except Exception:
             pass
-        min_t = self.params.min_safe_ticks.get(1, 226)
-        max_t = self.params.max_safe_ticks.get(1, 782)
-        return int(round(min_t + 0.70 * (max_t - min_t)))
+        return int(self.params.max_safe_ticks.get(1, 750))
 
     def joint_state_callback(self, msg: JointState):
         """Caches current motor ticks from joint state topic."""
@@ -308,14 +305,19 @@ class AutonomousSorterNode(Node):
             return
 
         # 3. Publish Fluid Trajectory Steps (Overhead Standoff -> Vertical Plunge Grasp -> Lift -> Transit -> Drop -> Home)
-        # Step A: Pure top-down overhead standoff (prevents lateral collisions with adjacent blocks)
-        standoff_ik = solve_ik(r=r, theta=theta, z=z + 50.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
+        # Step A: Pure top-down overhead standoff with claw fully open
+        standoff_ik = solve_ik(
+            r=r, theta=theta, z=z + 50.0, claw_tick=open_claw_tick, roll_tick=roll_tick,
+            params=self.params, compensate_sag=False,
+        )
         if standoff_ik.success:
             self.dispatch_joint_command(standoff_ik.ticks, time_ms=600)
             time.sleep(0.62)
 
-        # Step B: Advance to pick cube
-        self.dispatch_joint_command(pick_ik.ticks, time_ms=450)
+        # Step B: Advance to pick cube with claw fully open
+        open_pick_ticks = dict(pick_ik.ticks)
+        open_pick_ticks[1] = open_claw_tick
+        self.dispatch_joint_command(open_pick_ticks, time_ms=450)
         time.sleep(0.48)
 
         # Step C: Clamp claw
