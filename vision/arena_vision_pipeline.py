@@ -821,11 +821,17 @@ class ArenaVisionPipeline:
 
                 r, th = self.world_to_arm_polar(x_w, y_w, "xarm_1")
 
-                # For square cubes, align Motor 2 (wrist_roll) to the nearest flat cube face
-                # relative to the arm's heading (th), keeping jaws off the 53mm cube diagonal.
+                # For near-field square cubes (r < 195mm, top-down grip), align Motor 2 (wrist_roll)
+                # to the nearest flat cube face relative to arm heading (th).
+                # For far square cubes (r >= 195mm, cup-style angled grip), keep Motor 2 level at 500
+                # so wrist roll doesn't tilt one jaw downward into the table.
                 if aspect < 1.25:
-                    rel_ccw_deg = ((-yaw) - th + 45.0) % 90.0 - 45.0
-                    gripper_roll_tick = max(130, min(870, int(round(500.0 + rel_ccw_deg * (740.0 / 180.0)))))
+                    if r < 195.0:
+                        rel_ccw_deg = ((-yaw) - th + 45.0) % 90.0 - 45.0
+                        # On mounted xArm Motor 2, increasing ticks (>500) rotates CW from overhead view
+                        gripper_roll_tick = max(130, min(870, int(round(500.0 - rel_ccw_deg * (740.0 / 180.0)))))
+                    else:
+                        gripper_roll_tick = 500
 
                 # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
                 if 110.0 <= r <= 325.0:

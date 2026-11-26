@@ -979,7 +979,9 @@ class AutonomousSystemManager:
         color = target["color"]
         r = target["reach_r"]
         theta = target["theta_arm"]
-        roll_tick = target["roll_tick"]
+        aspect_ratio = float(target.get("aspect_ratio", 1.0))
+        # Only rotate claw grip for near-field top-down picks (r < 195mm) or elongated blocks
+        roll_tick = int(target["roll_tick"]) if (r < 195.0 or aspect_ratio >= 1.25) else 500
         dest = target["dest_container"]
 
         self.logger.log("STAGE", f"Executing Sort for {color.upper()} Block at r={r:.1f}mm, th={theta:+.1f}°")
@@ -1078,12 +1080,16 @@ class AutonomousSystemManager:
             self.logger.log("INFO", f"  Phase 3: Firm Grip Clamping at {self.clamp_claw_tick} ticks")
             dispatch(clamp_ticks, 600)
 
-            # Verify grasp via Motor 1 readback; allow at most 1 retry only if no nearby cube could be displaced
+            # Verify grasp via dedicated Motor 1 readback (250ms timeout for 9600 baud UART);
+            # allow at most 1 retry only if no nearby cube could be displaced
             if not self.dry_run and self.driver and self.driver.is_connected:
-                time.sleep(0.08)
-                grip_pos = self.driver.get_servo_positions() or {}
-                m1_actual = grip_pos.get(1)
-                empty_threshold = max(680, self.clamp_claw_tick - 60)
+                time.sleep(0.10)
+                m1_actual = self.driver.read_servo_position(1, timeout_sec=0.25)
+                if m1_actual is None:
+                    grip_pos = self.driver.get_servo_positions() or {}
+                    m1_actual = grip_pos.get(1)
+                empty_threshold = 650
+                self.logger.log("INFO", f"  Grip verify: Motor 1 readback = {m1_actual} ticks (empty >= {empty_threshold})")
                 if m1_actual is not None and int(m1_actual) >= empty_threshold:
                     has_neighbor, neighbor_dist = self._has_nearby_cube(
                         float(target["world_x"]), float(target["world_y"]), min_clearance_mm=85.0
@@ -1120,9 +1126,12 @@ class AutonomousSystemManager:
                         rclamp = dict(rticks)
                         rclamp[1] = self.clamp_claw_tick
                         dispatch(rclamp, 600)
-                        time.sleep(0.08)
-                        retry_pos = self.driver.get_servo_positions() or {}
-                        m1_retry = retry_pos.get(1)
+                        time.sleep(0.10)
+                        m1_retry = self.driver.read_servo_position(1, timeout_sec=0.25)
+                        if m1_retry is None:
+                            retry_pos = self.driver.get_servo_positions() or {}
+                            m1_retry = retry_pos.get(1)
+                        self.logger.log("INFO", f"  Retry grip verify: Motor 1 readback = {m1_retry} ticks")
                         if m1_retry is not None and int(m1_retry) >= empty_threshold:
                             msg = f"Could not pick {color.upper()} block after 1 retry (M1={m1_retry} empty)."
                             self.last_pick_error = msg

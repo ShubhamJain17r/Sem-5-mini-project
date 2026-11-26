@@ -264,20 +264,21 @@ def test_multiframe_consensus_error_correction():
 
 
 def test_square_cube_wrist_roll_alignment():
-    """Verify square cubes align wrist roll to nearest flat face relative to arm heading."""
+    """Verify near square cubes (r < 195mm) align wrist roll and far cubes (r >= 195mm) stay at 500."""
     pipeline = ArenaVisionPipeline(config_dir=os.path.join(repo_root, "config"))
     img = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
 
-    # 1. Unrotated 75x75px (37.5mm) square on midline (u=300, v=250 -> th=0) -> roll ~500
-    cv2.rectangle(img, (262, 212), (338, 288), (0, 255, 0), -1)
+    # 1. Near unrotated 75x75px (37.5mm) square on midline (u=300, v=110 -> y=220 -> r=155mm, th=0) -> roll ~500
+    cv2.rectangle(img, (262, 72), (338, 148), (0, 255, 0), -1)
     cubes_aligned = pipeline.detect_cubes(img)
     assert len(cubes_aligned) == 1
+    assert cubes_aligned[0].r_mm < 195.0
     assert abs(cubes_aligned[0].gripper_roll_tick - 500) <= 5
 
-    # 2. Rotated +25 deg square on midline -> roll shifts significantly from 500 within [315, 685]
+    # 2. Near rotated +25 deg square on midline (r=155mm < 195mm) -> roll shifts from 500 within [315, 685]
     img_rot = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
-    pts = np.array([[262, 212], [338, 212], [338, 288], [262, 288]], dtype=np.float32)
-    M = cv2.getRotationMatrix2D((300, 250), 25.0, 1.0)
+    pts = np.array([[262, 72], [338, 72], [338, 148], [262, 148]], dtype=np.float32)
+    M = cv2.getRotationMatrix2D((300, 110), 25.0, 1.0)
     pts_rot = cv2.transform(pts[None, :, :], M)[0].astype(np.int32)
     cv2.fillPoly(img_rot, [pts_rot], (0, 255, 0))
     cubes_rot = pipeline.detect_cubes(img_rot)
@@ -285,12 +286,24 @@ def test_square_cube_wrist_roll_alignment():
     assert 315 <= cubes_rot[0].gripper_roll_tick <= 685
     assert abs(cubes_rot[0].gripper_roll_tick - 500) >= 60
 
-    # 3. Unrotated square off-midline (u=420 -> th != 0) compensates arm heading
+    # 3. Near unrotated square off-midline (u=380, v=110 -> th != 0, r < 195mm) compensates arm heading
     img_side = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
-    cv2.rectangle(img_side, (382, 212), (458, 288), (0, 255, 0), -1)
+    cv2.rectangle(img_side, (342, 72), (418, 148), (0, 255, 0), -1)
     cubes_side = pipeline.detect_cubes(img_side)
     assert len(cubes_side) == 1
-    assert abs(cubes_side[0].gripper_roll_tick - 500) >= 30
+    assert cubes_side[0].r_mm < 195.0
+    assert cubes_side[0].gripper_roll_tick > 530  # +th requires CW (>500) roll from overhead view
+
+    # 4. Far rotated square cube (u=300, v=350 -> y=100 -> r=275mm >= 195mm) stays at 500 (no roll)
+    img_far = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
+    pts_far = np.array([[262, 312], [338, 312], [338, 388], [262, 388]], dtype=np.float32)
+    M_far = cv2.getRotationMatrix2D((300, 350), 25.0, 1.0)
+    pts_far_rot = cv2.transform(pts_far[None, :, :], M_far)[0].astype(np.int32)
+    cv2.fillPoly(img_far, [pts_far_rot], (0, 255, 0))
+    cubes_far = pipeline.detect_cubes(img_far)
+    assert len(cubes_far) == 1
+    assert cubes_far[0].r_mm >= 195.0
+    assert cubes_far[0].gripper_roll_tick == 500
 
 
 def test_pick_retry_limit_and_proximity_guard():
@@ -320,6 +333,7 @@ def test_pick_retry_limit_and_proximity_guard():
     driver.is_connected = True
     driver.set_servo_positions = lambda ticks, duration_ms=600: sent_poses.append(dict(ticks))
     # Motor 1 always reads 750 (fully closed / empty claw)
+    driver.read_servo_position = lambda sid, timeout_sec=0.25: 750 if sid == 1 else 500
     driver.get_servo_positions = lambda: {1: 750, 2: 500, 3: 750, 4: 250, 5: 600, 6: 500}
     mgr.driver = driver
 
