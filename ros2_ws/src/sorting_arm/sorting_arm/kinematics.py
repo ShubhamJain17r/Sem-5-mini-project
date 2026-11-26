@@ -15,10 +15,10 @@ import os
 from typing import Dict, NamedTuple, Optional, Tuple
 import yaml
 
-# Exact ground-truth servo tick scales (from physical calibration)
-# Motors 3, 4, 5: 720 ticks / 180 deg = 4.0 ticks/deg
-TICKS_PER_DEG_PITCH = 4.0
-DEG_PER_TICK_PITCH = 0.25
+# Exact ground-truth servo tick scales for Hiwonder LX-15D (1000 ticks / 240 deg)
+# Motors 3, 4, 5: 1000 ticks / 240 deg = 4.1667 ticks/deg (0.24 deg/tick)
+TICKS_PER_DEG_PITCH = 1000.0 / 240.0
+DEG_PER_TICK_PITCH = 240.0 / 1000.0
 
 # Motor 6 (Base Yaw): 760 ticks / 180 deg = 4.2222 ticks/deg (120 CW, 880 ACW)
 TICKS_PER_DEG_YAW = 760.0 / 180.0
@@ -28,9 +28,9 @@ DEG_PER_TICK_YAW = 180.0 / 760.0
 TICKS_PER_DEG_ROLL = 740.0 / 180.0
 DEG_PER_TICK_ROLL = 180.0 / 740.0
 
-# General fallback alias
-TICKS_PER_DEG = 4.0
-DEG_PER_TICK = 0.25
+# General fallback alias (240 deg / 1000 ticks)
+TICKS_PER_DEG = 1000.0 / 240.0
+DEG_PER_TICK = 240.0 / 1000.0
 
 
 @dataclass
@@ -226,20 +226,20 @@ def compute_natural_pitch(r: float, z: float) -> float:
     """
     Compute kinematically optimal approach pitch phi (degrees) based on reach and height.
 
-    - For near-base picking (r < 160mm, Z < 50mm): targets -74.0° to keep elbow pitch
-      (Motor 4) safely above its 153-tick hardware limit while keeping wrist pitch (Motor 3) safe.
-    - For tabletop picking and approach (Z < 50mm): generates steep downward approach
-      angle (-40° to -75°) so the gripper descends onto objects cleanly from above.
-    - For elevated transit (Z >= 50mm): transitions smoothly toward shallower angles.
+    - For near-base picking (r < 160mm, Z < 50mm): targets -74.0° for extreme near-base clearance.
+    - For inner-mid tabletop picking (160 <= r < 210mm, Z < 50mm): blends -70° to -64° so Motor 4
+      stays >= 165 ticks (well clear of its ~153 mechanical hard stop) with smooth shoulder progression.
+    - For mid-to-far tabletop picking (Z < 50mm): transitions smoothly toward shallower angles.
+    - For elevated transit (Z >= 50mm): transitions toward horizontal clearance.
     """
     if r < 160.0 and z < 50.0:
         return -74.0
 
-    if r < 190.0 and z < 30.0:
-        return -70.0
-
     if z < 50.0:
-        phi = -55.0 + 0.22 * (r - 220.0) + 0.25 * (z - 12.5)
+        if r < 210.0:
+            phi = -70.0 + 0.12 * (r - 160.0) + 0.10 * (z - 21.0)
+        else:
+            phi = -64.0 + 0.24 * (r - 210.0) + 0.10 * (z - 21.0)
         return clip(phi, -75.0, -25.0)
 
     # Elevated heights

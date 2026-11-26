@@ -132,15 +132,18 @@ class AutonomousSorterNode(Node):
         }
 
     def _compute_clamp_claw_tick(self) -> int:
-        """Determines claw grasp tick from hardware YAML claw_span_mm or proportional scaling."""
+        """Determines claw grasp tick from hardware YAML claw_span_mm or cube_size_mm."""
         try:
             with open(self.hardware_yaml, "r") as f:
                 data = yaml.safe_load(f) or {}
+            cube_size = float(data.get("workspace", {}).get("picking_arena", {}).get("cube_size_mm", 37.5))
             arm_cfg = data.get("manipulators", {}).get(self.arm_id, {})
             m1 = arm_cfg.get("motors", {}).get("motor_1", {})
-            span = m1.get("claw_span_mm", {}).get("grip_cube_25mm", {})
-            if "tick" in span:
-                return int(span["tick"])
+            span_map = m1.get("claw_span_mm", {})
+            if cube_size >= 35.0 and "tick" in span_map.get("grip_cube_37_5mm", {}):
+                return int(span_map["grip_cube_37_5mm"]["tick"])
+            if "tick" in span_map.get("grip_cube_25mm", {}):
+                return int(span_map["grip_cube_25mm"]["tick"])
         except Exception:
             pass
         min_t = self.params.min_safe_ticks.get(1, 226)
@@ -277,7 +280,7 @@ class AutonomousSorterNode(Node):
         roll_tick = target.get("gripper_roll_tick")
         if roll_tick is None:
             roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
-        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params, compensate_sag=False)
         if not pick_ik.success:
             self.get_logger().warn(f"Pick IK failed for {color.upper()} at r={r:.1f}mm, th={theta:+.1f}deg: {pick_ik.message}")
             return
@@ -306,7 +309,7 @@ class AutonomousSorterNode(Node):
 
         # 3. Publish Fluid Trajectory Steps (Overhead Standoff -> Vertical Plunge Grasp -> Lift -> Transit -> Drop -> Home)
         # Step A: Pure top-down overhead standoff (prevents lateral collisions with adjacent blocks)
-        standoff_ik = solve_ik(r=r, theta=theta, z=z + 50.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+        standoff_ik = solve_ik(r=r, theta=theta, z=z + 50.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
         if standoff_ik.success:
             self.dispatch_joint_command(standoff_ik.ticks, time_ms=600)
             time.sleep(0.62)

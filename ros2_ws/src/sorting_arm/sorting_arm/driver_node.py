@@ -96,6 +96,7 @@ class XArmDriverNode(Node):
         )
 
         # Resolve target port (single xArm auto detection)
+        self.sim_is_estopped = False
         actual_port = self.port
         if actual_port in ["mock", "sim"]:
             self.sim_mode = True
@@ -108,7 +109,6 @@ class XArmDriverNode(Node):
             }
             self.sim_target_ticks = dict(self.sim_current_ticks)
             self.sim_step_rates = {i: 0.0 for i in range(1, 7)}
-            self.sim_is_estopped = False
             self.last_sim_time = self.get_clock().now()
             self.get_logger().info(f"xArm Driver Node [{self.arm_id}] running in SIMULATION mode.")
         else:

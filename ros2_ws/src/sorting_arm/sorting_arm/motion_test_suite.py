@@ -186,9 +186,13 @@ def execute_pick_and_place(
     arm.log(f"Phase 4: Elevating to Z={lift_z:.1f}mm and Retracting to R={retract_r:.1f}mm...")
     arm.move_ik(retract_r, pick_th, lift_z, claw_tick=arm.claw_grip, move_time_ms=1100)
 
-    arm.log(f"Phase 5: Slewing to Flank Sorting Box (Target: {color.upper()})...")
+    arm.log(f"Phase 5: Overhead Rear-Flip Transit to Box (Target: {color.upper()})...")
+    rear_tuck = {1: arm.claw_grip, 2: 500, 3: 350, 4: 500, 5: 450, 6: 500}
+    arm.send_pose(rear_tuck, move_time_ms=1100)
+
     target_info = get_compartment_target(color, arm_id=arm.arm_id, config_path=arm.hw_yaml)
-    drop_yaw = target_info.get("drop_yaw_tick", 145) if target_info else 145
+    default_yaw = 354 if color.lower() == "green" else 650
+    drop_yaw = target_info.get("drop_yaw_tick", default_yaw) if target_info else default_yaw
 
     preset = target_info.get("drop_pose_preset") if target_info else None
     if preset and len(preset) == 6:
@@ -204,12 +208,12 @@ def execute_pick_and_place(
         drop_pose = {
             1: arm.claw_grip,
             2: 500,
-            3: 830,
-            4: 160,
-            5: 470,
+            3: 140,
+            4: 629,
+            5: 347,
             6: drop_yaw,
         }
-    arm.send_pose(drop_pose, move_time_ms=1700)
+    arm.send_pose(drop_pose, move_time_ms=1500)
 
     arm.log("Phase 6: Releasing object into sorting box...")
     drop_pose[1] = arm.claw_open
@@ -217,7 +221,9 @@ def execute_pick_and_place(
     time.sleep(0.4)
 
     arm.log("Phase 7: Clearing container rim and returning to upright reset pose...")
-    arm.reset_pose(move_time_ms=1600)
+    rear_tuck[1] = arm.claw_open
+    arm.send_pose(rear_tuck, move_time_ms=1100)
+    arm.reset_pose(move_time_ms=1400)
     print(f">>> {motion_label} Complete! <<<\n")
 
 
@@ -450,10 +456,10 @@ def motion_single_13_flank_compartment_tour(arm: ArmController):
         else:
             drop_pose = {
                 1: arm.claw_open,
-                2: 503,
-                3: 704,
-                4: 169,
-                5: 558,
+                2: 500,
+                3: 140,
+                4: 629,
+                5: 347,
                 6: drop_yaw,
             }
 
@@ -503,9 +509,9 @@ def main():
         4: motion_single_4_azimuthal_arc_scan,
         5: lambda a: motion_single_5_color_pick_and_place(a, color=args.color),
         6: lambda a: motion_single_6_near_field_pick(a, color="green"),
-        7: lambda a: motion_single_7_extended_far_reach_pick(a, color="blue"),
+        7: lambda a: motion_single_7_extended_far_reach_pick(a, color="red"),
         8: lambda a: motion_single_8_diagonal_west_pick(a, color="red"),
-        9: lambda a: motion_single_9_diagonal_east_pick(a, color="yellow"),
+        9: lambda a: motion_single_9_diagonal_east_pick(a, color="green"),
         10: motion_single_10_extreme_corner_sweep,
         11: motion_single_11_multi_altitude_staircase,
         12: motion_single_12_continuous_3point_touch,

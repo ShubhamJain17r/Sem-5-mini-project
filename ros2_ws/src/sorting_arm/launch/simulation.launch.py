@@ -2,7 +2,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
@@ -80,6 +80,16 @@ def generate_launch_description():
         default_value="true",
         description="Automatically reseed and re-run with new scattered pattern when all objects are sorted",
     )
+    mirror_only_arg = DeclareLaunchArgument(
+        "mirror_only",
+        default_value="false",
+        description="Mirror external joint_states and detected_objects in RViz2 without mock driver/sorter",
+    )
+    default_cubes_arg = DeclareLaunchArgument(
+        "default_cubes",
+        default_value="true",
+        description="Spawn default simulation cubes on arena visualizer startup",
+    )
 
     urdf_file = get_asset_path(os.path.join("urdf", "xarm_1s.urdf"))
     rviz_config_file = get_asset_path(os.path.join("rviz", "xarm_simulation.rviz"))
@@ -113,6 +123,7 @@ def generate_launch_description():
         name="xarm_driver_node",
         namespace=arm_id,
         output="screen",
+        condition=UnlessCondition(LaunchConfiguration("mirror_only")),
         parameters=[{
             "port": "mock",
             "arm_id": arm_id,
@@ -128,6 +139,7 @@ def generate_launch_description():
         executable="autonomous_sorter",
         name="autonomous_sorter_node",
         output="screen",
+        condition=UnlessCondition(LaunchConfiguration("mirror_only")),
         parameters=[{
             "arm_id": arm_id,
             "config_dir": "config",
@@ -163,7 +175,7 @@ def generate_launch_description():
         parameters=[{
             "arm_id": arm_id,
             "config_dir": "config",
-            "default_cubes": True,
+            "default_cubes": LaunchConfiguration("default_cubes"),
             "grid_mode": LaunchConfiguration("grid_mode"),
         }],
     )
@@ -189,6 +201,8 @@ def generate_launch_description():
         dry_run_arg,
         grid_mode_arg,
         auto_reseed_arg,
+        mirror_only_arg,
+        default_cubes_arg,
         robot_state_publisher_node,
         driver_node,
         sorter_node,

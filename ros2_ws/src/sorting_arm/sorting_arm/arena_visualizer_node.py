@@ -137,7 +137,7 @@ class ArenaVisualizerNode(Node):
             color=color.lower(),
             x_m=float(x_m),
             y_m=float(y_m),
-            z_m=0.0137,
+            z_m=0.0225,
             state="in_cell",
             initial_col=col,
             initial_row=row,
@@ -277,14 +277,15 @@ class ArenaVisualizerNode(Node):
                 center = self.params.nominal_center_ticks.get(1, 517)
                 tick = int(round(center + math.degrees(val) * TICKS_PER_DEG))
                 self.claw_tick = tick
-                min_t = self.params.min_safe_ticks.get(1, 226)
-                max_t = self.params.max_safe_ticks.get(1, 782)
-                clamp_thresh = min_t + 0.48 * (max_t - min_t)
-                open_thresh = min_t + 0.22 * (max_t - min_t)
-                if tick >= clamp_thresh or val > 0.12:
+                min_t = self.params.min_safe_ticks.get(1, 250)
+                max_t = self.params.max_safe_ticks.get(1, 750)
+                # 580 ticks (~37.5mm cube) sits ~66% across [250..750]; use 25%/14% thresholds
+                clamp_thresh = min_t + 0.25 * (max_t - min_t)
+                open_thresh = min_t + 0.14 * (max_t - min_t)
+                if tick >= clamp_thresh:
                     self.claw_is_clamped = True
                     self.claw_state = "CLAMPED"
-                elif tick <= open_thresh or val < -0.15:
+                elif tick <= open_thresh:
                     self.claw_is_clamped = False
                     self.claw_state = "OPEN"
                 break
@@ -476,7 +477,7 @@ class ArenaVisualizerNode(Node):
                         # Follow tool_tip
                         cube.x_m = ee_x
                         cube.y_m = ee_y
-                        cube.z_m = max(0.0127, ee_z)
+                        cube.z_m = max(0.0225, ee_z)
                     else:
                         # Released! Determine drop location
                         cube.state = "placed"
@@ -641,9 +642,9 @@ class ArenaVisualizerNode(Node):
             m.pose.position.y = cube.y_m
             m.pose.position.z = cube.z_m
             m.pose.orientation.w = 1.0
-            m.scale.x = 0.032
-            m.scale.y = 0.032
-            m.scale.z = 0.0254
+            m.scale.x = 0.0375
+            m.scale.y = 0.0375
+            m.scale.z = 0.045
 
             if cube.color == "red":
                 m.color = ColorRGBA(r=0.95, g=0.12, b=0.12, a=1.0)
