@@ -34,9 +34,9 @@ workspace:
     elevation_z_mm: 0.0            # Flat table / baseboard surface
     retaining_barrier: "8-10mm self-adhesive foam weatherstripping tape"
     silicone_friction_coeff: 0.8
-    cube_size_mm: 25.0             # Standard cube width/length
-    cube_height_mm: 38.1           # Doubled block thickness (glued craft blocks)
-    cube_center_z_mm: 19.05        # Grasp altitude (mm) with vertical clearance
+    cube_size_mm: 37.5             # Standard cube width/length (3.75 cm)
+    cube_height_mm: 45.0           # Cube height (4.5 cm)
+    cube_center_z_mm: 22.5         # Grasp altitude (mm) at vertical center (45/2)
     min_x_mm: 25.0
     max_x_mm: 325.0
     min_y_mm: 25.0
@@ -74,8 +74,8 @@ manipulators:
       y: 375.0
       z: 5.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
-      gravity_sag_trim_mm: 10.0    # Neutralizes physical cantilever droop & gear backlash
-      reach_scale_factor: 0.05     # Additional reach per mm beyond 150mm
+      gravity_sag_trim_mm: 0.0     # Zero radial overshoot so gripper centers directly on cube
+      reach_scale_factor: 0.0      # Zero radial stretch beyond calibrated polar target r
       nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world) down Column 3 midline
 
     # Serial / USB Interface
@@ -132,9 +132,10 @@ manipulators:
         test_500_to_450_direction: "Fingers open wider toward 55mm limit"
         claw_span_mm:
           fully_open: {tick: 250, span_mm: 55.0}
-          nominal_reset: {tick: 500, span_mm: 27.5}
-          grip_cube_25mm: {tick: 523, span_mm: 25.0}
-          grip_cube_31mm: {tick: 464, span_mm: 31.75}
+          nominal_reset: {tick: 500, span_mm: 44.0}
+          grip_cube_37_5mm: {tick: 580, span_mm: 37.5}
+          grip_cube_31mm: {tick: 600, span_mm: 31.75}
+          grip_cube_25mm: {tick: 630, span_mm: 25.0}
           fully_closed_empty: {tick: 750, span_mm: 0.0}
 
       motor_2:

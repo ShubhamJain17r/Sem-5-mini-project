@@ -1,25 +1,25 @@
 {
-  "timestamp_iso": "2026-11-15T16:22:14Z",
-  "is_aligned": true,
+  "timestamp_iso": "2026-11-26T09:32:10Z",
+  "is_aligned": false,
   "centering": {
-    "delta_x_px": 3.5402903072644563,
-    "delta_y_px": -2.576578715322512,
-    "delta_x_mm": 1.9500898900660206,
-    "delta_y_mm": -1.4192508714326733,
-    "scale_px_per_mm": 1.8154498032624533
+    "delta_x_px": -2.212134730933883,
+    "delta_y_px": -0.9312363786650337,
+    "delta_x_mm": -1.70732034147768,
+    "delta_y_mm": -0.7187260295613267,
+    "scale_px_per_mm": 1.29567643352699
   },
   "orientation": {
-    "roll_deg": 0.4855458300081336,
-    "pitch_ratio": 1.0172401089472178,
-    "yaw_ratio": 0.9997481584043675
+    "roll_deg": -0.339772300515633,
+    "pitch_ratio": 0.9376816590369246,
+    "yaw_ratio": 0.9912117966416093
   },
   "status_checks": {
     "centering_ok": true,
     "roll_ok": true,
-    "pitch_ok": true,
+    "pitch_ok": false,
     "yaw_ok": true
   },
   "guidance_prompts": [
-    "PERFECTLY CENTERED & LEVELED"
+    "PITCH FORWARD (TILT DOWN)"
   ]
 }
