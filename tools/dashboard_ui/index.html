@@ -598,7 +598,8 @@
 
     <!-- Header Actions -->
     <div class="header-actions">
-      <button class="btn-primary" onclick="triggerAction('snap_and_lock')">📸 Snap Frame</button>
+      <button id="btn-capture-frame" class="btn-primary" onclick="triggerAction('capture_frame')">📸 Capture Frame (0/4)</button>
+      <button class="btn-secondary" onclick="triggerAction('load_saved')">📂 Load Saved</button>
       <button class="btn-secondary" onclick="triggerAction('home')">Home Pose</button>
       <button class="btn-success" onclick="triggerAction('sort_all')">▶ Start Sort</button>
       <button class="btn-danger" onclick="triggerAction('estop')">🛑 E-Stop</button>
@@ -639,6 +640,10 @@
 
           <div class="hud-metrics">
             <div class="metric-item">
+              <span class="metric-label">Align:</span>
+              <span id="val-quality" class="metric-value">--%</span>
+            </div>
+            <div class="metric-item">
               <span class="metric-label">Height:</span>
               <span id="val-height" class="metric-value">-- cm</span>
             </div>
@@ -649,16 +654,17 @@
           </div>
 
           <div style="display: flex; gap: 6px;">
-            <button id="btn-freeze-toggle" class="btn-secondary btn-sm" onclick="toggleFreeze()">🔒 Freeze Frame</button>
+            <button id="btn-lock-sim" class="btn-secondary btn-sm" onclick="triggerAction('lock_and_simulate')" style="display: none;">🔒 Lock & Sim</button>
+            <button id="btn-freeze-toggle" class="btn-secondary btn-sm" onclick="toggleFreeze()">🔄 Reset Captures</button>
             <button class="btn-secondary btn-sm" onclick="triggerAction('check_hardware')">Re-Probe</button>
           </div>
         </div>
 
         <div class="camera-guidance-line">
           <span id="hud-status-text">
-            Align camera overhead (~60 cm). Once all 4 markers turn green, click Snap Frame (or press Space).
+            Hold camera overhead (~95% aligned). Press <b>Spacebar</b> 3–4 times to capture optimal consensus, then you can remove the camera.
           </span>
-          <span style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Shortcuts: Space=Snap, H=Home, S=Sort</span>
+          <span style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Shortcuts: Space=Capture (3–4x), H=Home, S=Sort</span>
         </div>
       </div>
 
@@ -667,15 +673,15 @@
         <div class="card-header">
           <div class="card-title">Viewport Display</div>
           <div class="tab-group">
-            <button class="tab-item active" onclick="switchViewportTab('warped')">Rectified Grid (2px/mm)</button>
-            <button class="tab-item" onclick="switchViewportTab('camera')">Raw Camera</button>
-            <button class="tab-item" onclick="switchViewportTab('sim')">3D Digital Twin</button>
+            <button id="tab-camera" class="tab-item active" onclick="switchViewportTab('camera')">Camera Align HUD</button>
+            <button id="tab-warped" class="tab-item" onclick="switchViewportTab('warped')">Rectified Grid (2px/mm)</button>
+            <button id="tab-sim" class="tab-item" onclick="switchViewportTab('sim')">3D Digital Twin</button>
           </div>
         </div>
 
         <div class="viewport-screen">
-          <img id="active-viewport-img" class="viewport-img" src="/stream/warped" alt="Vision Stream">
-          <div id="viewport-overlay-label" class="viewport-tag">WARPED ARENA GRID (2.0 PX/MM)</div>
+          <img id="active-viewport-img" class="viewport-img" src="/stream/camera" alt="Vision Stream">
+          <div id="viewport-overlay-label" class="viewport-tag">CAMERA ALIGNMENT HUD (ALIGN_CAMERA)</div>
           <div id="freeze-indicator" class="freeze-indicator">FRAME FROZEN (STATIONARY SCAN)</div>
         </div>
       </div>
@@ -722,9 +728,9 @@
 
         <!-- Trajectory Progression Pipeline -->
         <div class="trajectory-sequence">
-          <div id="step-standoff" class="seq-step">1. Hover (Z=75)</div>
-          <div id="step-plunge" class="seq-step">2. Plunge (Z=22)</div>
-          <div id="step-clamp" class="seq-step">3. Grip (520)</div>
+          <div id="step-standoff" class="seq-step">1. Hover (Z=80)</div>
+          <div id="step-plunge" class="seq-step">2. Plunge (Z=21)</div>
+          <div id="step-clamp" class="seq-step">3. Grip (580)</div>
           <div id="step-lift" class="seq-step">4. Lift (Z=90)</div>
           <div id="step-rear" class="seq-step">5. Rear Transit</div>
           <div id="step-drop" class="seq-step">6. Release (250)</div>
@@ -750,15 +756,17 @@
   </div>
 
   <script>
-    let activeTab = 'warped';
+    let activeTab = 'camera';
     let isFrameFrozen = false;
+    let prevIsLocked = false;
     let knownCameras = [];
 
-    // Switch Viewport Tabs
+    // Switch Viewport Tabs (supports manual click and programmatic transitions)
     function switchViewportTab(tabName) {
       activeTab = tabName;
       document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      const targetBtn = document.getElementById(`tab-${tabName}`);
+      if (targetBtn) targetBtn.classList.add('active');
 
       const img = document.getElementById('active-viewport-img');
       const label = document.getElementById('viewport-overlay-label');
@@ -768,7 +776,7 @@
         label.innerText = 'WARPED ARENA GRID (2.0 PX/MM)';
       } else if (tabName === 'camera') {
         img.src = '/stream/camera?' + Date.now();
-        label.innerText = 'RAW OVERHEAD CAMERA FEED';
+        label.innerText = isFrameFrozen ? '3D DIGITAL TWIN (REPLACED CAMERA)' : 'CAMERA ALIGNMENT HUD (ALIGN_CAMERA)';
       } else {
         img.src = '/stream/sim?' + Date.now();
         label.innerText = '3D DIGITAL TWIN SIMULATION';
@@ -836,10 +844,9 @@
       }
     }
 
-    // Freeze / Snap Frame Toggle
+    // Reset / Unlock Captures
     function toggleFreeze() {
-      const action = isFrameFrozen ? 'unlock_camera' : 'snap_and_lock';
-      triggerAction(action);
+      triggerAction('clear_captures');
     }
 
     // Generic Action Trigger
@@ -919,13 +926,31 @@
         tMode.innerText = 'Mode: Live Execution';
       }
 
-      // 4. Freeze Status
-      isFrameFrozen = data.is_locked || false;
+      // 4. Capture & Freeze Status (auto-replace camera view with 3D simulation once locked)
+      const nowLocked = data.is_locked || false;
+      isFrameFrozen = nowLocked;
+      const capCount = data.captured_count || 0;
+      const capTarget = data.target_capture_count || 4;
       document.getElementById('freeze-indicator').style.display = isFrameFrozen ? 'block' : 'none';
+      const capBtn = document.getElementById('btn-capture-frame');
+      if (capBtn) {
+        capBtn.innerText = `📸 Capture Frame (${capCount}/${capTarget})`;
+      }
+      const lockSimBtn = document.getElementById('btn-lock-sim');
+      if (lockSimBtn) {
+        lockSimBtn.style.display = (capCount > 0 && !nowLocked) ? 'inline-block' : 'none';
+      }
       const freezeBtn = document.getElementById('btn-freeze-toggle');
       if (freezeBtn) {
-        freezeBtn.innerText = isFrameFrozen ? '🔓 Live Feed' : '🔒 Freeze Frame';
+        freezeBtn.innerText = capCount > 0 ? `🔄 Reset (${capCount})` : '🔄 Reset Captures';
       }
+
+      if (nowLocked && !prevIsLocked && activeTab === 'camera') {
+        switchViewportTab('sim');
+      } else if (!nowLocked && prevIsLocked && activeTab === 'sim') {
+        switchViewportTab('camera');
+      }
+      prevIsLocked = nowLocked;
     }
 
     function updateOpticalHud(data) {
@@ -940,9 +965,16 @@
         }
       });
 
+      const qEl = document.getElementById('val-quality');
       const hEl = document.getElementById('val-height');
       const aEl = document.getElementById('val-angle');
       const sEl = document.getElementById('hud-status-text');
+
+      const qPct = data.alignment_quality_pct || 0;
+      if (qEl) {
+        qEl.innerText = `${qPct}%`;
+        qEl.className = (qPct >= 90) ? 'metric-value ok' : 'metric-value warn';
+      }
 
       if (data.camera_height_mm) {
         const cm = (data.camera_height_mm / 10.0).toFixed(1);
@@ -962,12 +994,21 @@
         aEl.className = 'metric-value';
       }
 
-      if (data.all_markers_locked) {
+      const capCount = data.captured_count || 0;
+      const capTarget = data.target_capture_count || 4;
+      const prompts = (data.align_prompts || []).join(' | ');
+      if (data.is_locked) {
         sEl.style.color = 'var(--accent-green)';
-        sEl.innerText = 'All 4 ArUco markers locked. Scene verified and ready to snap.';
+        sEl.innerText = `Consensus locked (${capCount}/${capTarget} frames) — Simulation active! You may remove the camera & press S (Start Sort).`;
+      } else if (capCount > 0) {
+        sEl.style.color = 'var(--accent-green)';
+        sEl.innerText = `Captured ${capCount}/${capTarget}! Live feed active — press Spacebar for next frame (or click Lock & Sim / press S when done).`;
+      } else if (data.all_markers_locked) {
+        sEl.style.color = (qPct >= 93) ? 'var(--accent-green)' : 'var(--accent-amber)';
+        sEl.innerText = `Align ${qPct}% (${prompts || 'Ready'}) — Press Spacebar 3–4 times (${capCount}/${capTarget} captured).`;
       } else {
         sEl.style.color = 'var(--text-muted)';
-        sEl.innerText = 'Align camera overhead until M0-M3 turn green, then click Snap Frame.';
+        sEl.innerText = `Align camera overhead until M0–M3 turn green (~95%), then press Spacebar 3–4 times (${capCount}/${capTarget} captured).`;
       }
     }
 
@@ -979,7 +1020,7 @@
       counter.innerText = `${queue.length} blocks`;
       if (queue.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">
-          No targets in Golden Zone. Click <b>[Snap Frame]</b> to scan blocks.
+          No targets scanned. Press <b>Spacebar</b> 3–4 times to capture consensus.
         </td></tr>`;
         return;
       }
@@ -988,13 +1029,14 @@
       queue.forEach((item, idx) => {
         const color = (item.color || 'red').toLowerCase();
         const dest = color === 'red' ? 'Red Box (Yaw 650)' : 'Green Box (Yaw 354)';
-        const rollStr = item.roll_tick === 130 ? '130 (Horizontal)' : '500 (Level)';
+        const rollStr = item.roll_tick === 130 ? '130 (90°)' : '500 (Level)';
+        const obsNote = item.observations ? ` [${item.observations}/${item.total_frames}f, σ=${item.std_mm}mm]` : '';
         const isActive = (idx === 0 && data.is_executing);
 
         rows += `<tr class="${isActive ? 'active-row' : ''}">
           <td>${idx + 1}</td>
           <td><span class="color-pill ${color}"></span>${color.toUpperCase()}</td>
-          <td>(${item.world_x.toFixed(1)}, ${item.world_y.toFixed(1)})</td>
+          <td>(${item.world_x.toFixed(1)}, ${item.world_y.toFixed(1)})${obsNote}</td>
           <td>${item.reach_r.toFixed(1)} mm</td>
           <td>${rollStr}</td>
           <td>${dest}</td>

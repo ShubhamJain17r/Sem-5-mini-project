@@ -222,8 +222,8 @@ class MultiViewRenderer:
         cv2.rectangle(img, g_tl, g_br, (40, 180, 40), 2)
         cv2.putText(img, "GREEN TRAY", (g_tl[0] + 8, g_tl[1] + 40), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 140, 20), 2)
 
-        # Cubes
-        c_size = int(25.4 * scale)
+        # Cubes (37.5 x 37.5 mm)
+        c_size = int(37.5 * scale)
         half = c_size // 2
         for c in cubes:
             cx, cy = w2i(c["x"], c["y"])
@@ -629,18 +629,20 @@ class MultiViewRenderer:
         cv2.fillPoly(img, [np.array([g1, g2, g2_t, g1_t], np.int32)], (140, 210, 140))
         cv2.polylines(img, [np.array([g1_t, g2_t, g3_t, g4_t], np.int32)], True, (30, 180, 30), 2)
 
-        # 5. Cubes in 3D
+        # 5. Cubes in 3D (37.5 x 37.5 x 45.0 mm)
         for c in cubes:
             col_top = (50, 50, 240) if c["color"].lower() == "red" else (50, 220, 60)
             col_side = (30, 30, 190) if c["color"].lower() == "red" else (30, 170, 40)
-            b1 = iso3d(c["x"] - 12.5, c["y"] - 12.5, 0.0)
-            b2 = iso3d(c["x"] + 12.5, c["y"] - 12.5, 0.0)
-            b3 = iso3d(c["x"] + 12.5, c["y"] + 12.5, 0.0)
-            b4 = iso3d(c["x"] - 12.5, c["y"] + 12.5, 0.0)
-            t1 = iso3d(c["x"] - 12.5, c["y"] - 12.5, 19.05)
-            t2 = iso3d(c["x"] + 12.5, c["y"] - 12.5, 19.05)
-            t3 = iso3d(c["x"] + 12.5, c["y"] + 12.5, 19.05)
-            t4 = iso3d(c["x"] - 12.5, c["y"] + 12.5, 19.05)
+            cz_base = max(0.0, float(c.get("z", 22.5)) - 22.5)
+            cz_top = cz_base + 45.0
+            b1 = iso3d(c["x"] - 18.75, c["y"] - 18.75, cz_base)
+            b2 = iso3d(c["x"] + 18.75, c["y"] - 18.75, cz_base)
+            b3 = iso3d(c["x"] + 18.75, c["y"] + 18.75, cz_base)
+            b4 = iso3d(c["x"] - 18.75, c["y"] + 18.75, cz_base)
+            t1 = iso3d(c["x"] - 18.75, c["y"] - 18.75, cz_top)
+            t2 = iso3d(c["x"] + 18.75, c["y"] - 18.75, cz_top)
+            t3 = iso3d(c["x"] + 18.75, c["y"] + 18.75, cz_top)
+            t4 = iso3d(c["x"] - 18.75, c["y"] + 18.75, cz_top)
             cv2.fillPoly(img, [np.array([t1, t2, t3, t4], np.int32)], col_top)
             cv2.fillPoly(img, [np.array([b1, b2, t2, t1], np.int32)], col_side)
             cv2.polylines(img, [np.array([t1, t2, t3, t4], np.int32)], True, (20, 20, 20), 1)

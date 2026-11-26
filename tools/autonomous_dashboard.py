@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import math
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -40,6 +41,7 @@ import yaml
 
 from sorting_arm.kinematics import (
     DEFAULT_PARAMS,
+    DEG_PER_TICK,
     KinematicParameters,
     get_compartment_target,
     load_kinematic_parameters,
@@ -48,6 +50,7 @@ from sorting_arm.kinematics import (
 )
 from sorting_arm.xarm_protocol import XArmDriver, find_all_xarm_devices
 from tools.render_sim_view import MultiViewRenderer
+from vision.align_camera import CameraAligner
 from vision.arena_vision_pipeline import ArenaVisionPipeline, DetectedCube
 
 # Optional ROS 2 integration
@@ -60,6 +63,86 @@ try:
 except ImportError:
     rclpy = None
     HAS_ROS2 = False
+
+
+def build_multiframe_consensus_queue(
+    per_frame_cubes: List[List[DetectedCube]],
+    params: KinematicParameters,
+    cluster_radius_mm: float = 25.0,
+) -> List[Dict[str, Any]]:
+    """
+    Aggregates cube detections across multiple captured frames using spatial clustering
+    and median coordinate estimation to reject handheld shake and outlier detections.
+    """
+    num_frames = len(per_frame_cubes)
+    if num_frames == 0:
+        return []
+
+    clusters: List[Dict[str, Any]] = []
+    for frame_idx, cubes in enumerate(per_frame_cubes):
+        for c in cubes:
+            matched = None
+            best_dist = cluster_radius_mm
+            for cl in clusters:
+                if cl["color"] != c.color or frame_idx in cl["frame_ids"]:
+                    continue
+                dist = math.hypot(c.world_x - cl["mean_x"], c.world_y - cl["mean_y"])
+                if dist <= best_dist:
+                    best_dist = dist
+                    matched = cl
+            if matched is not None:
+                matched["items"].append(c)
+                matched["frame_ids"].add(frame_idx)
+                n = len(matched["items"])
+                matched["mean_x"] = sum(item.world_x for item in matched["items"]) / n
+                matched["mean_y"] = sum(item.world_y for item in matched["items"]) / n
+            else:
+                clusters.append({
+                    "color": c.color,
+                    "items": [c],
+                    "frame_ids": {frame_idx},
+                    "mean_x": float(c.world_x),
+                    "mean_y": float(c.world_y),
+                })
+
+    min_obs = 1 if num_frames == 1 else math.ceil(num_frames / 2.0)
+    queue: List[Dict[str, Any]] = []
+    for cl in clusters:
+        items = cl["items"]
+        if len(items) < min_obs:
+            continue
+
+        xs = [float(item.world_x) for item in items]
+        ys = [float(item.world_y) for item in items]
+        zs = [float(item.world_z) for item in items]
+        med_x = float(np.median(xs))
+        med_y = float(np.median(ys))
+        med_z = float(np.median(zs))
+        std_mm = float(math.sqrt(float(np.var(xs)) + float(np.var(ys))))
+
+        rolls = [int(item.gripper_roll_tick) for item in items]
+        roll_tick = max(set(rolls), key=rolls.count)
+        avg_aspect = float(sum(float(getattr(item, "aspect_ratio", 1.0)) for item in items) / len(items))
+
+        r, th_arm, z_rel = world_to_arm_polar(med_x, med_y, med_z, arm_id="xarm_1", params=params)
+        queue.append({
+            "color": cl["color"],
+            "world_x": med_x,
+            "world_y": med_y,
+            "world_z": med_z,
+            "z_rel": float(z_rel),
+            "reach_r": float(r),
+            "theta_arm": float(th_arm),
+            "roll_tick": roll_tick,
+            "aspect_ratio": avg_aspect,
+            "observations": len(items),
+            "total_frames": num_frames,
+            "std_mm": round(std_mm, 2),
+            "dest_container": "red" if cl["color"] == "red" else "green",
+        })
+
+    queue.sort(key=lambda item: item["reach_r"])
+    return queue
 
 
 class LogManager:
@@ -178,6 +261,7 @@ class AutonomousSystemManager:
         self.driver: Optional[XArmDriver] = None
         self.params: KinematicParameters = load_kinematic_parameters()
         self.pipeline = ArenaVisionPipeline(config_dir=os.path.join(repo_root, "config"))
+        self.aligner = CameraAligner(config_dir=os.path.join(repo_root, "config"))
         self.sim_renderer = MultiViewRenderer(output_dir=os.path.join(repo_root, "artifacts"))
 
         # Hardware & Connection State
@@ -188,13 +272,23 @@ class AutonomousSystemManager:
         self.xarm_type: Optional[str] = None
         self.xarm_perm_ok = False
 
-        # Frame & Snap-and-Lock State
+        # Frame & Multi-Snapshot Consensus State
         self.latest_frame: Optional[np.ndarray] = None
+        self.latest_hud_frame: Optional[np.ndarray] = None
         self.latest_warped: Optional[np.ndarray] = None
         self.latest_sim: Optional[np.ndarray] = None
         self.is_locked = False
         self.locked_frame: Optional[np.ndarray] = None
+        self.captured_frames: List[Dict[str, Any]] = []
+        self.target_capture_count: int = 4
+        self.alignment_quality_pct: int = 0
+        self.align_prompts: List[str] = []
         self.frame_lock = threading.Lock()
+
+        # Dynamic cube size & claw clamp tick from config/xarm_hardware.yaml
+        self.clamp_claw_tick, self.cube_center_z_mm = self._load_cube_grasp_config(
+            os.path.join(repo_root, "config", "xarm_hardware.yaml")
+        )
 
         # Optical Guidance & Extrinsics
         self.aruco_reports: Dict[int, Any] = {}
@@ -206,6 +300,7 @@ class AutonomousSystemManager:
         # Perception & Scheduling
         self.detected_cubes: List[DetectedCube] = []
         self.target_queue: List[Dict[str, Any]] = []
+        self.sim_cubes: List[Dict[str, Any]] = []
         self.active_target: Optional[Dict[str, Any]] = None
         self.trajectory_step = "idle"
         self.is_executing = False
@@ -215,12 +310,13 @@ class AutonomousSystemManager:
         self.current_joint_ticks[1] = 250  # Open claw
 
         # ROS 2 Publisher Node
+        self.running = True
         self.ros_node: Optional[Any] = None
         self.ros_pub_objects: Optional[Any] = None
+        self.ros_pub_joints: Optional[Any] = None
         self.init_ros2()
 
         # Start background watchdog & video loop
-        self.running = True
         self.watchdog_thread = threading.Thread(target=self._background_watchdog_loop, daemon=True)
         self.video_thread = threading.Thread(target=self._background_video_loop, daemon=True)
         self.watchdog_thread.start()
@@ -240,16 +336,64 @@ class AutonomousSystemManager:
                 rclpy.init(args=None)
             self.ros_node = Node("autonomous_dashboard_bridge")
             self.ros_pub_objects = self.ros_node.create_publisher(String, "/vision/detected_objects", 10)
+            self.ros_pub_joints = self.ros_node.create_publisher(JointState, "/xarm_1/joint_states", 10)
 
-            # Spin in thread
+            # Spin & publish joint states at 20 Hz for RViz2 digital twin sync
             def ros_spin():
+                last_pub = 0.0
                 while self.running and rclpy.ok():
-                    rclpy.spin_once(self.ros_node, timeout_sec=0.05)
+                    try:
+                        rclpy.spin_once(self.ros_node, timeout_sec=0.04)
+                        now = time.time()
+                        if now - last_pub >= 0.05:
+                            self.publish_joint_states()
+                            last_pub = now
+                    except Exception:
+                        break
 
             threading.Thread(target=ros_spin, daemon=True).start()
-            self.logger.log("SUCCESS", "ROS 2 Bridge initialized: Publishing to /vision/detected_objects.")
+            self.logger.log("SUCCESS", "ROS 2 Bridge initialized: Publishing /vision/detected_objects & /xarm_1/joint_states.")
         except Exception as e:
             self.logger.log("WARN", f"ROS 2 Bridge init skipped: {e}")
+
+    def publish_joint_states(self):
+        """Publishes current joint ticks as ROS 2 JointState for RViz2 URDF & ArenaVisualizer."""
+        if self.ros_pub_joints is None or self.ros_node is None or rclpy is None or not rclpy.ok():
+            return
+        try:
+            centers = self.params.nominal_center_ticks or {1: 500, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
+            names = ["claw_gripper", "wrist_roll", "wrist_pitch", "elbow_pitch", "shoulder_pitch", "base_yaw"]
+            msg = JointState()
+            msg.header.stamp = self.ros_node.get_clock().now().to_msg()
+            msg.header.frame_id = "xarm_1_base_link"
+            msg.name = names
+            msg.position = [
+                math.radians((self.current_joint_ticks.get(i + 1, centers.get(i + 1, 500)) - centers.get(i + 1, 500)) * DEG_PER_TICK)
+                for i in range(6)
+            ]
+            self.ros_pub_joints.publish(msg)
+        except Exception:
+            pass
+
+    def _update_sim_view(self):
+        """Renders the 3D Digital Twin frame from current joint ticks and sim_cubes."""
+        try:
+            cubes_for_render = self.sim_cubes if self.sim_cubes else [
+                {"x": c.world_x, "y": c.world_y, "z": c.world_z, "color": c.color}
+                for c in self.detected_cubes
+            ]
+            status_lbl = f"SIMULATION | STEP: {self.trajectory_step.upper()}"
+            if self.is_locked and not self.is_executing:
+                status_lbl = f"LOCKED ({len(self.captured_frames)}/{self.target_capture_count}f) | READY TO SORT"
+            sim_img = self.sim_renderer.render_isometric_view(
+                joint_ticks=self.current_joint_ticks,
+                cubes=cubes_for_render,
+                status_text=status_lbl,
+            )
+            with self.frame_lock:
+                self.latest_sim = sim_img
+        except Exception as e:
+            self.logger.log("WARN", f"Sim render error: {e}")
 
     # -------------------------------------------------------------------------
     # Background Hardware Watchdog Loop
@@ -286,72 +430,80 @@ class AutonomousSystemManager:
     # Background Video & Optical Guidance Loop
     # -------------------------------------------------------------------------
     def _background_video_loop(self):
-        """Continuously grabs frames, runs optical assist & ArUco checks."""
+        """Continuously grabs frames, runs optical assist & ArUco checks, and updates 3D simulation."""
         while self.running:
             if self.cap is None or not self.cap.isOpened():
-                self._open_camera()
-                time.sleep(0.5)
+                if not self.is_locked:
+                    self._open_camera()
+                self._update_sim_view()
+                time.sleep(0.25)
                 continue
 
             ret, frame = self.cap.read()
             if not ret or frame is None:
                 self.camera_connected = False
+                self._update_sim_view()
                 time.sleep(0.1)
                 continue
 
             self.camera_connected = True
 
             with self.frame_lock:
-                if not self.is_locked:
-                    self.latest_frame = frame
+                self.latest_frame = frame
                 process_frame = self.locked_frame if self.is_locked and self.locked_frame is not None else frame
 
-            # Run Optical Assist: ArUco marker orientation & extrinsics
+            # Run live CameraAligner HUD (identical to vision/align_camera.py) + ArUco checks
             try:
+                align_centers = self.aligner.detect_markers(process_frame)
+                align_metrics = self.aligner.compute_metrics(process_frame.shape, align_centers)
+                hud_img = self.aligner.render_hud(process_frame, align_metrics, align_centers)
+
                 marker_status = self.pipeline.verify_aruco_markers(process_frame)
                 self.aruco_reports = marker_status.get("reports", {})
-                self.all_markers_locked = marker_status.get("all_detected", False)
+                self.all_markers_locked = bool(align_metrics.get("detected", False)) or marker_status.get("all_detected", False)
+                self.align_prompts = list(align_metrics.get("prompts", []))
 
-                if self.all_markers_locked:
+                if align_metrics.get("detected"):
+                    if align_metrics.get("is_aligned"):
+                        self.alignment_quality_pct = 98
+                    elif align_metrics.get("is_close"):
+                        self.alignment_quality_pct = 93
+                    else:
+                        d_err = math.hypot(align_metrics.get("delta_x_mm", 0.0), align_metrics.get("delta_y_mm", 0.0))
+                        self.alignment_quality_pct = max(65, min(91, int(round(92 - d_err * 0.4))))
+
                     extrinsics = self.pipeline.compute_camera_extrinsics(process_frame)
                     if extrinsics.get("success"):
                         self.camera_height_mm = float(extrinsics.get("height_mm", 0.0))
                         self.depression_angle_deg = float(extrinsics.get("depression_angle_deg", 0.0))
                         self.distance_to_center_mm = float(extrinsics.get("distance_to_arena_center_mm", 0.0))
+                else:
+                    det_cnt = len(align_centers)
+                    self.alignment_quality_pct = det_cnt * 18
+
+                with self.frame_lock:
+                    self.latest_hud_frame = hud_img
 
                 # Generate Rectified Warped Frame with Golden Zone HUD
                 warped, annotated_warped, cubes = self.pipeline.process_frame(process_frame, draw_grid=True)
                 if annotated_warped is not None:
-                    # Overlay status banner
                     overlay = annotated_warped.copy()
                     if self.is_locked:
                         cv2.rectangle(overlay, (0, 0), (overlay.shape[1], 40), (16, 185, 129), -1)
-                        cv2.putText(overlay, "LOCKED STATIONARY FRAME - TARGETS ACQUIRED", (20, 26),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA)
+                        cv2.putText(
+                            overlay,
+                            f"LOCKED ({len(self.captured_frames)}/{self.target_capture_count}f) - READY",
+                            (20, 26),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA
+                        )
                     with self.frame_lock:
                         self.latest_warped = overlay
-                        if self.is_locked:
+                        if self.is_locked and not self.sim_cubes:
                             self.detected_cubes = cubes
-            except Exception as e:
-                pass
-
-            # Digital Twin view update (throttle to ~5 Hz)
-            try:
-                sim_cubes = [
-                    {"x": c.world_x, "y": c.world_y, "color": c.color}
-                    for c in self.detected_cubes
-                ]
-                sim_img = self.sim_renderer.render_3d_view(
-                    joint_ticks=self.current_joint_ticks,
-                    cubes=sim_cubes,
-                    active_target=self.active_target,
-                    status_text=f"Mode: {self.trajectory_step.upper()}",
-                )
-                with self.frame_lock:
-                    self.latest_sim = sim_img
             except Exception:
                 pass
 
+            self._update_sim_view()
             time.sleep(0.04)  # ~25 FPS
 
     def _open_camera(self):
@@ -412,25 +564,238 @@ class AutonomousSystemManager:
         self.logger.log("INFO", f"Camera switched to index {new_idx} (/dev/video{new_idx})")
         return self.camera_connected
 
+    @staticmethod
+    def _load_cube_grasp_config(hw_yaml: str) -> Tuple[int, float]:
+        """Loads calibrated claw clamp tick and cube center Z from xarm_hardware.yaml."""
+        clamp_tick = 580  # Firm calibrated clamp tick for 37.5 mm cube
+        center_z = 22.5   # Default for 45.0 mm tall cube
+        try:
+            with open(hw_yaml, "r") as f:
+                data = yaml.safe_load(f) or {}
+            arena_cfg = data.get("workspace", {}).get("picking_arena", {})
+            cube_size = float(arena_cfg.get("cube_size_mm", 37.5))
+            center_z = float(arena_cfg.get("cube_center_z_mm", 22.5))
+            span_map = (
+                data.get("manipulators", {})
+                .get("xarm_1", {})
+                .get("motors", {})
+                .get("motor_1", {})
+                .get("claw_span_mm", {})
+            )
+            if cube_size >= 35.0 and "tick" in span_map.get("grip_cube_37_5mm", {}):
+                clamp_tick = int(span_map["grip_cube_37_5mm"]["tick"])
+            elif "tick" in span_map.get("grip_cube_25mm", {}):
+                clamp_tick = int(span_map["grip_cube_25mm"]["tick"])
+        except Exception:
+            pass
+        return clamp_tick, center_z
+
     def snap_and_lock(self):
-        """Captures stationary frame, locks matrix, and extracts targets."""
+        """Manually captures a frame into the multi-frame buffer and updates consensus (never auto-snaps)."""
         with self.frame_lock:
             if self.latest_frame is None:
-                self.logger.log("WARN", "No camera frame available to snap.")
+                self.logger.log("WARN", "No camera frame available to capture.")
                 return False
-            self.locked_frame = self.latest_frame.copy()
-            self.is_locked = True
+            frame = self.latest_frame.copy()
 
-        self.logger.log("STAGE", "Camera frame snapped and locked.")
-        self.scan_arena_targets()
+        marker_status = self.pipeline.verify_aruco_markers(frame)
+        all_ok = bool(marker_status.get("all_detected", False))
+        if all_ok:
+            self.pipeline.compute_camera_extrinsics(frame)
+        warped_cap, ann_cap, cubes = self.pipeline.process_frame(frame, draw_grid=True)
+
+        # Save raw + annotated capture to data/captured_frames/
+        cap_dir = os.path.join(repo_root, "data", "captured_frames")
+        os.makedirs(cap_dir, exist_ok=True)
+
+        with self.frame_lock:
+            self.captured_frames.append({
+                "frame": frame,
+                "warped": warped_cap,
+                "cubes": cubes,
+                "all_markers": all_ok,
+                "timestamp": time.time(),
+            })
+            self.locked_frame = frame
+            cap_idx = len(self.captured_frames)
+            if cap_idx >= self.target_capture_count:
+                self.is_locked = True
+
+        try:
+            cv2.imwrite(os.path.join(cap_dir, f"capture_{cap_idx}_raw.png"), frame)
+            if ann_cap is not None:
+                cv2.imwrite(os.path.join(cap_dir, f"capture_{cap_idx}_warped.png"), ann_cap)
+        except Exception as e:
+            self.logger.log("WARN", f"Could not save captured image #{cap_idx}: {e}")
+
+        self.logger.log(
+            "STAGE",
+            f"Captured & saved frame {cap_idx}/{self.target_capture_count} "
+            f"(Markers: {'4/4' if all_ok else 'Partial'}, Raw cubes: {len(cubes)})."
+        )
+        self.compute_optimal_consensus()
         self.sync_digital_twin()
+        if self.is_locked:
+            self.logger.log("SUCCESS", "All 4 frames captured — switched feed to 3D Simulation! You may now remove the camera.")
         return True
 
+    def load_saved_captures(self, cap_dir: Optional[str] = None) -> bool:
+        """Loads previously saved capture_*_raw.png images and runs consensus pipeline without needing the camera."""
+        if cap_dir is None:
+            cap_dir = os.path.join(repo_root, "data", "captured_frames")
+
+        raw_files = sorted(glob.glob(os.path.join(cap_dir, "capture_*_raw.png")))
+        if not raw_files:
+            self.logger.log("WARN", f"No saved capture_*_raw.png files found in {cap_dir}.")
+            return False
+
+        # Optional cached homography fallback (e.g., if markers had HUD overlay on saved frame)
+        h_json = os.path.join(cap_dir, "homography.json")
+        saved_h = None
+        if os.path.exists(h_json):
+            try:
+                with open(h_json, "r") as f:
+                    h_data = json.load(f)
+                mat = h_data.get("H_matrix")
+                if mat:
+                    saved_h = np.array(mat, dtype=np.float32).reshape((3, 3))
+            except Exception as e:
+                self.logger.log("WARN", f"Could not load saved homography.json: {e}")
+
+        loaded_entries = []
+        last_warped_ann = None
+        last_frame = None
+        for idx, fpath in enumerate(raw_files, start=1):
+            frame = cv2.imread(fpath)
+            if frame is None:
+                continue
+            marker_status = self.pipeline.verify_aruco_markers(frame)
+            all_ok = bool(marker_status.get("all_detected", False))
+            if not all_ok and saved_h is not None:
+                self.pipeline.H_matrix = saved_h
+                self.pipeline.lock_homography(True)
+            else:
+                self.pipeline.lock_homography(False)
+                self.pipeline.compute_camera_extrinsics(frame)
+
+            warped_cap, ann_cap, cubes = self.pipeline.process_frame(frame, draw_grid=True)
+            loaded_entries.append({
+                "frame": frame,
+                "warped": warped_cap,
+                "cubes": cubes,
+                "all_markers": all_ok or (saved_h is not None),
+                "timestamp": time.time(),
+            })
+            last_frame = frame
+            if ann_cap is not None:
+                last_warped_ann = ann_cap
+            self.logger.log(
+                "INFO",
+                f"Loaded {os.path.basename(fpath)} ({idx}/{len(raw_files)}): detected {len(cubes)} cube(s)."
+            )
+
+        self.pipeline.lock_homography(False)
+        if not loaded_entries:
+            self.logger.log("WARN", "Failed to decode any saved capture images.")
+            return False
+
+        with self.frame_lock:
+            self.captured_frames = loaded_entries
+            self.locked_frame = last_frame
+            self.latest_frame = last_frame
+            if last_warped_ann is not None:
+                self.latest_warped = last_warped_ann
+            self.is_locked = True
+            self.all_markers_locked = True
+            self.alignment_quality_pct = 95
+
+        self.compute_optimal_consensus()
+        self.sync_digital_twin()
+        self.logger.log("SUCCESS", f"Loaded {len(loaded_entries)} saved frame(s) — ready to sort without camera!")
+        return True
+
+    def lock_and_simulate(self):
+        """Locks current captured consensus (e.g. after 3 frames) and switches feed to 3D Simulation."""
+        with self.frame_lock:
+            if not self.captured_frames:
+                self.logger.log("WARN", "Capture at least 1 frame (Spacebar) before locking.")
+                return False
+            self.is_locked = True
+        self.compute_optimal_consensus()
+        self.sync_digital_twin()
+        self.logger.log("SUCCESS", f"Locked {len(self.captured_frames)} captured frame(s) — Simulation active!")
+        return True
+
+    @staticmethod
+    def _is_in_pickup_zone(c: DetectedCube) -> bool:
+        """Validates cube is inside the physical arena and reachable by xArm 1S."""
+        return (
+            25.0 <= c.world_x <= 325.0
+            and 25.0 <= c.world_y <= 275.0
+            and 110.0 <= c.r_mm <= 325.0
+        )
+
+    def compute_optimal_consensus(self):
+        """Aggregates all captured frames using spatial clustering and median error correction."""
+        with self.frame_lock:
+            entries = list(self.captured_frames)
+
+        if not entries:
+            self.scan_arena_targets()
+            return
+
+        # Prefer frames where all 4 ArUco markers locked; fall back to all if none had 4/4
+        valid_entries = [e for e in entries if e["all_markers"]] or entries
+        per_frame_cubes = []
+        for entry in valid_entries:
+            valid_cubes = [
+                c for c in entry["cubes"]
+                if c.color in ("red", "green") and self._is_in_pickup_zone(c)
+            ]
+            per_frame_cubes.append(valid_cubes)
+
+        queue = build_multiframe_consensus_queue(per_frame_cubes, self.params)
+        self.target_queue = queue
+        self.sim_cubes = [
+            {
+                "id": i,
+                "x": t["world_x"],
+                "y": t["world_y"],
+                "z": t["world_z"],
+                "color": t["color"],
+                "state": "in_cell",
+            }
+            for i, t in enumerate(queue)
+        ]
+        self._update_sim_view()
+
+        if queue:
+            self.logger.log(
+                "SUCCESS",
+                f"Optimal consensus computed from {len(valid_entries)}/{len(entries)} frame(s): "
+                f"{len(queue)} cube(s) locked."
+            )
+            for idx, t in enumerate(queue):
+                self.logger.log(
+                    "INFO",
+                    f"  Target #{idx+1}: {t['color'].upper()} @ "
+                    f"(X={t['world_x']:.1f}, Y={t['world_y']:.1f}, Z={t['world_z']:.1f}) -> "
+                    f"r={t['reach_r']:.1f}mm ({t['observations']}/{len(valid_entries)} frames, "
+                    f"σ={t['std_mm']:.1f}mm)"
+                )
+        else:
+            self.logger.log("WARN", f"No Red/Green cubes detected across {len(entries)} captured frame(s).")
+
     def unlock_camera(self):
+        """Clears captured multi-frame buffer and resumes live camera feed."""
         with self.frame_lock:
             self.is_locked = False
             self.locked_frame = None
-        self.logger.log("INFO", "Camera unlocked; resumed live feed.")
+            self.captured_frames.clear()
+            self.target_queue = []
+            self.sim_cubes = []
+            self.detected_cubes = []
+        self.logger.log("INFO", "Captures cleared; resumed live camera feed.")
 
     def scan_arena_targets(self):
         """Runs perception on current locked or live frame and builds Nearest-First queue."""
@@ -444,12 +809,12 @@ class AutonomousSystemManager:
         warped, annotated, cubes = self.pipeline.process_frame(frame, draw_grid=True)
         self.detected_cubes = cubes
 
-        # Filter: Golden Zone & Red/Green targets
+        # Filter: Reachable Arena & Red/Green targets
         queue = []
         for c in cubes:
             if c.color not in ("red", "green"):
                 continue
-            if not c.in_pickup_zone:
+            if not self._is_in_pickup_zone(c):
                 continue
 
             r, th_arm, _ = world_to_arm_polar(c.world_x, c.world_y, c.world_z, arm_id="xarm_1", params=self.params)
@@ -461,13 +826,25 @@ class AutonomousSystemManager:
                 "reach_r": float(r),
                 "theta_arm": float(th_arm),
                 "roll_tick": int(c.gripper_roll_tick),
-                "aspect_ratio": float(c.aspect_ratio),
+                "aspect_ratio": float(getattr(c, "aspect_ratio", 1.0)),
                 "dest_container": "red" if c.color == "red" else "green",
             })
 
         # Nearest-First policy
         queue.sort(key=lambda item: item["reach_r"])
         self.target_queue = queue
+        self.sim_cubes = [
+            {
+                "id": i,
+                "x": t["world_x"],
+                "y": t["world_y"],
+                "z": t["world_z"],
+                "color": t["color"],
+                "state": "in_cell",
+            }
+            for i, t in enumerate(queue)
+        ]
+        self._update_sim_view()
 
         self.logger.log("SUCCESS", f"Scanned arena: {len(queue)} valid targets in Golden Zone.")
         for idx, t in enumerate(queue):
@@ -509,8 +886,8 @@ class AutonomousSystemManager:
 
         # 2. Update multi-view renderer snapshot
         try:
-            cubes_sim = [{"x": t["world_x"], "y": t["world_y"], "color": t["color"]} for t in self.target_queue]
-            self.sim_renderer.render_multiview(
+            cubes_sim = [{"x": t["world_x"], "y": t["world_y"], "z": t["world_z"], "color": t["color"]} for t in self.target_queue]
+            self.sim_renderer.render_multiview_dashboard(
                 joint_ticks=self.current_joint_ticks,
                 cubes=cubes_sim,
                 status_text="Synchronized with Physical Camera Scan",
@@ -532,7 +909,25 @@ class AutonomousSystemManager:
             target_port = devices[0][0]
 
         try:
-            self.driver = XArmDriver(port=target_port)
+            hw_data = {}
+            hw_yaml = os.path.join(repo_root, "config", "xarm_hardware.yaml")
+            if os.path.exists(hw_yaml):
+                with open(hw_yaml, "r") as f:
+                    hw_data = yaml.safe_load(f) or {}
+            arm_cfg = hw_data.get("manipulators", {}).get("xarm_1", {})
+            motors_cfg = arm_cfg.get("motors", {})
+            deviations = {
+                sid: int(motors_cfg.get(f"motor_{sid}", {}).get("deviation", 0))
+                for sid in range(1, 7)
+            }
+            max_dev = int(hw_data.get("manipulators", {}).get("max_deviation_ticks", 25))
+            self.driver = XArmDriver(
+                port=target_port,
+                deviations=deviations,
+                min_ticks=self.params.min_safe_ticks,
+                max_ticks=self.params.max_safe_ticks,
+                max_deviation_ticks=max_dev,
+            )
             if self.driver.connect():
                 self.xarm_connected = True
                 self.xarm_port = target_port
@@ -561,60 +956,125 @@ class AutonomousSystemManager:
         drop_target = get_compartment_target(color=color, arm_id="xarm_1")
         drop_ticks = drop_target.get("ik_ticks", {1: 250, 2: 500, 3: 450, 4: 250, 5: 650, 6: 650 if color == "red" else 354})
 
+        # Locate matching cube in sim_cubes so simulation animates exact cube pickup/drop
+        sim_cube = None
+        best_d = 40.0
+        for sc in self.sim_cubes:
+            if sc.get("state") == "in_cell" and sc.get("color") == color:
+                d = math.hypot(sc["x"] - target["world_x"], sc["y"] - target["world_y"])
+                if d < best_d:
+                    best_d = d
+                    sim_cube = sc
+
         def dispatch(ticks: Dict[int, int], move_time_ms: int = 600):
-            self.current_joint_ticks = dict(ticks)
+            if not self.is_executing:
+                return
+            start_ticks = dict(self.current_joint_ticks)
             if not self.dry_run and self.driver and self.driver.is_connected:
                 self.driver.set_servo_positions(ticks, duration_ms=move_time_ms)
-            time.sleep(move_time_ms / 1000.0 + 0.08)
+
+            # Interpolate joint ticks at ~20 Hz so Web 3D Digital Twin & RViz2 animate smoothly
+            steps = max(1, int(round(move_time_ms / 50.0)))
+            dt = (move_time_ms / 1000.0) / steps
+            for s in range(1, steps + 1):
+                if not self.is_executing:
+                    return
+                alpha = s / float(steps)
+                interp = {
+                    mid: int(round(start_ticks.get(mid, 500) + alpha * (ticks.get(mid, start_ticks.get(mid, 500)) - start_ticks.get(mid, 500))))
+                    for mid in range(1, 7)
+                }
+                self.current_joint_ticks = interp
+                if sim_cube is not None and sim_cube.get("state") == "grabbed":
+                    fk = self.sim_renderer.geom.compute_joint_positions(interp)
+                    tx, ty, tz = fk["tool_tip"]
+                    sim_cube["x"] = tx
+                    sim_cube["y"] = ty
+                    sim_cube["z"] = max(22.5, tz)
+                self.publish_joint_states()
+                self._update_sim_view()
+                time.sleep(dt)
+            time.sleep(0.08)
 
         try:
-            # Phase 1: Overhead Hover Standoff (Z = 75 mm)
+            # Phase 1: Overhead Hover Standoff (Z = 80 mm clears 45 mm cube + 18 mm fingertip)
             self.trajectory_step = "hover"
-            standoff_ik = solve_ik(r=r, theta=theta, z=75.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+            standoff_ik = solve_ik(r=r, theta=theta, z=80.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
             if standoff_ik.success:
                 ticks = dict(standoff_ik.ticks)
                 ticks[1] = 250  # Open claw
-                self.logger.log("INFO", f"  Phase 1: Overhead Standoff (Z=75mm) -> Ticks {ticks}")
-                dispatch(ticks, 700)
+                self.logger.log("INFO", f"  Phase 1: Overhead Standoff (Z=80mm) -> Ticks {ticks}")
+                dispatch(ticks, 750)
 
-            # Phase 2: Pure Vertical Plunge (Z = 22 mm)
+            # Phase 2: Pure Vertical Plunge (arm-relative Z centered on 45 mm cube, with 3.5 mm Z-clearance offset)
+            base_pick_z = float(target.get("z_rel", float(target.get("world_z", self.cube_center_z_mm)) - 5.0))
+            pick_z = max(19.0, base_pick_z + 3.5)
             self.trajectory_step = "plunge"
-            pick_ik = solve_ik(r=r, theta=theta, z=22.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+            pick_ik = solve_ik(r=r, theta=theta, z=pick_z, roll_tick=roll_tick, params=self.params, compensate_sag=False)
             if pick_ik.success:
                 ticks = dict(pick_ik.ticks)
                 ticks[1] = 250
-                self.logger.log("INFO", f"  Phase 2: Vertical Plunge (Z=22mm, Roll={roll_tick})")
-                dispatch(ticks, 600)
+                self.logger.log("INFO", f"  Phase 2: Vertical Plunge (Z_rel={pick_z:.1f}mm, Roll={roll_tick}) -> Ticks {ticks}")
+                dispatch(ticks, 700)
 
-            # Phase 3: Firm Clamping (520 ticks)
+                # Closed-loop potentiometer micro-trim (neutralizes +-5 tick servo deadband/backlash)
+                if not self.dry_run and self.driver and self.driver.is_connected:
+                    time.sleep(0.10)
+                    actual_pos = self.driver.get_servo_positions()
+                    if actual_pos:
+                        min_safe = self.params.min_safe_ticks or {i: 150 for i in range(1, 7)}
+                        max_safe = self.params.max_safe_ticks or {i: 850 for i in range(1, 7)}
+                        trim_ticks = dict(ticks)
+                        max_err = 0
+                        for mid in (3, 4, 5, 6):
+                            err = int(ticks[mid]) - int(actual_pos.get(mid, ticks[mid]))
+                            if abs(err) >= 2:
+                                corr = max(-12, min(12, err))
+                                trim_ticks[mid] = max(min_safe.get(mid, 150), min(max_safe.get(mid, 850), ticks[mid] + corr))
+                                max_err = max(max_err, abs(err))
+                        if max_err >= 2:
+                            self.logger.log("INFO", f"  Closed-loop trim (max err {max_err} ticks) -> {trim_ticks}")
+                            dispatch(trim_ticks, 220)
+                            time.sleep(0.10)
+                    else:
+                        time.sleep(0.08)
+
+            # Phase 3: Firm Clamping (calibrated tick for 37.5 mm block with settle window)
             self.trajectory_step = "clamp"
             clamp_ticks = dict(self.current_joint_ticks)
-            clamp_ticks[1] = 520
-            self.logger.log("INFO", "  Phase 3: Firm Grip Clamping at 520 ticks")
-            dispatch(clamp_ticks, 350)
+            clamp_ticks[1] = self.clamp_claw_tick
+            self.logger.log("INFO", f"  Phase 3: Firm Grip Clamping at {self.clamp_claw_tick} ticks")
+            dispatch(clamp_ticks, 600)
+            if sim_cube is not None:
+                sim_cube["state"] = "grabbed"
 
             # Phase 4: Vertical Extraction Lift (Z = 90 mm)
             self.trajectory_step = "lift"
-            lift_ik = solve_ik(r=r, theta=theta, z=90.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+            lift_ik = solve_ik(r=r, theta=theta, z=90.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
             if lift_ik.success:
                 ticks = dict(lift_ik.ticks)
-                ticks[1] = 520
+                ticks[1] = self.clamp_claw_tick
                 self.logger.log("INFO", "  Phase 4: Vertical Lift to Z=90mm")
-                dispatch(ticks, 550)
+                dispatch(ticks, 600)
 
             # Phase 5: High Rear-Facing Transit Over Shoulder
             self.trajectory_step = "rear"
-            transit_ticks = {1: 520, 2: 500, 3: 350, 4: 500, 5: 450, 6: drop_ticks[6]}
+            transit_ticks = {1: self.clamp_claw_tick, 2: 500, 3: 350, 4: 500, 5: 450, 6: drop_ticks[6]}
             self.logger.log("INFO", f"  Phase 5: High Overhead Rear Transit -> Base Yaw: {drop_ticks[6]}")
             dispatch(transit_ticks, 700)
 
             # Phase 6: Container Descent & Release
             self.trajectory_step = "drop"
             target_drop = dict(drop_ticks)
-            target_drop[1] = 520
+            target_drop[1] = self.clamp_claw_tick
             dispatch(target_drop, 650)
 
             target_drop[1] = 250  # Open claw
+            if sim_cube is not None:
+                sim_cube["state"] = "placed"
+                sim_cube["x"] = 50.0 if color == "red" else 300.0
+                sim_cube["y"] = 550.0
+                sim_cube["z"] = 45.0
             self.logger.log("SUCCESS", f"  Phase 6: Released into {dest.upper()} Container Box.")
             dispatch(target_drop, 350)
 
@@ -639,6 +1099,9 @@ class AutonomousSystemManager:
             self.logger.log("WARN", "Arm is currently busy executing a pick.")
             return
 
+        with self.frame_lock:
+            if self.captured_frames and not self.is_locked:
+                self.is_locked = True
         self.connect_driver()
         target = self.target_queue.pop(0)
         threading.Thread(target=self.execute_pick_target, args=(target,), daemon=True).start()
@@ -652,6 +1115,10 @@ class AutonomousSystemManager:
             self.logger.log("WARN", "Arm is currently busy.")
             return
 
+        with self.frame_lock:
+            if self.captured_frames and not self.is_locked:
+                self.is_locked = True
+
         def run_all():
             self.connect_driver()
             while self.target_queue and self.running:
@@ -663,21 +1130,22 @@ class AutonomousSystemManager:
         threading.Thread(target=run_all, daemon=True).start()
 
     def emergency_stop(self):
-        """Immediately halts all motion and opens claw."""
+        """Immediately halts all motion and cuts servo torque."""
         self.logger.log("ERROR", "EMERGENCY STOP TRIGGERED!")
         self.is_executing = False
         self.active_target = None
         self.trajectory_step = "ESTOP"
         if not self.dry_run and self.driver and self.driver.is_connected:
             try:
-                # Open claw
-                self.driver.set_servo_position(1, 250, duration_ms=100)
+                self.driver.emergency_stop()
             except Exception:
                 pass
 
     def home_pose(self):
         """Sends arm to neutral tucked home position."""
         self.connect_driver()
+        if self.driver is not None:
+            self.driver.is_estopped = False
         home_ticks = {1: 250, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
         self.current_joint_ticks = dict(home_ticks)
         if not self.dry_run and self.driver and self.driver.is_connected:
@@ -751,6 +1219,12 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                 "xarm_perm_ok": MANAGER.xarm_perm_ok if MANAGER else False,
                 "dry_run": MANAGER.dry_run if MANAGER else False,
                 "is_locked": MANAGER.is_locked if MANAGER else False,
+                "captured_count": len(MANAGER.captured_frames) if MANAGER else 0,
+                "target_capture_count": MANAGER.target_capture_count if MANAGER else 4,
+                "alignment_quality_pct": MANAGER.alignment_quality_pct if MANAGER else 0,
+                "align_prompts": MANAGER.align_prompts if MANAGER else [],
+                "clamp_claw_tick": MANAGER.clamp_claw_tick if MANAGER else 580,
+                "cube_center_z_mm": MANAGER.cube_center_z_mm if MANAGER else 22.5,
                 "all_markers_locked": MANAGER.all_markers_locked if MANAGER else False,
                 "camera_height_mm": MANAGER.camera_height_mm if MANAGER else None,
                 "depression_angle_deg": MANAGER.depression_angle_deg if MANAGER else None,
@@ -780,9 +1254,13 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                 action = data.get("action")
 
                 res = {"success": True, "message": f"Action {action} processed"}
-                if action == "snap_and_lock":
+                if action in ("snap_and_lock", "capture_frame"):
                     MANAGER.snap_and_lock()
-                elif action == "unlock_camera":
+                elif action == "load_saved":
+                    MANAGER.load_saved_captures()
+                elif action == "lock_and_simulate":
+                    MANAGER.lock_and_simulate()
+                elif action in ("unlock_camera", "clear_captures"):
                     MANAGER.unlock_camera()
                 elif action in ("switch_camera", "set_camera"):
                     new_idx = int(data.get("camera_idx", data.get("index", 0)))
@@ -825,7 +1303,10 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                 frame_to_send = None
                 with MANAGER.frame_lock:
                     if path == "/stream/camera":
-                        frame_to_send = MANAGER.latest_frame
+                        if MANAGER.is_locked and MANAGER.latest_sim is not None:
+                            frame_to_send = MANAGER.latest_sim
+                        else:
+                            frame_to_send = MANAGER.latest_hud_frame if MANAGER.latest_hud_frame is not None else MANAGER.latest_frame
                     elif path == "/stream/warped":
                         frame_to_send = MANAGER.latest_warped
                     elif path == "/stream/sim":
@@ -861,13 +1342,29 @@ def main():
     parser.add_argument("--camera", type=int, default=0, help="Camera index (default: 0)")
     parser.add_argument("--serial_port", type=str, default="auto", help="Serial port (default: auto)")
     parser.add_argument("--dry-run", action="store_true", help="Run in mock simulation mode")
+    parser.add_argument("--rviz", action="store_true", help="Also launch RViz2 digital twin mirror (Docker ROS 2 only)")
+    parser.add_argument("--load-saved", action="store_true", help="Load saved frames from data/captured_frames/ on startup")
     args = parser.parse_args()
+
+    rviz_proc = None
+    if args.rviz and HAS_ROS2:
+        try:
+            rviz_proc = subprocess.Popen(
+                ["ros2", "launch", "sorting_arm", "simulation.launch.py", "mirror_only:=true", "gui:=true", "default_cubes:=false"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            print("[INFO] Launched RViz2 Digital Twin Mirror in background...")
+        except Exception as e:
+            print(f"[WARN] Could not launch RViz2 mirror: {e}")
 
     MANAGER = AutonomousSystemManager(
         camera_idx=args.camera,
         port=args.serial_port,
         dry_run=args.dry_run,
     )
+    if args.load_saved:
+        MANAGER.load_saved_captures()
 
     port = args.port
     server = None
@@ -897,6 +1394,11 @@ def main():
     except KeyboardInterrupt:
         print("\nShutting down dashboard...")
     finally:
+        if rviz_proc is not None:
+            try:
+                rviz_proc.terminate()
+            except Exception:
+                pass
         if MANAGER:
             MANAGER.running = False
             if MANAGER.cap:

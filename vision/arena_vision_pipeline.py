@@ -103,6 +103,8 @@ class ArenaVisionPipeline:
         # Camera Intrinsic Parameters & Extrinsics Telemetry
         self.camera_matrix: Optional[np.ndarray] = None
         self.dist_coeffs: Optional[np.ndarray] = None
+        self.calib_width: int = 1920
+        self.calib_height: int = 1080
         self.has_calibration: bool = False
         self.camera_extrinsics: Optional[Dict[str, Any]] = None
 
@@ -113,7 +115,10 @@ class ArenaVisionPipeline:
         # Color and morphology configuration
         self.color_config: Dict = {}
         self.morph_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        self.cube_center_z_mm: float = 9.53
+        self.cube_size_mm: float = 37.5
+        self.cube_height_mm: float = 45.0
+        self.cube_center_z_mm: float = 22.5
+        self.marker_size_mm: float = 50.0
 
         # Setup ArUco Detector with backward compatibility
         self._init_aruco_detector()
@@ -165,6 +170,8 @@ class ArenaVisionPipeline:
             cam_mat = data.get("camera_matrix", {}).get("data", None)
             if cam_mat and len(cam_mat) == 9:
                 self.camera_matrix = np.array(cam_mat, dtype=np.float32).reshape((3, 3))
+            self.calib_width = int(data.get("image_width", 1920))
+            self.calib_height = int(data.get("image_height", 1080))
 
             dist = data.get("distortion_coefficients", {}).get("data", None)
             if dist:
@@ -273,8 +280,15 @@ class ArenaVisionPipeline:
                 with open(filename, "r") as f:
                     data = yaml.safe_load(f) or {}
                 arena_cfg = data.get("workspace", {}).get("picking_arena", {})
+                if "cube_size_mm" in arena_cfg:
+                    self.cube_size_mm = float(arena_cfg["cube_size_mm"])
+                if "cube_height_mm" in arena_cfg:
+                    self.cube_height_mm = float(arena_cfg["cube_height_mm"])
                 if "cube_center_z_mm" in arena_cfg:
                     self.cube_center_z_mm = float(arena_cfg["cube_center_z_mm"])
+                marker_cfg = data.get("workspace", {}).get("aruco_markers", {})
+                if "marker_size_mm" in marker_cfg:
+                    self.marker_size_mm = float(marker_cfg["marker_size_mm"])
                 arm_mount = data.get("manipulators", {}).get("xarm_1", {}).get("base_mount_mm", {})
                 if arm_mount:
                     self.base_mounts["xarm_1"]["x"] = float(arm_mount.get("x", self.base_mounts["xarm_1"]["x"]))
@@ -285,11 +299,35 @@ class ArenaVisionPipeline:
             except Exception as e:
                 print(f"[ArenaVisionPipeline] Warning loading hardware config: {e}")
 
+    def _get_scaled_intrinsics(self, frame_shape: Tuple[int, ...]) -> Tuple[np.ndarray, np.ndarray]:
+        """Scale calibrated 1920x1080 intrinsics proportionally to match active frame dimensions."""
+        h, w = frame_shape[:2]
+        if self.camera_matrix is not None and self.calib_width > 0 and self.calib_height > 0:
+            sy = float(h) / float(self.calib_height)
+            sx = float(w) / float(self.calib_width)
+            # Standard 4:3 (640x480) mode crops horizontally from 16:9 (1920x1080), preserving vertical FOV
+            f_scale = sy if abs((w / max(h, 1)) - (self.calib_width / max(self.calib_height, 1))) > 0.1 else sx
+            K = self.camera_matrix.astype(np.float64).copy()
+            K[0, 0] *= f_scale
+            K[1, 1] *= f_scale
+            K[0, 2] *= sx
+            K[1, 2] *= sy
+            dist = self.dist_coeffs.astype(np.float64) if self.dist_coeffs is not None else np.zeros(5)
+            return K, dist
+
+        K = np.array([
+            [float(w), 0.0, float(w) / 2.0],
+            [0.0, float(w), float(h) / 2.0],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float64)
+        return K, np.zeros(5)
+
     def undistort(self, frame: np.ndarray) -> np.ndarray:
-        """Undistorts raw camera frame using calibrated intrinsic matrix and coefficients."""
+        """Undistorts raw camera frame using resolution-scaled intrinsic matrix and coefficients."""
         if not self.has_calibration or self.camera_matrix is None or self.dist_coeffs is None:
             return frame
-        return cv2.undistort(frame, self.camera_matrix, self.dist_coeffs)
+        K, dist = self._get_scaled_intrinsics(frame.shape)
+        return cv2.undistort(frame, K, dist)
 
     def detect_aruco_markers(self, frame: np.ndarray) -> Tuple[Optional[List[np.ndarray]], Optional[np.ndarray]]:
         """Detects ArUco markers and returns corners and IDs with edge padding to preserve quiet zones."""
@@ -399,17 +437,19 @@ class ArenaVisionPipeline:
             id_to_center[2],
         ], dtype=np.float64)
 
-        if self.camera_matrix is not None:
-            K = self.camera_matrix.astype(np.float64)
-            dist = self.dist_coeffs.astype(np.float64) if self.dist_coeffs is not None else np.zeros(5)
-        else:
-            h, w = frame.shape[:2]
-            K = np.array([
-                [float(w), 0.0, float(w) / 2.0],
-                [0.0, float(w), float(h) / 2.0],
-                [0.0, 0.0, 1.0]
-            ], dtype=np.float64)
-            dist = np.zeros(5)
+        K, dist = self._get_scaled_intrinsics(frame.shape)
+
+        # Cross-check raw pixels/mm ratio from individual physical 50.0mm (5.0 cm) ArUco markers
+        marker_px_sides = []
+        for i, mid in enumerate(ids.flatten()):
+            if int(mid) in [0, 1, 2, 3]:
+                pts = corners[i][0]
+                side_px = 0.25 * (
+                    float(np.linalg.norm(pts[1] - pts[0])) + float(np.linalg.norm(pts[2] - pts[1])) +
+                    float(np.linalg.norm(pts[3] - pts[2])) + float(np.linalg.norm(pts[0] - pts[3]))
+                )
+                marker_px_sides.append(side_px)
+        raw_px_per_mm = (sum(marker_px_sides) / len(marker_px_sides)) / max(self.marker_size_mm, 1.0) if marker_px_sides else 0.0
 
         ret, rvec, tvec = cv2.solvePnP(object_pts, image_pts, K, dist, flags=cv2.SOLVEPNP_ITERATIVE)
         if not ret:
@@ -446,6 +486,7 @@ class ArenaVisionPipeline:
             "height_mm": round(float(cam_pos_world[2]), 1),
             "distance_to_arena_center_mm": round(dist_to_center, 1),
             "depression_angle_deg": round(depression_deg, 1),
+            "raw_px_per_mm": round(raw_px_per_mm, 3),
             "viewing_side": side,
             "rvec": rvec.flatten().tolist(),
             "tvec": tvec.flatten().tolist(),
@@ -571,9 +612,10 @@ class ArenaVisionPipeline:
 
     def warp_arena(self, frame: np.ndarray) -> Optional[np.ndarray]:
         """Warps the full camera image into the rectified metric arena grid (600x500 px)."""
+        if not self.H_locked:
+            self.calibrate_homography(frame, force_update=True)
         if self.H_matrix is None:
-            if not self.calibrate_homography(frame):
-                return None
+            return None
         return cv2.warpPerspective(frame, self.H_matrix, (self.rect_w, self.rect_h))
 
     def pixel_to_world(self, u: float, v: float) -> Tuple[float, float, float]:
@@ -736,16 +778,19 @@ class ArenaVisionPipeline:
                     z_w = 19.05  # Doubled block center
                 else:
                     x_w, y_w, _ = self.pixel_to_world(u_c, v_c)
-                    z_w = 10.0   # Standard single cube center
+                    z_w = self.cube_center_z_mm   # Dynamic cube center Z from xarm_hardware.yaml
 
-                # 3D Parallax Correction:
-                # If camera is mounted obliquely (e.g. East tripod, depression < 70°),
-                # the elevated top surface of a 20-25mm block projects toward camera in the image.
-                # For an East-mounted camera, shift world_x westward toward the true ground footprint.
-                # For an overhead/top-down camera (depression >= 70°), parallax shift is 0.
+                # 3D Parallax Correction using 5.0cm marker PnP extrinsics & 3.75x3.75x4.5cm geometry:
+                # 1) Oblique camera mount (depression < 70°): project elevated centroid back onto table footprint.
+                # 2) Overhead camera (depression >= 70°): elevated 4.5cm top face + visible side walls shift
+                #    the apparent centroid radially outward from (cam_x, cam_y) by (r_cam * z_eff / H_c).
                 if self.camera_extrinsics and self.camera_extrinsics.get("success"):
                     dep_angle = float(self.camera_extrinsics.get("depression_angle_deg", 90.0))
                     side = str(self.camera_extrinsics.get("viewing_side", ""))
+                    cam_pos = self.camera_extrinsics.get("camera_position_world_mm", {})
+                    cam_x = float(cam_pos.get("x", 175.0))
+                    cam_y = float(cam_pos.get("y", 150.0))
+                    cam_h = float(cam_pos.get("z", 0.0))
                     if dep_angle < 70.0:
                         rad = math.radians(max(20.0, dep_angle))
                         shift_mm = z_w / math.tan(rad)
@@ -757,6 +802,15 @@ class ArenaVisionPipeline:
                             y_w += shift_mm
                         elif "North" in side:
                             y_w -= shift_mm
+                    elif cam_h > 150.0:
+                        # Blend apparent elevation from cube center Z (22.5mm) toward top face (36mm) when
+                        # visible side walls enlarge apparent footprint beyond top face area (37.5^2 = 1406mm^2).
+                        top_area_mm2 = self.cube_size_mm * self.cube_size_mm
+                        apparent_mm2 = float(area) / (self.scale_px_per_mm * self.scale_px_per_mm)
+                        excess_frac = max(0.0, min(1.0, (apparent_mm2 - top_area_mm2) / max(top_area_mm2 * 0.6, 1.0)))
+                        z_eff = z_w + excess_frac * (0.8 * self.cube_height_mm - z_w)
+                        x_w -= (x_w - cam_x) * (z_eff / cam_h)
+                        y_w -= (y_w - cam_y) * (z_eff / cam_h)
 
                 # Clamp within physical arena bounds
                 x_w = max(25.0, min(325.0, x_w))
