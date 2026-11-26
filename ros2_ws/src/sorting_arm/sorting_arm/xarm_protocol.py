@@ -457,18 +457,40 @@ class XArmDriver:
             if len(report) < 65:
                 report.extend([0] * (65 - len(report)))
             try:
+                # Drain any stale buffered HID input reports (e.g. delayed UART replies from earlier polls)
+                for _ in range(32):
+                    stale, _, _ = select.select([self.hid_fd], [], [], 0.0)
+                    if not stale:
+                        break
+                    try:
+                        os.read(self.hid_fd, 64)
+                    except (BlockingIOError, OSError):
+                        break
+
                 os.write(self.hid_fd, report)
-                r, _, _ = select.select([self.hid_fd], [], [], timeout_sec)
-                if not r:
-                    return None
-                data = os.read(self.hid_fd, 64)
-                if len(data) >= 8 and data[0] == 0x55 and data[1] == 0x55 and data[3] == 0x15:
-                    ret_id = data[5]
-                    if ret_id == servo_id:
-                        hardware_pos = data[6] | (data[7] << 8)
-                        dev = self.deviations.get(servo_id, 0)
-                        return hardware_pos - dev
-                return None
+                deadline = time.monotonic() + timeout_sec
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        return None
+                    r, _, _ = select.select([self.hid_fd], [], [], remaining)
+                    if not r:
+                        return None
+                    data = os.read(self.hid_fd, 64)
+                    offset = 0
+                    if len(data) >= 9 and data[0] == 0x00 and data[1] == 0x55 and data[2] == 0x55:
+                        offset = 1
+                    if (
+                        len(data) >= offset + 8
+                        and data[offset] == 0x55
+                        and data[offset + 1] == 0x55
+                        and data[offset + 3] == CMD_SERVO_POS_READ
+                    ):
+                        ret_id = data[offset + 5]
+                        if ret_id == servo_id:
+                            hardware_pos = data[offset + 6] | (data[offset + 7] << 8)
+                            dev = self.deviations.get(servo_id, 0)
+                            return hardware_pos - dev
             except Exception as e:
                 logger.debug(f"HID read error on servo {servo_id}: {e}")
                 return None

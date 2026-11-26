@@ -228,3 +228,44 @@ def test_dynamic_max_deviation_guardrail():
     # Motor 5 (-40) exceeds -25 -> clamped to -25 -> 500 - 25 = 475
     assert driver.apply_deviations_and_limits(5, 500) == 475
 
+
+def test_hidraw_read_servo_position_drains_stale_packets():
+    """Verify read_servo_position drains stale buffered HID reports and ignores mismatched servo IDs."""
+    from unittest.mock import patch
+    import select as _select
+    import os as _os
+
+    driver = XArmDriver(port="/dev/hidraw0", deviations={1: 5})
+    driver.interface_type = "hidraw"
+    driver.hid_fd = 99
+    driver.is_connected = True
+
+    def _pkt(sid, pos):
+        return bytes([0x55, 0x55, 0x05, 0x15, 0x01, sid, pos & 0xFF, (pos >> 8) & 0xFF])
+
+    # Pre-write stale packet (servo 4) + post-write stray packet (servo 6) before servo 1 arrives (hw=745 -> 740)
+    read_queue = [_pkt(4, 310), _pkt(6, 500), _pkt(1, 745)]
+    wrote = []
+
+    def fake_select(rlist, wlist, xlist, timeout=None):
+        if timeout == 0.0:
+            # Pre-drain removes only the pre-existing stale servo 4 packet, leaving post-write packets
+            return ([99], [], []) if (not wrote and len(read_queue) > 2) else ([], [], [])
+        return ([99], [], []) if read_queue else ([], [], [])
+
+    def fake_write(fd, data):
+        wrote.append(bytes(data))
+        return len(data)
+
+    def fake_read(fd, n):
+        return read_queue.pop(0)
+
+    with patch.object(_select, "select", side_effect=fake_select), \
+         patch.object(_os, "write", side_effect=fake_write), \
+         patch.object(_os, "read", side_effect=fake_read):
+        pos = driver.read_servo_position(1, timeout_sec=0.2)
+
+    assert len(wrote) == 1
+    assert pos == 740, f"Expected calibrated position 740 (745 - dev 5), got {pos}"
+
+

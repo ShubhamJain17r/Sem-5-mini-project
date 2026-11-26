@@ -1081,34 +1081,43 @@ class AutonomousSystemManager:
             dispatch(clamp_ticks, 600)
 
             # Verify grasp via dedicated Motor 1 readback (250ms timeout for 9600 baud UART);
-            # allow at most 1 retry only if no nearby cube could be displaced
+            # allow at most 1 retry only if no nearby cube could be displaced.
+            empty_threshold = 650
+
+            def _read_m1_position(label: str) -> Optional[int]:
+                pos = self.driver.read_servo_position(1, timeout_sec=0.25)
+                if pos is None:
+                    pos_map = self.driver.get_servo_positions() or {}
+                    pos = pos_map.get(1)
+                self.logger.log("INFO", f"  {label}: Motor 1 readback = {pos} ticks (empty >= {empty_threshold})")
+                if pos is None:
+                    self.logger.log("WARN", f"  {label}: Motor 1 readback returned None (check hidraw/UART).")
+                return int(pos) if pos is not None else None
+
+            def _abort_empty_pick(msg: str):
+                self.last_pick_error = msg
+                self.logger.log("ERROR", f"  {msg}")
+                if sim_cube is not None:
+                    sim_cube["state"] = "in_cell"
+                reopen_ticks = dict(self.current_joint_ticks)
+                reopen_ticks[1] = self.open_claw_tick
+                dispatch(reopen_ticks, 300)
+                home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
+                dispatch(home_ticks, 700)
+                self.trajectory_step = "idle"
+
             if not self.dry_run and self.driver and self.driver.is_connected:
                 time.sleep(0.10)
-                m1_actual = self.driver.read_servo_position(1, timeout_sec=0.25)
-                if m1_actual is None:
-                    grip_pos = self.driver.get_servo_positions() or {}
-                    m1_actual = grip_pos.get(1)
-                empty_threshold = 650
-                self.logger.log("INFO", f"  Grip verify: Motor 1 readback = {m1_actual} ticks (empty >= {empty_threshold})")
-                if m1_actual is not None and int(m1_actual) >= empty_threshold:
+                m1_actual = _read_m1_position("Grip verify")
+                if m1_actual is not None and m1_actual >= empty_threshold:
                     has_neighbor, neighbor_dist = self._has_nearby_cube(
                         float(target["world_x"]), float(target["world_y"]), min_clearance_mm=85.0
                     )
                     if has_neighbor:
-                        msg = (
+                        _abort_empty_pick(
                             f"Could not pick {color.upper()} block (M1={m1_actual} empty); "
                             f"skipping retry to avoid displacing nearby cube ({neighbor_dist:.0f}mm away)."
                         )
-                        self.last_pick_error = msg
-                        self.logger.log("ERROR", f"  {msg}")
-                        if sim_cube is not None:
-                            sim_cube["state"] = "in_cell"
-                        reopen_ticks = dict(self.current_joint_ticks)
-                        reopen_ticks[1] = self.open_claw_tick
-                        dispatch(reopen_ticks, 300)
-                        home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
-                        dispatch(home_ticks, 700)
-                        self.trajectory_step = "idle"
                         return
 
                     # Strictly limited to 1 retry when workspace around cube is clear
@@ -1127,22 +1136,11 @@ class AutonomousSystemManager:
                         rclamp[1] = self.clamp_claw_tick
                         dispatch(rclamp, 600)
                         time.sleep(0.10)
-                        m1_retry = self.driver.read_servo_position(1, timeout_sec=0.25)
-                        if m1_retry is None:
-                            retry_pos = self.driver.get_servo_positions() or {}
-                            m1_retry = retry_pos.get(1)
-                        self.logger.log("INFO", f"  Retry grip verify: Motor 1 readback = {m1_retry} ticks")
-                        if m1_retry is not None and int(m1_retry) >= empty_threshold:
-                            msg = f"Could not pick {color.upper()} block after 1 retry (M1={m1_retry} empty)."
-                            self.last_pick_error = msg
-                            self.logger.log("ERROR", f"  {msg}")
-                            if sim_cube is not None:
-                                sim_cube["state"] = "in_cell"
-                            rclamp[1] = self.open_claw_tick
-                            dispatch(rclamp, 300)
-                            home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
-                            dispatch(home_ticks, 700)
-                            self.trajectory_step = "idle"
+                        m1_retry = _read_m1_position("Retry grip verify")
+                        if m1_retry is not None and m1_retry >= empty_threshold:
+                            _abort_empty_pick(
+                                f"Could not pick {color.upper()} block after 1 retry (M1={m1_retry} empty)."
+                            )
                             return
                         self.logger.log("SUCCESS", f"  Retry grasp confirmed (M1={m1_retry} ticks).")
 
@@ -1157,6 +1155,16 @@ class AutonomousSystemManager:
                 ticks[1] = self.clamp_claw_tick
                 self.logger.log("INFO", "  Phase 4: Vertical Lift to Z=90mm")
                 dispatch(ticks, 600)
+
+            # Post-lift check catches edge/corner pinches that passed Phase 3 clamp but slipped on liftoff
+            if not self.dry_run and self.driver and self.driver.is_connected:
+                time.sleep(0.08)
+                m1_lift = _read_m1_position("Post-lift grip verify")
+                if m1_lift is not None and m1_lift >= empty_threshold:
+                    _abort_empty_pick(
+                        f"Could not pick {color.upper()} block (slipped during lift, M1={m1_lift} empty)."
+                    )
+                    return
 
             # Phase 5: High Rear-Facing Transit Over Shoulder
             self.trajectory_step = "rear"

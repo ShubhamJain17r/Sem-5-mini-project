@@ -802,6 +802,11 @@ class ArenaVisionPipeline:
                         elif "North" in side:
                             y_w -= shift_mm
                     elif cam_h > 150.0:
+                        # Near straight-down angles (dep_angle >= 80°), planar solvePnP lateral (cam_x, cam_y)
+                        # is noisy; clamp within the active arena so parallax cannot introduce lateral skew.
+                        if dep_angle >= 80.0:
+                            cam_x = max(25.0, min(325.0, cam_x))
+                            cam_y = max(25.0, min(275.0, cam_y))
                         # Blend apparent elevation from cube center Z (22.5mm) toward top face (36mm) when
                         # visible side walls enlarge apparent footprint beyond top face area (37.5^2 = 1406mm^2).
                         top_area_mm2 = self.cube_size_mm * self.cube_size_mm

@@ -366,6 +366,17 @@ def test_pick_retry_limit_and_proximity_guard():
     assert mgr.last_pick_error and "Could not pick" in mgr.last_pick_error
     assert "1 retry" in mgr.last_pick_error
 
+    # Case 3: Corner pinch passes Phase 3 clamp (M1=590) but slips on Phase 4 lift (M1=750) -> abort before rear transit
+    sent_poses.clear()
+    m1_reads = [590, 750]
+    driver.read_servo_position = lambda sid, timeout_sec=0.25: (m1_reads.pop(0) if m1_reads else 750) if sid == 1 else 500
+    mgr.target_queue = [{"world_x": 300.0, "world_y": 175.0}]
+    mgr.execute_pick_target(dict(target))
+    assert mgr.last_pick_error and "slipped during lift" in mgr.last_pick_error
+    # Rear transit uses M3=350, M5=450, M6=drop_yaw (354 for green) -> verify it never ran
+    rear_transits = [p for p in sent_poses if p.get(3) == 350 and p.get(5) == 450]
+    assert len(rear_transits) == 0, f"Expected abort before rear transit on lift slip, got {rear_transits}"
+
 
 
 if __name__ == "__main__":
