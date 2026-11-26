@@ -1008,7 +1008,8 @@
         sEl.innerText = `Align ${qPct}% (${prompts || 'Ready'}) — Press Spacebar 3–4 times (${capCount}/${capTarget} captured).`;
       } else {
         sEl.style.color = 'var(--text-muted)';
-        sEl.innerText = `Align camera overhead until M0–M3 turn green (~95%), then press Spacebar 3–4 times (${capCount}/${capTarget} captured).`;
+        const prefix = prompts ? `${prompts} — ` : '';
+        sEl.innerText = `${prefix}Align camera overhead until M0–M3 turn green (~95%), then press Spacebar 3–4 times (${capCount}/${capTarget} captured).`;
       }
     }
 

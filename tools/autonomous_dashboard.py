@@ -462,7 +462,12 @@ class AutonomousSystemManager:
                 marker_status = self.pipeline.verify_aruco_markers(process_frame)
                 self.aruco_reports = marker_status.get("reports", {})
                 self.all_markers_locked = bool(align_metrics.get("detected", False)) or marker_status.get("all_detected", False)
-                self.align_prompts = list(align_metrics.get("prompts", []))
+                if align_metrics.get("detected"):
+                    self.align_prompts = list(align_metrics.get("prompts", []))
+                else:
+                    missing = align_metrics.get("missing_markers", [0, 1, 2, 3])
+                    missing_str = ", ".join(f"M{m}" for m in missing)
+                    self.align_prompts = [f"MISSING ARUCO: {missing_str}"] if missing else []
 
                 if align_metrics.get("detected"):
                     if align_metrics.get("is_aligned"):
@@ -501,8 +506,8 @@ class AutonomousSystemManager:
                         self.latest_warped = overlay
                         if self.is_locked and not self.sim_cubes:
                             self.detected_cubes = cubes
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.log("WARN", f"HUD/vision loop error: {e}")
 
             self._update_sim_view()
             time.sleep(0.04)  # ~25 FPS
