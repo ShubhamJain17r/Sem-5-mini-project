@@ -121,7 +121,7 @@ def build_multiframe_consensus_queue(
         std_mm = float(math.sqrt(float(np.var(xs)) + float(np.var(ys))))
 
         rolls = [int(item.gripper_roll_tick) for item in items]
-        roll_tick = max(set(rolls), key=rolls.count)
+        roll_tick = int(round(float(np.median(rolls))))
         avg_aspect = float(sum(float(getattr(item, "aspect_ratio", 1.0)) for item in items) / len(items))
 
         r, th_arm, z_rel = world_to_arm_polar(med_x, med_y, med_z, arm_id="xarm_1", params=params)
@@ -305,6 +305,7 @@ class AutonomousSystemManager:
         self.active_target: Optional[Dict[str, Any]] = None
         self.trajectory_step = "idle"
         self.is_executing = False
+        self.last_pick_error: Optional[str] = None
 
         # Current joint ticks
         self.current_joint_ticks = {i: 500 for i in range(1, 7)}
@@ -838,6 +839,7 @@ class AutonomousSystemManager:
         # Nearest-First policy
         queue.sort(key=lambda item: item["reach_r"])
         self.target_queue = queue
+        self.last_pick_error = None
         self.sim_cubes = [
             {
                 "id": i,
@@ -944,10 +946,35 @@ class AutonomousSystemManager:
         self.xarm_connected = False
         return False
 
+    def _has_nearby_cube(
+        self, target_x: float, target_y: float, min_clearance_mm: float = 85.0
+    ) -> Tuple[bool, Optional[float]]:
+        """Checks if another unpicked cube lies within min_clearance_mm of (target_x, target_y)."""
+        nearest_dist: Optional[float] = None
+        candidates: List[Tuple[float, float]] = [
+            (float(item["world_x"]), float(item["world_y"]))
+            for item in self.target_queue
+        ]
+        for sc in self.sim_cubes:
+            if sc.get("state") == "in_cell":
+                cx, cy = float(sc["x"]), float(sc["y"])
+                # Ignore the active target itself (within 15mm of target center)
+                if math.hypot(cx - target_x, cy - target_y) > 15.0:
+                    candidates.append((cx, cy))
+
+        for cx, cy in candidates:
+            d = math.hypot(cx - target_x, cy - target_y)
+            if 15.0 < d < min_clearance_mm:
+                if nearest_dist is None or d < nearest_dist:
+                    nearest_dist = d
+
+        return (nearest_dist is not None), nearest_dist
+
     def execute_pick_target(self, target: Dict[str, Any]):
         """Executes the 7-phase top-down plunge trajectory for a single target."""
         self.active_target = target
         self.is_executing = True
+        self.last_pick_error = None
 
         color = target["color"]
         r = target["reach_r"]
@@ -1011,9 +1038,9 @@ class AutonomousSystemManager:
                 self.logger.log("INFO", f"  Phase 1: Overhead Standoff (Z=80mm) -> Ticks {ticks}")
                 dispatch(ticks, 750)
 
-            # Phase 2: Pure Vertical Plunge (arm-relative Z centered on 45 mm cube, with 3.5 mm Z-clearance offset)
+            # Phase 2: Pure Vertical Plunge (arm-relative Z centered lower on cube body so pads don't graze top rim)
             base_pick_z = float(target.get("z_rel", float(target.get("world_z", self.cube_center_z_mm)) - 5.0))
-            pick_z = max(19.0, base_pick_z + 3.5)
+            pick_z = max(14.0, base_pick_z - 1.5)
             self.trajectory_step = "plunge"
             pick_ik = solve_ik(r=r, theta=theta, z=pick_z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
             if pick_ik.success:
@@ -1044,12 +1071,72 @@ class AutonomousSystemManager:
                     else:
                         time.sleep(0.08)
 
-            # Phase 3: Firm Clamping (calibrated tick for 37.5 mm block with settle window)
+            # Phase 3: Firm Clamping (full close so object is held securely)
             self.trajectory_step = "clamp"
             clamp_ticks = dict(self.current_joint_ticks)
             clamp_ticks[1] = self.clamp_claw_tick
             self.logger.log("INFO", f"  Phase 3: Firm Grip Clamping at {self.clamp_claw_tick} ticks")
             dispatch(clamp_ticks, 600)
+
+            # Verify grasp via Motor 1 readback; allow at most 1 retry only if no nearby cube could be displaced
+            if not self.dry_run and self.driver and self.driver.is_connected:
+                time.sleep(0.08)
+                grip_pos = self.driver.get_servo_positions() or {}
+                m1_actual = grip_pos.get(1)
+                empty_threshold = max(680, self.clamp_claw_tick - 60)
+                if m1_actual is not None and int(m1_actual) >= empty_threshold:
+                    has_neighbor, neighbor_dist = self._has_nearby_cube(
+                        float(target["world_x"]), float(target["world_y"]), min_clearance_mm=85.0
+                    )
+                    if has_neighbor:
+                        msg = (
+                            f"Could not pick {color.upper()} block (M1={m1_actual} empty); "
+                            f"skipping retry to avoid displacing nearby cube ({neighbor_dist:.0f}mm away)."
+                        )
+                        self.last_pick_error = msg
+                        self.logger.log("ERROR", f"  {msg}")
+                        if sim_cube is not None:
+                            sim_cube["state"] = "in_cell"
+                        reopen_ticks = dict(self.current_joint_ticks)
+                        reopen_ticks[1] = self.open_claw_tick
+                        dispatch(reopen_ticks, 300)
+                        home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
+                        dispatch(home_ticks, 700)
+                        self.trajectory_step = "idle"
+                        return
+
+                    # Strictly limited to 1 retry when workspace around cube is clear
+                    retry_z = max(12.5, pick_z - 2.0)
+                    self.logger.log("WARN", f"  Empty claw (M1={m1_actual}>={empty_threshold}); retrying once at Z_rel={retry_z:.1f}mm...")
+                    reopen_ticks = dict(self.current_joint_ticks)
+                    reopen_ticks[1] = self.open_claw_tick
+                    dispatch(reopen_ticks, 300)
+
+                    retry_ik = solve_ik(r=r, theta=theta, z=retry_z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
+                    if retry_ik.success:
+                        rticks = dict(retry_ik.ticks)
+                        rticks[1] = self.open_claw_tick
+                        dispatch(rticks, 500)
+                        rclamp = dict(rticks)
+                        rclamp[1] = self.clamp_claw_tick
+                        dispatch(rclamp, 600)
+                        time.sleep(0.08)
+                        retry_pos = self.driver.get_servo_positions() or {}
+                        m1_retry = retry_pos.get(1)
+                        if m1_retry is not None and int(m1_retry) >= empty_threshold:
+                            msg = f"Could not pick {color.upper()} block after 1 retry (M1={m1_retry} empty)."
+                            self.last_pick_error = msg
+                            self.logger.log("ERROR", f"  {msg}")
+                            if sim_cube is not None:
+                                sim_cube["state"] = "in_cell"
+                            rclamp[1] = self.open_claw_tick
+                            dispatch(rclamp, 300)
+                            home_ticks = {1: self.open_claw_tick, 2: 500, 3: 500, 4: 500, 5: 500, 6: 500}
+                            dispatch(home_ticks, 700)
+                            self.trajectory_step = "idle"
+                            return
+                        self.logger.log("SUCCESS", f"  Retry grasp confirmed (M1={m1_retry} ticks).")
+
             if sim_cube is not None:
                 sim_cube["state"] = "grabbed"
 
@@ -1237,6 +1324,7 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                 "target_queue": MANAGER.target_queue if MANAGER else [],
                 "trajectory_step": MANAGER.trajectory_step if MANAGER else "idle",
                 "is_executing": MANAGER.is_executing if MANAGER else False,
+                "last_pick_error": MANAGER.last_pick_error if MANAGER else None,
                 "logs": MANAGER.logger.get_logs() if MANAGER else [],
             }
             self.wfile.write(json.dumps(status_payload).encode("utf-8"))

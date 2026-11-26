@@ -302,4 +302,14 @@ def test_distance_based_grip_pitch_and_full_claw():
     assert params.max_safe_ticks[1] == 750
 
 
+def test_lowered_pick_z_ik_envelope():
+    """Verify lowered plunge depth (14.0-17.0mm arm-relative) solves safely across reach envelope."""
+    params = load_kinematic_parameters("config/xarm_hardware.yaml", arm_id="xarm_1")
+    for r in (145.0, 180.0, 220.0, 260.0, 300.0):
+        for z in (14.0, 16.0):
+            sol = solve_ik(r=r, theta=0.0, z=z, params=params, compensate_sag=True)
+            assert sol.success, f"Lowered pick_z={z} failed at r={r}: {sol.message}"
+
+
+
 

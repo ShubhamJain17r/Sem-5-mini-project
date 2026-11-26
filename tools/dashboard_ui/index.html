@@ -704,6 +704,8 @@
           </div>
         </div>
 
+        <div id="pick-alert-banner" style="display: none; background: rgba(239, 68, 68, 0.16); border: 1px solid #ef4444; color: #fecaca; padding: 8px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; margin-bottom: 8px;"></div>
+
         <div class="table-container">
           <table>
             <thead>
@@ -729,8 +731,8 @@
         <!-- Trajectory Progression Pipeline -->
         <div class="trajectory-sequence">
           <div id="step-standoff" class="seq-step">1. Hover (Z=80)</div>
-          <div id="step-plunge" class="seq-step">2. Plunge (Z=21)</div>
-          <div id="step-clamp" class="seq-step">3. Grip (580)</div>
+          <div id="step-plunge" class="seq-step">2. Plunge (Z=16)</div>
+          <div id="step-clamp" class="seq-step">3. Grip (750)</div>
           <div id="step-lift" class="seq-step">4. Lift (Z=90)</div>
           <div id="step-rear" class="seq-step">5. Rear Transit</div>
           <div id="step-drop" class="seq-step">6. Release (250)</div>
@@ -1016,6 +1018,16 @@
     function updateQueueTable(data) {
       const tbody = document.getElementById('target-table-body');
       const counter = document.getElementById('queue-counter');
+      const alertBanner = document.getElementById('pick-alert-banner');
+      if (alertBanner) {
+        if (data.last_pick_error) {
+          alertBanner.style.display = 'block';
+          alertBanner.innerText = `⚠️ ${data.last_pick_error}`;
+        } else {
+          alertBanner.style.display = 'none';
+          alertBanner.innerText = '';
+        }
+      }
       const queue = data.target_queue || [];
 
       counter.innerText = `${queue.length} blocks`;
@@ -1030,7 +1042,8 @@
       queue.forEach((item, idx) => {
         const color = (item.color || 'red').toLowerCase();
         const dest = color === 'red' ? 'Red Box (Yaw 650)' : 'Green Box (Yaw 354)';
-        const rollStr = item.roll_tick === 130 ? '130 (90°)' : '500 (Level)';
+        const rollDeg = Math.round((item.roll_tick - 500) * 180.0 / 740.0);
+        const rollStr = item.roll_tick === 500 ? '500 (Level)' : `${item.roll_tick} (${rollDeg >= 0 ? '+' : ''}${rollDeg}°)`;
         const obsNote = item.observations ? ` [${item.observations}/${item.total_frames}f, σ=${item.std_mm}mm]` : '';
         const isActive = (idx === 0 && data.is_executing);
 

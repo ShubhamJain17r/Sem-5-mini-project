@@ -757,8 +757,7 @@ class ArenaVisionPipeline:
                 #     so jaws open along World Y to clamp the narrow 35mm width safely!
                 #   Else: longer dimension is along World Y.
                 #     Narrow dimension (35mm) is already along World X; keep neutral roll at 500 ticks.
-                # If block is square (aspect < 1.25):
-                #   Keep neutral roll at 500 ticks.
+                # If block is square (aspect < 1.25): compute face-aligned roll after polar transform.
                 if aspect >= 1.25:
                     if long_dx > long_dy:
                         gripper_roll_tick = 130
@@ -821,6 +820,12 @@ class ArenaVisionPipeline:
                     continue
 
                 r, th = self.world_to_arm_polar(x_w, y_w, "xarm_1")
+
+                # For square cubes, align Motor 2 (wrist_roll) to the nearest flat cube face
+                # relative to the arm's heading (th), keeping jaws off the 53mm cube diagonal.
+                if aspect < 1.25:
+                    rel_ccw_deg = ((-yaw) - th + 45.0) % 90.0 - 45.0
+                    gripper_roll_tick = max(130, min(870, int(round(500.0 + rel_ccw_deg * (740.0 / 180.0)))))
 
                 # Reach envelope check (must be reachable by arm: 110 mm <= r <= 325 mm)
                 if 110.0 <= r <= 325.0:

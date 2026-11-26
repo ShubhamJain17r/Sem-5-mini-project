@@ -263,6 +263,97 @@ def test_multiframe_consensus_error_correction():
     assert by_color["green"]["observations"] == 4
 
 
+def test_square_cube_wrist_roll_alignment():
+    """Verify square cubes align wrist roll to nearest flat face relative to arm heading."""
+    pipeline = ArenaVisionPipeline(config_dir=os.path.join(repo_root, "config"))
+    img = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
+
+    # 1. Unrotated 75x75px (37.5mm) square on midline (u=300, v=250 -> th=0) -> roll ~500
+    cv2.rectangle(img, (262, 212), (338, 288), (0, 255, 0), -1)
+    cubes_aligned = pipeline.detect_cubes(img)
+    assert len(cubes_aligned) == 1
+    assert abs(cubes_aligned[0].gripper_roll_tick - 500) <= 5
+
+    # 2. Rotated +25 deg square on midline -> roll shifts significantly from 500 within [315, 685]
+    img_rot = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
+    pts = np.array([[262, 212], [338, 212], [338, 288], [262, 288]], dtype=np.float32)
+    M = cv2.getRotationMatrix2D((300, 250), 25.0, 1.0)
+    pts_rot = cv2.transform(pts[None, :, :], M)[0].astype(np.int32)
+    cv2.fillPoly(img_rot, [pts_rot], (0, 255, 0))
+    cubes_rot = pipeline.detect_cubes(img_rot)
+    assert len(cubes_rot) == 1
+    assert 315 <= cubes_rot[0].gripper_roll_tick <= 685
+    assert abs(cubes_rot[0].gripper_roll_tick - 500) >= 60
+
+    # 3. Unrotated square off-midline (u=420 -> th != 0) compensates arm heading
+    img_side = np.zeros((pipeline.rect_h, pipeline.rect_w, 3), dtype=np.uint8)
+    cv2.rectangle(img_side, (382, 212), (458, 288), (0, 255, 0), -1)
+    cubes_side = pipeline.detect_cubes(img_side)
+    assert len(cubes_side) == 1
+    assert abs(cubes_side[0].gripper_roll_tick - 500) >= 30
+
+
+def test_pick_retry_limit_and_proximity_guard():
+    """Verify retry is skipped near other cubes, limited to 1 when clear, and reports Could not pick."""
+    from unittest.mock import MagicMock
+    from tools.autonomous_dashboard import AutonomousSystemManager
+
+    mgr = AutonomousSystemManager.__new__(AutonomousSystemManager)
+    mgr.dry_run = False
+    mgr.running = True
+    mgr.open_claw_tick = 250
+    mgr.clamp_claw_tick = 750
+    mgr.cube_center_z_mm = 22.5
+    mgr.params = load_kinematic_parameters(os.path.join(repo_root, "config", "xarm_hardware.yaml"), arm_id="xarm_1")
+    mgr.current_joint_ticks = {i: 500 for i in range(1, 7)}
+    mgr.sim_cubes = []
+    mgr.active_target = None
+    mgr.is_executing = False
+    mgr.trajectory_step = "idle"
+    mgr.last_pick_error = None
+    mgr._update_sim_view = lambda: None
+    mgr.publish_joint_states = lambda: None
+    mgr.logger = MagicMock()
+
+    sent_poses = []
+    driver = MagicMock()
+    driver.is_connected = True
+    driver.set_servo_positions = lambda ticks, duration_ms=600: sent_poses.append(dict(ticks))
+    # Motor 1 always reads 750 (fully closed / empty claw)
+    driver.get_servo_positions = lambda: {1: 750, 2: 500, 3: 750, 4: 250, 5: 600, 6: 500}
+    mgr.driver = driver
+
+    target = {
+        "color": "green",
+        "world_x": 150.0,
+        "world_y": 175.0,
+        "world_z": 22.5,
+        "z_rel": 17.5,
+        "reach_r": 201.5,
+        "theta_arm": -7.1,
+        "roll_tick": 500,
+        "dest_container": "green",
+    }
+
+    # Case 1: Nearby cube within 85mm -> skip retry completely (only 1 clamp attempt)
+    mgr.target_queue = [{"world_x": 210.0, "world_y": 175.0}]  # 60mm away
+    mgr.execute_pick_target(dict(target))
+    clamp_cmds = [p for p in sent_poses if p.get(1) == 750]
+    assert len(clamp_cmds) == 1, f"Expected 1 clamp (no retry near neighbor), got {len(clamp_cmds)}"
+    assert mgr.last_pick_error and "Could not pick" in mgr.last_pick_error
+    assert "nearby cube" in mgr.last_pick_error
+
+    # Case 2: Clear area -> strictly 1 retry (2 total clamps), then abort with Could not pick
+    sent_poses.clear()
+    mgr.target_queue = [{"world_x": 300.0, "world_y": 175.0}]  # 150mm away
+    mgr.execute_pick_target(dict(target))
+    clamp_cmds = [p for p in sent_poses if p.get(1) == 750]
+    assert len(clamp_cmds) == 2, f"Expected 2 clamps (initial + 1 retry), got {len(clamp_cmds)}"
+    assert mgr.last_pick_error and "Could not pick" in mgr.last_pick_error
+    assert "1 retry" in mgr.last_pick_error
+
+
+
 if __name__ == "__main__":
     try:
         import pytest
