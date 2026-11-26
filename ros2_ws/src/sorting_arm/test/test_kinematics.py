@@ -266,15 +266,37 @@ def test_dynamic_tick_adaptation():
 
 
 def test_sag_compensation():
-    """Verify that compensate_sag=True extends effective reach to neutralize cantilever droop."""
+    """Verify that compensate_sag=True extends effective reach at mid/far range (r=250mm).
+
+    Distance-scaled formula: sag_scale = clamp((r-185)/65, 0, 1).
+    At r=250mm: sag_scale = (250-185)/65 = 1.0 (full).
+    effective_r = 250 + 1.0 * (10.0 + 0.05*(250-185)) = 250 + 10.0 + 3.25 = 263.25mm
+    Shoulder pitch (Motor 5) tilts further forward (larger tick) for larger effective reach.
+    """
     params = KinematicParameters(gravity_sag_trim_mm=10.0, reach_scale_factor=0.05)
-    r = 200.0
+    r = 250.0
     sol_nom = solve_ik(r=r, theta=0.0, z=25.0, params=params, compensate_sag=False)
     sol_sag = solve_ik(r=r, theta=0.0, z=25.0, params=params, compensate_sag=True)
     assert sol_nom.success and sol_sag.success
-    # Effective r with sag comp is 200 + 10.0 + 0.05 * 50 = 212.5mm
-    # Shoulder pitch (Motor 5) tilts further forward (larger tick) for larger reach
+    # sag_scale=1.0 at r=250mm → effective_r ~263mm → shoulder pitches further forward
     assert sol_sag.ticks[5] > sol_nom.ticks[5]
+
+
+def test_near_field_zero_sag():
+    """Verify that at r<=185mm, compensate_sag=True produces IDENTICAL ticks to False.
+
+    At r=160mm: sag_scale = max(0, (160-185)/65) = 0.0 → effective_r = 160mm (no overshoot).
+    This prevents the flat +4mm trim from pushing the claw past near cube centers.
+    """
+    params = KinematicParameters(gravity_sag_trim_mm=10.0, reach_scale_factor=0.05)
+    for r in (145.0, 160.0, 183.0, 185.0):
+        sol_no_sag = solve_ik(r=r, theta=0.0, z=22.5, params=params, compensate_sag=False)
+        sol_sag = solve_ik(r=r, theta=0.0, z=22.5, params=params, compensate_sag=True)
+        assert sol_no_sag.success and sol_sag.success, f"IK failed at r={r}"
+        assert sol_sag.ticks == sol_no_sag.ticks, (
+            f"Near-field sag should be zero at r={r}mm, "
+            f"but got sag_ticks={sol_sag.ticks} vs nom_ticks={sol_no_sag.ticks}"
+        )
 
 
 def test_distance_based_grip_pitch_and_full_claw():

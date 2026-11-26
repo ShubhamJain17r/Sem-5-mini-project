@@ -287,7 +287,11 @@ def solve_ik(
 
     effective_r = r
     if compensate_sag:
-        effective_r = r + (p.gravity_sag_trim_mm + p.reach_scale_factor * max(0.0, r - 150.0))
+        # Distance-scaled sag: ramps from 0 at r<=185mm to full at r>=250mm.
+        # Near picks are almost fully retracted → zero cantilever droop → no radial offset needed.
+        # Far picks develop real sag → full gravity_sag_trim_mm + reach_scale_factor contribution.
+        sag_scale = max(0.0, min(1.0, (r - 185.0) / 65.0))
+        effective_r = r + sag_scale * (p.gravity_sag_trim_mm + p.reach_scale_factor * max(0.0, r - 185.0))
 
     if phi is None:
         target_phi = compute_natural_pitch(effective_r, z)
