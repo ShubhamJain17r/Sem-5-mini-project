@@ -13,22 +13,42 @@ Verifies:
 
 import json
 import math
+import os
+import sys
 import time
 import pytest
 
-import rclpy
-from rclpy.executors import SingleThreadedExecutor
-from sensor_msgs.msg import JointState
-from sorting_arm.driver_node import STANDARD_JOINT_NAMES, XArmDriverNode
-from sorting_arm.kinematics import (
-    DEG_PER_TICK,
-    get_compartment_target,
-    load_kinematic_parameters,
-    solve_ik,
-)
-from sorting_arm.mock_vision_node import MockVisionNode
-from std_msgs.msg import String
-from std_srvs.srv import Trigger
+# Ensure repository root and sorting_arm package are in sys.path
+test_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.abspath(os.path.join(test_dir, "..", "..", "..", ".."))
+sorting_arm_pkg = os.path.join(repo_root, "ros2_ws", "src", "sorting_arm")
+for p in [repo_root, sorting_arm_pkg]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+try:
+    import rclpy
+    from rclpy.executors import SingleThreadedExecutor
+    from sensor_msgs.msg import JointState
+    from sorting_arm.driver_node import STANDARD_JOINT_NAMES, XArmDriverNode
+    from sorting_arm.kinematics import (
+        DEG_PER_TICK,
+        get_compartment_target,
+        load_kinematic_parameters,
+        solve_ik,
+    )
+    from sorting_arm.mock_vision_node import MockVisionNode
+    from std_msgs.msg import String
+    from std_srvs.srv import Trigger
+    HAS_RCLPY = True
+except ImportError as _err:
+    HAS_RCLPY = False
+    _IMPORT_ERR = str(_err)
+
+if not HAS_RCLPY:
+    pytestmark = pytest.mark.skip(
+        reason=f"Requires ROS 2 Humble (rclpy): {_IMPORT_ERR}. Run inside Docker container (./docker/run.sh)."
+    )
 
 
 @pytest.fixture(scope="module")

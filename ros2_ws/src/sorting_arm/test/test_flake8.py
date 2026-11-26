@@ -12,8 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ament_flake8.main import main_with_errors
 import pytest
+
+try:
+    from ament_flake8.main import main_with_errors
+    HAS_AMENT = True
+except ImportError as _err:
+    HAS_AMENT = False
+    _IMPORT_ERR = str(_err)
+
+if not HAS_AMENT:
+    pytestmark = pytest.mark.skip(
+        reason=f"Requires ament_flake8: {_IMPORT_ERR}. Run inside Docker container."
+    )
 
 
 @pytest.mark.flake8

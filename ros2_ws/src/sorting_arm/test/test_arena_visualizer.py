@@ -5,16 +5,36 @@ Unit and integration tests for ArenaVisualizerNode (5cm Grid, HUD, Interactive C
 
 import json
 import math
+import os
+import sys
 import time
-
-from geometry_msgs.msg import PointStamped
 import pytest
-import rclpy
-from rclpy.executors import SingleThreadedExecutor
-from sensor_msgs.msg import JointState
-from sorting_arm.arena_visualizer_node import ArenaVisualizerNode
-from std_msgs.msg import String
-from visualization_msgs.msg import Marker, MarkerArray
+
+# Ensure repository root and sorting_arm package are in sys.path
+test_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.abspath(os.path.join(test_dir, "..", "..", "..", ".."))
+sorting_arm_pkg = os.path.join(repo_root, "ros2_ws", "src", "sorting_arm")
+for p in [repo_root, sorting_arm_pkg]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+try:
+    from geometry_msgs.msg import PointStamped
+    import rclpy
+    from rclpy.executors import SingleThreadedExecutor
+    from sensor_msgs.msg import JointState
+    from sorting_arm.arena_visualizer_node import ArenaVisualizerNode
+    from std_msgs.msg import String
+    from visualization_msgs.msg import Marker, MarkerArray
+    HAS_RCLPY = True
+except ImportError as _err:
+    HAS_RCLPY = False
+    _IMPORT_ERR = str(_err)
+
+if not HAS_RCLPY:
+    pytestmark = pytest.mark.skip(
+        reason=f"Requires ROS 2 Humble (rclpy): {_IMPORT_ERR}. Run inside Docker container (./docker/run.sh)."
+    )
 
 
 @pytest.fixture(scope="module")

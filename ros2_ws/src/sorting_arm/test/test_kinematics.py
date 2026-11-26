@@ -1,4 +1,13 @@
 import os
+import sys
+
+# Ensure repository root and sorting_arm package are in sys.path
+test_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.abspath(os.path.join(test_dir, "..", "..", "..", ".."))
+sorting_arm_pkg = os.path.join(repo_root, "ros2_ws", "src", "sorting_arm")
+for p in [repo_root, sorting_arm_pkg]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from sorting_arm.kinematics import (
     MAX_SAFE_TICKS,

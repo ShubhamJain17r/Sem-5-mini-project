@@ -8,7 +8,18 @@ All tests run in pure simulation / offline mode (NO hardware connection required
 
 import os
 import shutil
+import sys
 import tempfile
+
+# Ensure repository root and sorting_arm package are in sys.path
+test_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.abspath(os.path.join(test_dir, "..", "..", "..", ".."))
+sorting_arm_pkg = os.path.join(repo_root, "ros2_ws", "src", "sorting_arm")
+for p in [repo_root, sorting_arm_pkg]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+HW_CONFIG_PATH = os.path.join(repo_root, "config", "xarm_hardware.yaml")
 
 from sorting_arm.kinematics import (
     KinematicParameters,
@@ -30,7 +41,7 @@ from tools.web_config.server import atomic_write_yaml, load_yaml
 
 def test_xarm1_empirical_parameters():
     """Verify xArm 1S Motor 3 and Motor 4 empirical boundaries and positive polarities."""
-    hw_path = "config/xarm_hardware.yaml"
+    hw_path = HW_CONFIG_PATH
     params1 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_1")
 
     # Joint direction multipliers must be +1
@@ -46,7 +57,7 @@ def test_xarm1_empirical_parameters():
 
 def test_xarm1_fk_ik_consistency():
     """Verify analytical IK and FK roundtrip with aligned polarities on xArm 1S."""
-    hw_path = "config/xarm_hardware.yaml"
+    hw_path = HW_CONFIG_PATH
     params1 = load_kinematic_parameters(config_path=hw_path, arm_id="xarm_1")
 
     test_points = [
@@ -116,7 +127,7 @@ def test_trajectory_interpolation_math():
 
 def test_cartesian_trajectory_generator():
     """Verify smooth Cartesian path interpolation."""
-    p = load_kinematic_parameters("config/xarm_hardware.yaml", arm_id="xarm_1")
+    p = load_kinematic_parameters(HW_CONFIG_PATH, arm_id="xarm_1")
     pts, ok = generate_cartesian_trajectory(
         start_polar=(200.0, 0.0, 80.0),
         target_polar=(240.0, 10.0, 30.0),
@@ -170,7 +181,7 @@ def test_telemetry_drift_analysis():
 
 def test_dynamic_nominal_centers_and_z_trim():
     """Verify dynamic nominal_center_ticks and Cartesian z_depth_trim_mm parameters."""
-    cfg = "config/xarm_hardware.yaml"
+    cfg = HW_CONFIG_PATH
     params = load_kinematic_parameters(config_path=cfg, arm_id="xarm_1")
 
     # Verify nominal center ticks loaded dynamically from YAML

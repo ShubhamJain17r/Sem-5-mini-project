@@ -12,8 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ament_copyright.main import main
 import pytest
+
+try:
+    from ament_copyright.main import main
+    HAS_AMENT = True
+except ImportError as _err:
+    HAS_AMENT = False
+    _IMPORT_ERR = str(_err)
+
+if not HAS_AMENT:
+    pytestmark = pytest.mark.skip(
+        reason=f"Requires ament_copyright: {_IMPORT_ERR}. Run inside Docker container."
+    )
 
 
 # Remove the `skip` decorator once the source file(s) have a copyright header

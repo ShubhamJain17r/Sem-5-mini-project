@@ -225,6 +225,44 @@ def test_rectangular_block_wrist_roll():
     assert c.gripper_roll_tick == 130, f"Expected roll 130 for horizontal block, got {c.gripper_roll_tick}"
 
 
+def test_multiframe_consensus_error_correction():
+    """Verify multi-frame spatial clustering takes median coordinates and rejects single-frame outliers."""
+    from tools.autonomous_dashboard import build_multiframe_consensus_queue
+    from vision.arena_vision_pipeline import DetectedCube
+
+    hw_cfg = os.path.join(repo_root, "config", "xarm_hardware.yaml")
+    params = load_kinematic_parameters(config_path=hw_cfg, arm_id="xarm_1")
+
+    # Simulate 4 handheld captures of 2 real cubes (red @ ~150,150; green @ ~220,180) + 1 spurious outlier
+    f1 = [
+        DetectedCube(color="red", world_x=149.0, world_y=151.0, world_z=22.5, gripper_roll_tick=500),
+        DetectedCube(color="green", world_x=221.0, world_y=179.0, world_z=22.5, gripper_roll_tick=500),
+    ]
+    f2 = [
+        DetectedCube(color="red", world_x=150.5, world_y=149.5, world_z=22.5, gripper_roll_tick=500),
+        DetectedCube(color="green", world_x=219.5, world_y=180.5, world_z=22.5, gripper_roll_tick=500),
+        DetectedCube(color="red", world_x=80.0, world_y=110.0, world_z=22.5, gripper_roll_tick=500),  # 1-frame noise
+    ]
+    f3 = [
+        DetectedCube(color="red", world_x=150.0, world_y=150.0, world_z=22.5, gripper_roll_tick=500),
+        DetectedCube(color="green", world_x=220.0, world_y=180.0, world_z=22.5, gripper_roll_tick=500),
+    ]
+    f4 = [
+        DetectedCube(color="red", world_x=152.0, world_y=148.5, world_z=22.5, gripper_roll_tick=500),
+        DetectedCube(color="green", world_x=220.2, world_y=180.1, world_z=22.5, gripper_roll_tick=500),
+    ]
+
+    queue = build_multiframe_consensus_queue([f1, f2, f3, f4], params)
+    assert len(queue) == 2, f"Expected 2 consensus cubes (outlier rejected), got {len(queue)}"
+
+    by_color = {q["color"]: q for q in queue}
+    assert "red" in by_color and "green" in by_color
+    assert abs(by_color["red"]["world_x"] - 150.25) < 0.5
+    assert abs(by_color["red"]["world_y"] - 149.75) < 0.5
+    assert by_color["red"]["observations"] == 4
+    assert by_color["green"]["observations"] == 4
+
+
 if __name__ == "__main__":
     try:
         import pytest
@@ -237,4 +275,5 @@ if __name__ == "__main__":
         test_nearest_first_queue_sorting()
         test_phase1_phase2_ik_bridge()
         test_rectangular_block_wrist_roll()
-        print("All 7 vision pipeline tests passed successfully!")
+        test_multiframe_consensus_error_correction()
+        print("All 8 vision pipeline tests passed successfully!")
