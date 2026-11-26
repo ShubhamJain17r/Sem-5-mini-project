@@ -332,18 +332,21 @@ ros2 launch sorting_arm xarm.launch.py dry_run:=true auto_start:=true
 ### 7.1 System Bringup Checklist
 
 ```bash
-# 1. Build and run development container (from project root)
+# 1. Start development container from host repository root (Host Terminal: ~/Projects/Sem-5-mini-project)
 ./docker/run.sh
 
-# 2. Inside container: clean build and source workspace
+# 2. Inside container: clean build and source workspace (Container: /workspace/ros2_ws)
 cd /workspace/ros2_ws
 colcon build --symlink-install
 source install/setup.bash
 
-# 3. Run automated offline unit test suite (32 tests)
-pytest src/sorting_arm/test/test_kinematics.py src/sorting_arm/test/test_vision_pipeline.py src/sorting_arm/test/test_calibration_and_features.py src/sorting_arm/test/test_camera_alignment.py
+# 3. Run automated unit test suite (36 tests):
+python3 -m pytest src/sorting_arm/test/test_kinematics.py src/sorting_arm/test/test_vision_pipeline.py src/sorting_arm/test/test_calibration_and_features.py src/sorting_arm/test/test_camera_alignment.py
 
-# 4. Launch full system
+# And run ROS 2 trajectory & simulation pipeline tests (9 tests):
+python3 -m pytest src/sorting_arm/test/test_simulation_pipeline.py
+
+# 4. Launch full system:
 ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
 

@@ -285,26 +285,29 @@ chmod +x docker/*.sh
 ## 11. Command Cheat Sheet
 
 ### 🐳 ROS 2 Operations (STRICTLY INSIDE DOCKER CONTAINER)
-| Action | Command | Environment |
+| Action | Command | Environment & Folder |
 | :--- | :--- | :--- |
-| **Start / Enter container** | `./docker/run.sh` | Host Terminal |
-| **Open another shell in container** | `docker exec -it xarm-humble-container bash` | Host Terminal Tab |
+| **Start / Enter container shell** | `./docker/run.sh` | Host Terminal (`~/Projects/Sem-5-mini-project`) |
+| **Attach another shell to container** | `docker exec -it xarm_sorting_env bash` | Host Terminal Tab (`~/Projects/Sem-5-mini-project`) |
 | **Build ROS 2 packages** | `colcon build --symlink-install` | Inside Container (`/workspace/ros2_ws`) |
 | **Source workspace overlay** | `source install/setup.bash` | Inside Container (`/workspace/ros2_ws`) |
-| **Run ROS 2 tests** | `pytest src/sorting_arm/test/test_kinematics.py` | Inside Container (`/workspace/ros2_ws`) |
-| **Launch Digital Twin Simulation** | `ros2 launch sorting_arm simulation.launch.py gui:=true` | Inside Container |
-| **Launch Full Physical Workcell** | `ros2 launch sorting_arm xarm.launch.py auto_start:=true` | Inside Container |
-| **Launch xArm Hardware Driver** | `ros2 launch sorting_arm xarm_driver.launch.py` | Inside Container |
-| **Run 3D Visualizer (RViz2)** | `rviz2` | Inside Container |
+| **Run ROS 2 tests (Interactive)** | `python3 -m pytest src/sorting_arm/test/test_kinematics.py` | Inside Container (`/workspace/ros2_ws`) |
+| **Run ROS 2 tests (One-Shot)** | `./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_kinematics.py` | Host Terminal (`~/Projects/Sem-5-mini-project`) |
+| **Launch Digital Twin Simulation** | `ros2 launch sorting_arm simulation.launch.py gui:=true` | Inside Container (`/workspace`) |
+| **Launch Full Physical Workcell** | `ros2 launch sorting_arm xarm.launch.py auto_start:=true` | Inside Container (`/workspace`) |
+| **Launch xArm Hardware Driver** | `ros2 launch sorting_arm xarm_driver.launch.py` | Inside Container (`/workspace`) |
+| **Run 3D Visualizer (RViz2)** | `rviz2` | Inside Container (`/workspace`) |
 
 ### 🐍 Standalone Python Operations (STRICTLY IN PYTHON VIRTUAL ENVIRONMENT ON HOST)
-| Action | Command | Environment |
+| Action | Command | Environment & Folder |
 | :--- | :--- | :--- |
-| **Setup Virtual Environment** | `./setup_venv.sh` | Host Terminal |
-| **Activate Virtual Environment** | `source venv/bin/activate` | Host Terminal |
-| **Run Web Mission Control Dashboard** | `python3 tools/autonomous_dashboard.py --dry-run` | Host Terminal (`venv`) |
-| **Run Web Hardware Config Server** | `python3 tools/web_config/server.py` | Host Terminal (`venv`) |
-| **Run Terminal Autonomous Sorter** | `python3 tools/run_autonomous_system.py --dry-run` | Host Terminal (`venv`) |
-| **Run Offline Kinematics Tests** | `python3 ros2_ws/src/sorting_arm/test/run_tests.py` | Host Terminal (`venv`) |
-| **Calibrate Camera / ArUco Warp** | `python3 vision/test_aruco_warp.py --synthetic` | Host Terminal (`venv`) |
+| **Setup Virtual Environment** | `./setup_venv.sh` | Host Terminal (`~/Projects/Sem-5-mini-project`) |
+| **Activate Virtual Environment** | `source venv/bin/activate` | Host Terminal (`~/Projects/Sem-5-mini-project`) |
+| **Run Unit Tests via pytest** | `pytest ros2_ws/src/sorting_arm/test/` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Run Offline Kinematics Tests** | `python3 ros2_ws/src/sorting_arm/test/run_tests.py` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Run Web Mission Control Dashboard** | `python3 tools/autonomous_dashboard.py --dry-run` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Run Web Hardware Config Server** | `python3 tools/web_config/server.py` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Run Terminal Autonomous Sorter** | `python3 tools/run_autonomous_system.py --dry-run --camera 0` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Calibrate Camera / ArUco Warp** | `python3 vision/test_aruco_warp.py --synthetic` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
+| **Camera Optical Leveling HUD** | `python3 vision/align_camera.py --synthetic --save-report` | Host Terminal (`venv`, `~/Projects/Sem-5-mini-project`) |
 

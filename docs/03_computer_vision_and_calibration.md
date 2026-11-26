@@ -256,8 +256,16 @@ $$X_w \in [25.0, 325.0\text{ mm}], \quad Y_w \in [25.0, 300.0\text{ mm}]$$
 - Press `l` to lock homography in memory, `g` to display metric grid lines, `s` to save matrix to config.
 
 ### 7.4 Automated Vision Tests
-- Run tests anytime via:
+- Run tests anytime across either environment:
   ```bash
+  # Option A: Host Terminal in Python venv (Working Directory: ~/Projects/Sem-5-mini-project)
+  source venv/bin/activate
   pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+
+  # Option B: One-Shot Docker from Host Terminal (Working Directory: ~/Projects/Sem-5-mini-project)
+  ./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+
+  # Option C: Inside Docker Container (Working Directory: /workspace/ros2_ws)
+  python3 -m pytest src/sorting_arm/test/test_vision_pipeline.py -v
   ```
-- All 6 unit tests verify ArUco detection, $600\times 800$ warp, Red/Green discrimination, chassis masking, and Nearest-First ordering.
+- All 7 unit tests verify ArUco detection, $600\times 800$ warp, Red/Green discrimination, chassis masking, and Nearest-First ordering.

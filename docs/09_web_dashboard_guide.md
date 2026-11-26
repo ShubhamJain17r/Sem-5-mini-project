@@ -199,7 +199,8 @@ To run the web dashboard alongside the full ROS 2 Humble RViz simulation:
 ### Terminal 1: Launch Web Dashboard (Host venv)
 ```bash
 # ==============================================================================
-# [HOST PYTHON VIRTUAL ENVIRONMENT]
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Host Terminal
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
 # ==============================================================================
 source venv/bin/activate
 python3 tools/autonomous_dashboard.py --dry-run
@@ -208,7 +209,8 @@ python3 tools/autonomous_dashboard.py --dry-run
 ### Terminal 2: Launch ROS 2 Digital Twin Simulation (Inside Docker)
 ```bash
 # ==============================================================================
-# [DOCKER ENVIRONMENT] Run inside Docker container
+# [HOST TERMINAL -> DOCKER] Host Terminal
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
 # ==============================================================================
 ./docker/run.sh ros2 launch sorting_arm simulation.launch.py gui:=true
 ```
@@ -250,4 +252,4 @@ When you click **`Snap Frame`** on the web dashboard:
 ### Q4: ArUco markers are not turning green
 - Ensure camera height is around $55\text{--}70\text{ cm}$ directly overhead.
 - Ensure adequate diffuse lighting without harsh specular glares on vinyl markers.
-- Verify marker IDs: Top-Left is ID 2, Top-Right is ID 0, Bottom-Left is ID 3, Bottom-Right is ID 1 (`DICT_4X4_50`).
+- Verify marker IDs: Top-Left is ID 0, Top-Right is ID 1, Bottom-Left is ID 2, Bottom-Right is ID 3 (`DICT_4X4_50`).

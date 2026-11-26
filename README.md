@@ -312,7 +312,8 @@ From the repository root:
 #### 4. Build Workspace & Run ROS 2 Nodes (Inside Docker Container)
 ```bash
 # ==============================================================================
-# [DOCKER ENVIRONMENT] Execute strictly inside Docker container (./docker/run.sh)
+# [DOCKER CONTAINER] Execute inside Docker container shell (./docker/run.sh)
+# Working Directory: /workspace/ros2_ws
 # ==============================================================================
 
 # 1. Build ROS 2 workspace
@@ -320,11 +321,15 @@ cd /workspace/ros2_ws
 colcon build --symlink-install
 source install/setup.bash
 
-# 2. Run automated analytical kinematics tests
-pytest src/sorting_arm/test/test_kinematics.py
+# 2. Run automated analytical kinematics tests (14 tests)
+# Note: Both 'pytest' and 'python3 -m pytest' are supported inside Docker
+python3 -m pytest src/sorting_arm/test/test_kinematics.py
 
 # 3. Run full ROS 2 mock driver & trajectory simulation pipeline tests (9 tests)
-pytest src/sorting_arm/test/test_simulation_pipeline.py
+python3 -m pytest src/sorting_arm/test/test_simulation_pipeline.py
+
+# Or run all 50 ROS 2 functional & vision pipeline tests:
+python3 -m pytest src/sorting_arm/test/test_kinematics.py src/sorting_arm/test/test_vision_pipeline.py src/sorting_arm/test/test_calibration_and_features.py src/sorting_arm/test/test_camera_alignment.py src/sorting_arm/test/test_simulation_pipeline.py src/sorting_arm/test/test_arena_visualizer.py
 
 # 4. 3D Digital Twin Simulation & RViz2 (NO physical hardware required):
 ros2 launch sorting_arm simulation.launch.py gui:=true mock_vision:=true auto_start:=true
@@ -342,6 +347,15 @@ ros2 run sorting_arm polar_teleop_node
 ros2 launch sorting_arm xarm.launch.py auto_start:=true
 ```
 
+> [!TIP]
+> **One-Shot Docker Execution from Host Terminal**:
+> You can also run any Docker test directly from the host repository root without opening an interactive container shell:
+> ```bash
+> # [HOST TERMINAL -> DOCKER] Working Directory: ~/Projects/Sem-5-mini-project
+> ./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_kinematics.py
+> ./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py
+> ```
+
 ---
 
 ### Option B: Host Python Virtual Environment (Standalone Python Tools Only)
@@ -357,6 +371,7 @@ For running standalone Python scripts (Web Configuration Dashboard, Web Mission 
 ```bash
 # ==============================================================================
 # [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host Machine
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
 # ==============================================================================
 
 # Run one-click setup script (creates venv/ and installs dependencies)
@@ -370,6 +385,7 @@ source venv/bin/activate
 ```bash
 # ==============================================================================
 # [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host (source venv/bin/activate)
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
 # ==============================================================================
 
 # Launch Web Mission Control Dashboard (connects to camera, probes xArm, renders twin):
@@ -378,28 +394,33 @@ python3 tools/autonomous_dashboard.py               # Live Hardware Mode
 # Open http://localhost:8080 in your browser
 ```
 
-#### 3. Run Terminal Autonomous Pipeline & Hardware Calibration
+#### 3. Run Terminal Autonomous Pipeline, Tests & Hardware Calibration
 ```bash
 # ==============================================================================
 # [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host (source venv/bin/activate)
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
 # ==============================================================================
 
-# Launch real-time Web Hardware Configuration & Potentiometer Server (Port 8000):
+# 1. Run offline unit tests via pytest (36 passed, ROS 2 integration tests gracefully skipped):
+pytest ros2_ws/src/sorting_arm/test/
+
+# Or run the standalone zero-dependency test runner:
+python3 ros2_ws/src/sorting_arm/test/run_tests.py
+
+# 2. Launch real-time Web Hardware Configuration & Potentiometer Server (Port 8000):
 python3 tools/web_config/server.py
 
-# Run 36 offline simulation unit tests (no physical hardware required):
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+# 3. Run 4-stage terminal autonomous sorting pipeline:
+python3 tools/run_autonomous_system.py --dry-run --camera 0   # Simulation / Dry-run
+python3 tools/run_autonomous_system.py --camera 0             # Live Hardware Execution
 
-# Run 4-stage terminal autonomous sorting pipeline:
-python3 tools/run_autonomous_system.py --dry-run   # Simulation / Dry-run
-python3 tools/run_autonomous_system.py             # Live Hardware Execution
-
-# Camera Calibration & ArUco Homography Tools:
+# 4. Camera Calibration & ArUco Homography Tools:
 python3 vision/test_aruco_warp.py --synthetic      # Test ArUco metric rectification
 python3 vision/tune_hsv.py --synthetic             # Interactive 6-trackbar HSV tuner
 python3 vision/calibrate_camera.py --synthetic     # Camera lens intrinsics
+python3 vision/align_camera.py --synthetic --save-report # Camera leveling HUD check
 
-# Run sub-millimeter telemetry drift logger:
+# 5. Run sub-millimeter telemetry drift logger:
 python3 tools/telemetry_logger.py --arm xarm_1 --scan
 ```
 

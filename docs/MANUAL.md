@@ -16,10 +16,10 @@ Comprehensive operational manual for running, testing, calibrating, and troubles
 > 🚫 **NEVER** run ROS 2 commands directly on the host operating system.  
 > 🚫 **NEVER** run project Python scripts without activating the Python virtual environment (`venv`).
 
-| Environment | Purpose | Permitted Operations |
-| :--- | :--- | :--- |
-| **Host Python `venv`** | Python scripts, web dashboard, telemetry, standalone direct tests | `python3 tools/autonomous_dashboard.py`<br>`python3 tools/web_config/server.py`<br>`python3 tools/telemetry_logger.py`<br>`python3 ros2_ws/src/sorting_arm/test/run_tests.py` |
-| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations & simulation | `colcon build`<br>`ros2 launch sorting_arm simulation.launch.py`<br>`ros2 launch sorting_arm xarm.launch.py`<br>`rviz2`<br>`pytest src/sorting_arm/test/` |
+| Environment | Purpose | Permitted Operations | Working Folder |
+| :--- | :--- | :--- | :--- |
+| **Host Python `venv`** | Python scripts, web dashboard, telemetry, standalone direct tests | `pytest ros2_ws/src/sorting_arm/test/`<br>`python3 ros2_ws/src/sorting_arm/test/run_tests.py`<br>`python3 tools/autonomous_dashboard.py`<br>`python3 tools/web_config/server.py`<br>`python3 tools/telemetry_logger.py` | Host: `~/Projects/Sem-5-mini-project` |
+| **Docker Container** (`./docker/run.sh`) | **ALL** ROS 2 operations & simulation | `colcon build`<br>`ros2 launch sorting_arm simulation.launch.py`<br>`ros2 launch sorting_arm xarm.launch.py`<br>`rviz2`<br>`python3 -m pytest src/sorting_arm/test/` | Container: `/workspace/ros2_ws` or `/workspace` |
 
 ---
 
@@ -74,15 +74,26 @@ Before powering on or executing motion commands:
 Run these tests in your host `venv` (`source venv/bin/activate`) to verify arm mechanics, limits, and IK before launching ROS 2.
 
 ### Step 1: Run Offline Test Suite (No Hardware Connection Required)
-Verify kinematics, safety clamps, and trajectory interpolation algorithms:
+Verify kinematics, safety clamps, camera alignment, and trajectory interpolation algorithms:
 ```bash
-# Run 20 kinematics, driver, and trajectory unit tests
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/test/run_tests.py
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host Machine
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
+# ==============================================================================
 
-# Run automated computer vision & ArUco homography tests
+# 1. Run all offline unit tests via pytest (36 passed, ROS 2 tests gracefully skipped):
+pytest ros2_ws/src/sorting_arm/test/
+
+# 2. Or run individual test suites:
+pytest ros2_ws/src/sorting_arm/test/test_kinematics.py -v
 pytest ros2_ws/src/sorting_arm/test/test_vision_pipeline.py -v
+pytest ros2_ws/src/sorting_arm/test/test_calibration_and_features.py -v
+pytest ros2_ws/src/sorting_arm/test/test_camera_alignment.py -v
+
+# 3. Or run the standalone zero-dependency test runner without pytest:
+python3 ros2_ws/src/sorting_arm/test/run_tests.py
 ```
-*Expected Result*: All 26 unit tests report `[PASS]` with 0 failures.
+*Expected Result*: All 36 unit tests report `[PASS]` with 0 failures.
 
 ### Step 2: Test Single Arm Motion & Gripper
 Test communication, upright reset pose, and claw opening/clamping:
@@ -245,21 +256,47 @@ python3 tools/autonomous_pick_and_place.py --arm xarm_1 --device /dev/video0 --p
 All ROS 2 nodes, drivers, and coordinate pipelines run inside the Docker container.
 
 ### Step 1: Build the ROS 2 Workspace in Docker
+
+#### Option A: Inside Container Shell (Interactive)
 ```bash
+# ==============================================================================
+# [DOCKER CONTAINER] Inside container (./docker/run.sh)
+# Working Directory: /workspace/ros2_ws
+# ==============================================================================
+cd /workspace/ros2_ws
+colcon build --symlink-install
+source install/setup.bash
+```
+
+#### Option B: From Host Terminal (One-Shot)
+```bash
+# ==============================================================================
+# [HOST TERMINAL -> DOCKER] Host Terminal
+# Working Directory: ~/Projects/Sem-5-mini-project
+# ==============================================================================
 ./docker/run.sh bash -c "cd /workspace/ros2_ws && colcon build --symlink-install"
 ```
 
 ### Step 2: Run 3D Digital Twin Simulation in RViz2 (No Hardware Required)
 Test the complete analytical kinematics solver, trajectory generation, and ROS 2 autonomous sorter without connecting a physical robot or camera:
+
 ```bash
+# ==============================================================================
+# [HOST TERMINAL -> DOCKER] Host Terminal
+# Working Directory: ~/Projects/Sem-5-mini-project
+# ==============================================================================
+
 # Launch full 3D digital twin simulation with RViz2 GUI:
 ./docker/run.sh ros2 launch sorting_arm simulation.launch.py gui:=true mock_vision:=true auto_start:=true
 
 # Or run headless simulation in background/CI:
 ./docker/run.sh ros2 launch sorting_arm simulation.launch.py gui:=false mock_vision:=true auto_start:=true
 
-# Run automated simulation test suite:
-./docker/run.sh python3 -m pytest /workspace/ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py -v
+# Run automated simulation test suite (9 tests):
+./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py -v
+
+# Or run all 50 ROS 2 functional & vision pipeline tests:
+./docker/run.sh pytest ros2_ws/src/sorting_arm/test/test_kinematics.py ros2_ws/src/sorting_arm/test/test_vision_pipeline.py ros2_ws/src/sorting_arm/test/test_calibration_and_features.py ros2_ws/src/sorting_arm/test/test_camera_alignment.py ros2_ws/src/sorting_arm/test/test_simulation_pipeline.py ros2_ws/src/sorting_arm/test/test_arena_visualizer.py
 ```
 
 This simulation launch brings up:

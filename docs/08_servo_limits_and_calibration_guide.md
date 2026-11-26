@@ -61,6 +61,10 @@ $$\text{Ticks} = \text{Angle (degrees)} \times \left(\frac{1000.0}{240.0^\circ}\
 ### 1. Launch the Web Configuration Server
 Activate your host virtual environment and launch the server:
 ```bash
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host Machine
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
+# ==============================================================================
 source venv/bin/activate
 python3 tools/web_config/server.py 8000
 ```
@@ -123,14 +127,23 @@ Deviation trims in `config/xarm_hardware.yaml` must never exceed realistic mecha
 
 ## 🚀 Verifying Limits with the Motion Test Suite
 
-After updating limits or deviations in the web portal, verify full-envelope travel in Python:
+After updating limits or deviations in the web portal, verify full-envelope travel:
 
 ```bash
-# Verify all single-arm motion test routines on xarm_1 (primary)
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
+# ==============================================================================
+# [HOST PYTHON VIRTUAL ENVIRONMENT] Execute on Host Machine
+# Working Directory: ~/Projects/Sem-5-mini-project (Repository Root)
+# ==============================================================================
+source venv/bin/activate
 
-# Direct pick-and-place end-to-end integration test
-PYTHONPATH=ros2_ws/src/sorting_arm:. python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py
+# 1. Run offline calibration & dynamic limit unit tests (no physical arm needed):
+pytest ros2_ws/src/sorting_arm/test/test_calibration_and_features.py -v
+
+# 2. Verify all single-arm motion test routines on physical xarm_1:
+python3 ros2_ws/src/sorting_arm/sorting_arm/motion_test_suite.py --arm xarm_1 --all
+
+# 3. Direct pick-and-place end-to-end integration test:
+python3 ros2_ws/src/sorting_arm/sorting_arm/pick_and_place_test.py --arm xarm_1
 ```
 
 *Expected Result*: All trajectories complete smoothly with zero IK boundary violations, zero gear buzzing, and perfect tabletop grasp depth.

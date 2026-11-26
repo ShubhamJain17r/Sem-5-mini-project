@@ -265,25 +265,35 @@ The repository provides a single, unified master CLI that runs the complete auto
 [`tools/run_autonomous_system.py`](file:///home/shubham/Projects/Sem-5-mini-project/tools/run_autonomous_system.py)
 
 ### Presetup Commands:
+
+#### Option A: Inside Docker Container
 ```bash
-# 1. Build and run Docker (Host Terminal)
+# 1. Build and run Docker (Host Terminal - ~/Projects/Sem-5-mini-project)
 ./docker/build.sh
 ./docker/run.sh
 
-# 2. Inside Container Terminal: Build ROS 2 workspace
+# 2. Inside Container Shell: Build ROS 2 workspace
 cd /workspace/ros2_ws
 colcon build --symlink-install
 source install/setup.bash
 
-# 3. Launch Master Autonomous Sorting Pipeline
-python3 tools/run_autonomous_system.py
+# 3. Launch Master Autonomous Sorting Pipeline (from /workspace)
+cd /workspace
+python3 tools/run_autonomous_system.py --camera 0
+```
+
+#### Option B: Standalone Execution on Host (Python venv)
+```bash
+# Working Directory: ~/Projects/Sem-5-mini-project (Host Terminal)
+source venv/bin/activate
+python3 tools/run_autonomous_system.py --dry-run --camera 0
 ```
 
 ### Command Flags:
 - `--dry-run`: Simulates the entire vision perception, extrinsics, filtering, and kinematic trajectories without physically driving manipulator motors.
 - `--step`: Prompts for user `[Enter]` before picking each target cube (ideal for verification and grading).
 - `--auto`: Continuously sorts all detected objects autonomously.
-- `--camera <idx>`: Specifies video capture device index (default: `4`).
+- `--camera <idx>`: Specifies video capture device index (use `0` for default webcam/external camera, e.g. `--camera 0`).
 - `--port <dev>`: Specifies xArm controller port (default: `auto`).
 
 ### Self-Healing & Interactive Diagnostics:
