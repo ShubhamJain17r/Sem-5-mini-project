@@ -999,7 +999,7 @@ class AutonomousSystemManager:
         try:
             # Phase 1: Overhead Hover Standoff (Z = 80 mm clears 45 mm cube + 18 mm fingertip)
             self.trajectory_step = "hover"
-            standoff_ik = solve_ik(r=r, theta=theta, z=80.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
+            standoff_ik = solve_ik(r=r, theta=theta, z=80.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
             if standoff_ik.success:
                 ticks = dict(standoff_ik.ticks)
                 ticks[1] = self.open_claw_tick  # Fully open claw before approaching
@@ -1010,7 +1010,7 @@ class AutonomousSystemManager:
             base_pick_z = float(target.get("z_rel", float(target.get("world_z", self.cube_center_z_mm)) - 5.0))
             pick_z = max(19.0, base_pick_z + 3.5)
             self.trajectory_step = "plunge"
-            pick_ik = solve_ik(r=r, theta=theta, z=pick_z, roll_tick=roll_tick, params=self.params, compensate_sag=False)
+            pick_ik = solve_ik(r=r, theta=theta, z=pick_z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
             if pick_ik.success:
                 ticks = dict(pick_ik.ticks)
                 ticks[1] = self.open_claw_tick  # Keep claw fully open for plunge
@@ -1050,7 +1050,7 @@ class AutonomousSystemManager:
 
             # Phase 4: Vertical Extraction Lift (Z = 90 mm)
             self.trajectory_step = "lift"
-            lift_ik = solve_ik(r=r, theta=theta, z=90.0, roll_tick=roll_tick, params=self.params, compensate_sag=False)
+            lift_ik = solve_ik(r=r, theta=theta, z=90.0, roll_tick=roll_tick, params=self.params, compensate_sag=True)
             if lift_ik.success:
                 ticks = dict(lift_ik.ticks)
                 ticks[1] = self.clamp_claw_tick

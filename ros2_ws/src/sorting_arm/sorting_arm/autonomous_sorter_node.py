@@ -277,7 +277,7 @@ class AutonomousSorterNode(Node):
         roll_tick = target.get("gripper_roll_tick")
         if roll_tick is None:
             roll_tick = int(round(centers.get(2, 503) + yaw * (1000.0 / 240.0)))
-        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params, compensate_sag=False)
+        pick_ik = solve_ik(r=r, theta=theta, z=z, roll_tick=roll_tick, params=self.params, compensate_sag=True)
         if not pick_ik.success:
             self.get_logger().warn(f"Pick IK failed for {color.upper()} at r={r:.1f}mm, th={theta:+.1f}deg: {pick_ik.message}")
             return
@@ -308,7 +308,7 @@ class AutonomousSorterNode(Node):
         # Step A: Pure top-down overhead standoff with claw fully open
         standoff_ik = solve_ik(
             r=r, theta=theta, z=z + 50.0, claw_tick=open_claw_tick, roll_tick=roll_tick,
-            params=self.params, compensate_sag=False,
+            params=self.params, compensate_sag=True,
         )
         if standoff_ik.success:
             self.dispatch_joint_command(standoff_ik.ticks, time_ms=600)

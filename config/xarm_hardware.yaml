@@ -74,9 +74,9 @@ manipulators:
       y: 375.0
       z: 5.0
       z_depth_trim_mm: 0.0         # Dynamic Cartesian tabletop depth offset
-      gravity_sag_trim_mm: 0.0     # Zero radial overshoot so gripper centers directly on cube
-      reach_scale_factor: 0.0      # Zero radial stretch beyond calibrated polar target r
-      nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world) down Column 3 midline
+      gravity_sag_trim_mm: 4.0     # Gentle radial droop compensation (mm)
+      reach_scale_factor: 0.02     # Proportional reach trim beyond r=150mm
+      nominal_heading_deg: -90.0   # 500 ticks points directly South (-90° world) down Column 3 midline (adjust ±1-3° if base plate is twisted)
 
     # Serial / USB Interface
     communication:
